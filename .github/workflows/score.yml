@@ -84,27 +84,54 @@ jobs:
             -e DB_SERVER=db -e DB_DATABASE=dvwa -e DB_USER=dvwa -e DB_PASSWORD='p@ssw0rd' \
             -e DEFAULT_SECURITY_LEVEL=low ctf-app:pr
 
-      - name: Wait for DVWA to become healthy
+      # Wait for DVWA AND initialise its DB in ONE container (no per-attempt container cost),
+      # with a per-request timeout so a slow/broken app fails fast instead of hanging the job
+      # for the full timeout. DVWA's setup.php needs a session cookie + anti-CSRF user_token to
+      # actually build the schema; a successful admin login (302 -> index) confirms the DB is
+      # ready. (The score image delegates to Node under `--entrypoint node`.)
+      - name: Wait for DVWA and initialise its database
         run: |
-          for i in $(seq 1 120); do
-            if docker run --rm --network ctfnet "$SCORER_IMAGE" \
-                 node -e "fetch('http://app/login.php').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then
-              echo "DVWA up after ${i}s"; break
-            fi; sleep 2
-          done
+          docker run --rm --entrypoint node --network ctfnet "$SCORER_IMAGE" -e '
+            const B = "http://app";
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            const get = (u, o = {}) => fetch(u, { signal: AbortSignal.timeout(8000), ...o });
+            const jar = new Map();
+            const add = (r) => { for (const h of r.headers.getSetCookie()) { const p = h.split(";")[0], i = p.indexOf("="); if (i > 0) jar.set(p.slice(0, i).trim(), p.slice(i + 1).trim()); } };
+            const ck = () => [...jar].map(([k, v]) => k + "=" + v).join("; ");
+            const tok = (h) => { const i = h.indexOf("user_token"); const m = i < 0 ? null : h.slice(i).match(/[a-f0-9]{32}/i); return m ? m[0] : ""; };
+            (async () => {
+              let up = false;
+              for (let i = 0; i < 45; i++) { try { if ((await get(B + "/login.php")).ok) { up = true; break; } } catch {} await sleep(2000); }
+              if (!up) { console.error("DVWA never served a healthy /login.php"); process.exit(2); }
+              for (let i = 0; i < 30; i++) {
+                jar.clear();
+                const g = await get(B + "/setup.php"); add(g);
+                const t = tok(await g.text());
+                await get(B + "/setup.php", { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded", cookie: ck() }, body: "create_db=Create+%2F+Reset+Database&user_token=" + t }).then(add).catch(() => {});
+                const lg = await get(B + "/login.php"); add(lg);
+                const lt = tok(await lg.text());
+                const lp = await get(B + "/login.php", { method: "POST", redirect: "manual", headers: { "content-type": "application/x-www-form-urlencoded", cookie: ck() }, body: "username=admin&password=password&Login=Login&user_token=" + lt });
+                if (lp.status === 302 && (lp.headers.get("location") || "").includes("index")) { console.log("DVWA ready (DB initialised) after " + i + " attempt(s)"); process.exit(0); }
+                await sleep(2000);
+              }
+              console.error("DVWA DB never initialised (admin login keeps failing)"); process.exit(3);
+            })();
+          '
 
-      - name: Initialise the DVWA database
+      - name: Dump app + db logs if DVWA never came up
+        if: failure()
         run: |
-          docker run --rm --network ctfnet "$SCORER_IMAGE" \
-            node -e "fetch('http://app/setup.php',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:'create_db=Create+%2F+Reset+Database'}).then(()=>process.exit(0)).catch(()=>process.exit(0))"
+          echo "::group::app logs"; docker logs app 2>&1 | tail -60 || true; echo "::endgroup::"
+          echo "::group::db logs";  docker logs db  2>&1 | tail -30 || true; echo "::endgroup::"
 
       - name: Score the patched DVWA app (embedded rubric)
         run: |
           mkdir -p "$PWD/score-out"
           rc=0
+          # ENTRYPOINT is the score binary, so pass ONLY its args (no leading `score`).
           docker run --rm --network ctfnet \
             -e GITHUB_WORKSPACE=/out -v "$PWD/score-out:/out" -w /out \
-            "$SCORER_IMAGE" score --target dvwa --url http://app || rc=$?
+            "$SCORER_IMAGE" --target dvwa --url http://app || rc=$?
           if [ "$rc" -ge 100 ]; then echo "::error::scorer failed (exit $rc)"; exit "$rc"; fi
           echo "Scorer finished: $rc challenge(s) still open."
 
