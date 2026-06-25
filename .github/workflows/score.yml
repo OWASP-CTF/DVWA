@@ -28,7 +28,7 @@ name: ctf-score
 
 on:
   pull_request_target:
-    branches: [master] # set to the DVWA fork's CTF branch
+    branches: [master]
     types: [opened, synchronize, reopened]
 
 concurrency:
@@ -51,7 +51,7 @@ jobs:
       packages: read
     steps:
       - name: Check out the PR head (untrusted — used only to docker build the app)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
@@ -150,7 +150,7 @@ jobs:
 
       - name: Upload the score table + JSON sidecar
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ctf-score
           path: |
@@ -181,7 +181,7 @@ jobs:
         run: docker pull "$SCORER_IMAGE"
 
       - name: Download the score artifact (table + JSON sidecar)
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         # Best-effort: if `score` crashed before uploading, don't turn this job red — the
         # scorer's --push exits 0 on a missing sidecar anyway.
         continue-on-error: true
@@ -252,16 +252,15 @@ jobs:
   # NEVER runs the PR's code.
   comment:
     needs: score
-    # Posts the full score table by default. NOTE: the table reveals which challenges are solved
-    # (solution hints). To stop posting it later, set the repository variable
-    # CTF_POST_COMMENT=false (Settings > Secrets and variables > Actions > Variables).
-    if: ${{ always() && vars.CTF_POST_COMMENT != 'false' }}
+    # Opt-in: the score table reveals which challenges are solved (solution hints), so it is
+    # OFF by default. Set repository variable CTF_POST_COMMENT=true to post it.
+    if: ${{ always() && vars.CTF_POST_COMMENT == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
       - name: Download the score table
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ctf-score
           path: score-out
