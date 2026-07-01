@@ -4,6 +4,9 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_REQUEST[ 'id' ];
 
+	// PATCH (CTF): only a numeric user_id is valid; string/UNION payloads are rejected.
+	if( !is_numeric( $id ) ) { $id = ''; }
+
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database

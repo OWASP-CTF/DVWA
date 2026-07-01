@@ -7,6 +7,9 @@ if( isset( $_POST[ 'btnSign' ] ) ) {
 
 	// Sanitize message input
 	$message = stripslashes( $message );
+	// PATCH (CTF): HTML-escape so scripts cannot persist/execute in the guestbook.
+	$message = htmlspecialchars( $message );
+	$name    = htmlspecialchars( $name );
 	$message = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $message ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 
 	// Sanitize name input
