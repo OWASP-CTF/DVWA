@@ -4,6 +4,14 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_REQUEST[ 'id' ];
 
+	// Coerce the id to an integer so string-based SQL injection (UNION, OR 1=1,
+	// comment sequences) cannot survive into the query.
+	if( !is_numeric( $id ) ) {
+		$html .= "<pre>ERROR: id must be numeric.</pre>";
+		return;
+	}
+	$id = intval( $id );
+
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
