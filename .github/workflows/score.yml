@@ -118,6 +118,18 @@ jobs:
             })();
           '
 
+      - name: DEBUG — inspect patched source inside the running container
+        run: |
+          for v in exec xss_r sqli; do
+            echo "::group::$v/source/low.php (in container)"
+            docker exec app cat "/var/www/html/vulnerabilities/$v/source/low.php" 2>&1 || echo "cat failed"
+            echo "::endgroup::"
+          done
+          echo "::group::container image id + git marker"
+          docker inspect app --format '{{.Image}}' 2>&1 || true
+          docker exec app grep -rl "PATCH (CTF)" /var/www/html/vulnerabilities 2>&1 | head || echo "no PATCH markers found in container"
+          echo "::endgroup::"
+
       - name: Dump app + db logs if DVWA never came up
         if: failure()
         run: |
