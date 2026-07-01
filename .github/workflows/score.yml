@@ -130,6 +130,32 @@ jobs:
           docker exec app grep -rl "PATCH (CTF)" /var/www/html/vulnerabilities 2>&1 | head || echo "no PATCH markers found in container"
           echo "::endgroup::"
 
+      - name: DEBUG — runtime probe of xss_r (login + set low + hit payload)
+        run: |
+          docker run --rm --entrypoint node --network ctfnet "$SCORER_IMAGE" -e '
+            const B = "http://app";
+            const g = (u,o={}) => fetch(u,{redirect:"manual",...o});
+            const jar = new Map();
+            const add = (r) => { for (const h of r.headers.getSetCookie()) { const p=h.split(";")[0],i=p.indexOf("="); if(i>0) jar.set(p.slice(0,i).trim(),p.slice(i+1).trim()); } };
+            const ck = () => [...jar].map(([k,v])=>k+"="+v).join("; ");
+            const tok = (h)=>{const i=h.indexOf("user_token");const m=i<0?null:h.slice(i).match(/[a-f0-9]{32}/i);return m?m[0]:"";};
+            (async()=>{
+              let r=await g(B+"/login.php"); add(r); let t=tok(await r.text());
+              r=await g(B+"/login.php",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded",cookie:ck()},body:"username=admin&password=password&Login=Login&user_token="+t}); add(r);
+              r=await g(B+"/security.php"); add(r); t=tok(await r.text());
+              r=await g(B+"/security.php",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded",cookie:ck()},body:"security=low&seclev_submit=Submit&user_token="+t}); add(r);
+              console.log("cookies:", ck());
+              const payload="<script>alert(1)</script>";
+              r=await g(B+"/vulnerabilities/xss_r/?name="+encodeURIComponent(payload),{headers:{cookie:ck()}});
+              const body=await r.text();
+              console.log("status:", r.status, "location:", r.headers.get("location")||"-");
+              console.log("RAW payload present:", body.includes(payload));
+              console.log("ESCAPED present:", body.includes("&lt;script&gt;"));
+              const i=body.indexOf("Hello"); console.log("around Hello:", i<0?"(no Hello)":JSON.stringify(body.slice(i-10,i+80)));
+              const j=body.toLowerCase().indexOf("security level"); console.log("sec indicator:", j<0?"?":JSON.stringify(body.slice(j,j+60)));
+            })().catch(e=>{console.error("probe error:",e.message);process.exit(0);});
+          '
+
       - name: Dump app + db logs if DVWA never came up
         if: failure()
         run: |
