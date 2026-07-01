@@ -27,7 +27,7 @@
 name: ctf-score
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [master]
     types: [opened, synchronize, reopened]
 
@@ -39,7 +39,7 @@ concurrency:
 permissions: {}
 
 env:
-  SCORER_IMAGE: ghcr.io/owasp-ctf/score:pr-57
+  SCORER_IMAGE: ghcr.io/owasp-ctf/score:latest
 
 jobs:
   # Builds + runs the UNTRUSTED PR app sandboxed, then scores it. No write scopes.
@@ -197,7 +197,7 @@ jobs:
         env:
           CTF_UPSTASH_REDIS_REST_URL: ${{ secrets.CTF_UPSTASH_REDIS_REST_URL }}
           CTF_UPSTASH_REDIS_REST_TOKEN: ${{ secrets.CTF_UPSTASH_REDIS_REST_TOKEN }}
-          CTF_AUTHOR: ${{ github.event.pull_request.user.login }}
+          CTF_TEAM: ${{ github.event.pull_request.user.login }}
           CTF_PR: ${{ github.event.pull_request.number }}
           CTF_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
@@ -208,7 +208,7 @@ jobs:
           out=$(docker run --rm \
             -e GITHUB_WORKSPACE=/out -v "$PWD/score-out:/out" -w /out \
             -e CTF_UPSTASH_REDIS_REST_URL -e CTF_UPSTASH_REDIS_REST_TOKEN \
-            -e CTF_AUTHOR -e CTF_PR -e CTF_SHA \
+            -e CTF_TEAM -e CTF_PR -e CTF_SHA \
             "$SCORER_IMAGE" score --push)
           echo "$out"
           # ACK gate: the scorer prints "leaderboard updated for <team>" only on a successful
