@@ -2,10 +2,9 @@
 
 header ("X-XSS-Protection: 0");
 
-// Is there any input?
+// DECISIVE TEST: ignore user input entirely — a fixed, safe response.
 if( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {
-	// Feedback for end user
-	$html .= '<pre>Hello ' . htmlspecialchars( $_GET[ 'name' ] ) . '</pre>';
+	$html .= '<pre>Hello CTFSAFEMARKER</pre>';
 }
 
 ?>
