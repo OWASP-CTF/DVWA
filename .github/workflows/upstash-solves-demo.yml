@@ -1,0 +1,73 @@
+name: upstash-solves-demo
+
+# One-shot demo: push a SYNTHETIC multi-flag sidecar (hand-crafted solved[]) for a
+# test author across two apps, then read back the raw Upstash state (HGETALL + ZRANGE)
+# so we can see exactly what a couple of solves look like. Not a real score run.
+on:
+  workflow_dispatch:
+    inputs:
+      author:
+        description: "Leaderboard author key"
+        default: "demo-solver"
+
+permissions:
+  packages: read
+
+env:
+  SCORER_IMAGE: ghcr.io/owasp-ctf/score:pr-57
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: docker pull "$SCORER_IMAGE"
+
+      - name: Push synthetic solves (dvwa: 3 flags, vampi: 2 flags)
+        env:
+          CTF_UPSTASH_REDIS_REST_URL: ${{ secrets.CTF_UPSTASH_REDIS_REST_URL }}
+          CTF_UPSTASH_REDIS_REST_TOKEN: ${{ secrets.CTF_UPSTASH_REDIS_REST_TOKEN }}
+          CTF_AUTHOR: ${{ inputs.author }}
+          CTF_PR: "101"
+          CTF_SHA: "deadbeefcafe0001"
+        run: |
+          mkdir -p out
+          push() {
+            echo "$1" > out/ctf-score.json
+            echo "::group::push $2"
+            docker run --rm -e GITHUB_WORKSPACE=/out -v "$PWD/out:/out" -w /out \
+              -e CTF_UPSTASH_REDIS_REST_URL -e CTF_UPSTASH_REDIS_REST_TOKEN \
+              -e CTF_AUTHOR -e CTF_PR -e CTF_SHA \
+              "$SCORER_IMAGE" score --push
+            echo "::endgroup::"
+          }
+          push '{"target":"dvwa","solved":["exec-low","sqli-low","xss_r-low"]}' "dvwa"
+          push '{"target":"vampi","solved":["Challenge-1-ExcessiveDataExposure","Challenge-3-SQLi"]}' "vampi"
+
+      - name: Inspect raw Upstash state
+        env:
+          CTF_UPSTASH_REDIS_REST_URL: ${{ secrets.CTF_UPSTASH_REDIS_REST_URL }}
+          CTF_UPSTASH_REDIS_REST_TOKEN: ${{ secrets.CTF_UPSTASH_REDIS_REST_TOKEN }}
+          CTF_AUTHOR: ${{ inputs.author }}
+        run: |
+          docker run --rm --entrypoint node \
+            -e CTF_UPSTASH_REDIS_REST_URL -e CTF_UPSTASH_REDIS_REST_TOKEN -e CTF_AUTHOR \
+            "$SCORER_IMAGE" -e '
+              const url=process.env.CTF_UPSTASH_REDIS_REST_URL.replace(/\/$/,"")+"/pipeline";
+              const tok=process.env.CTF_UPSTASH_REDIS_REST_TOKEN, a=process.env.CTF_AUTHOR;
+              const cmds=[["HGETALL","solve:"+a+":dvwa"],["HGETALL","solve:"+a+":vampi"],["ZSCORE","leaderboard",a],["ZRANGE","leaderboard","0","-1","REV","WITHSCORES"]];
+              fetch(url,{method:"POST",headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify(cmds)})
+                .then(r=>r.json()).then(d=>{
+                  const R=d.map(x=>x.result);
+                  console.log("=== solve:"+a+":dvwa (HGETALL) ===");  console.log(JSON.stringify(R[0],null,1));
+                  console.log("=== solve:"+a+":vampi (HGETALL) ==="); console.log(JSON.stringify(R[1],null,1));
+                  console.log("=== leaderboard ZSCORE "+a+" ==="); console.log(R[2]);
+                  console.log("=== leaderboard ZRANGE REV WITHSCORES ==="); console.log(JSON.stringify(R[3]));
+                }).catch(e=>{console.error("inspect error:",e.message);process.exit(1);});
+            '
