@@ -26,12 +26,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 name: ctf-score
 
-# TEMP (pr-57 image check): switched from pull_request_target to pull_request so the
-# PR's own workflow file + this SCORER_IMAGE override actually run, and secrets are
-# available to the publish job for a same-repo test PR. Revert to pull_request_target
-# before re-enabling the untrusted-contestant flow.
 on:
-  pull_request:
+  pull_request_target:
     branches: [master]
     types: [opened, synchronize, reopened]
 
@@ -43,7 +39,7 @@ concurrency:
 permissions: {}
 
 env:
-  SCORER_IMAGE: ghcr.io/owasp-ctf/score:pr-57
+  SCORER_IMAGE: ghcr.io/owasp-ctf/score:latest
 
 jobs:
   # Builds + runs the UNTRUSTED PR app sandboxed, then scores it. No write scopes.
