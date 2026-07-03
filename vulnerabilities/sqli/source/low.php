@@ -3,6 +3,8 @@
 if( isset( $_REQUEST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_REQUEST[ 'id' ];
+	// Patched (sqli-low): force a numeric id so UNION/OR injection can't alter the query.
+	$id = (int)$id;
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
