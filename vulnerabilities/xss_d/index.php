@@ -32,7 +32,7 @@ switch( dvwaSecurityLevelGet() ) {
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
 # For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
+$decodeURI = ""; // patched: never decode the DOM XSS sink
 if ($vulnerabilityFile == 'impossible.php') {
 	$decodeURI = "";
 }

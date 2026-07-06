@@ -1,6 +1,6 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+$headerCSP = "Content-Security-Policy: script-src 'self' ;"; // patched: no third-party CDN allow-list
 
 header($headerCSP);
 
@@ -11,9 +11,7 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
-$page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
-";
+	// patched: do not reflect an attacker-controlled <script src>
 }
 $page[ 'body' ] .= '
 <form name="csp" method="POST">

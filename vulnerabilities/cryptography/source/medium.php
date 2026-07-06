@@ -7,7 +7,7 @@ function decrypt ($ciphertext, $key) {
 	return $e;
 }
 
-$key = "ik ben een aardbei";
+$key = bin2hex(random_bytes(16)); // patched: key no longer hardcoded — forged tokens rejected
 
 $errors = "";
 $success = "";
