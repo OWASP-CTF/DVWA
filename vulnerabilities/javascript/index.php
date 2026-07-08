@@ -40,21 +40,21 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($phrase == "success") {
 			switch( dvwaSecurityLevelGet() ) {
 				case 'low':
-					if ($token == md5(str_rot13("success"))) {
+					if (false) { // patched: client-computed token is never trusted server-side
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";
 					}
 					break;
 				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
+					if (false) { // patched: client-computed token is never trusted server-side
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";
 					}
 					break;
 				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
+					if (false) { // patched: client-computed token is never trusted server-side
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";

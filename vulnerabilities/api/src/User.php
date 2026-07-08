@@ -38,11 +38,11 @@ final class User
 	public function toArray($version) {
 		switch ($version) {
 			case 1:
+				// patched: retire v1 sensitive fields — never expose password hashes
 				$a = array (
 					"id" => $this->id,
 					"name" => $this->name,
 					"level" => $this->level,
-					"password" => $this->password,
 				);
 				break;
 			default:

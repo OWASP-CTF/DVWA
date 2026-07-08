@@ -3,6 +3,7 @@
 if( isset( $_POST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_POST[ 'id' ];
+	$id = (int)$id; // patched
 
 	$id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);
 
