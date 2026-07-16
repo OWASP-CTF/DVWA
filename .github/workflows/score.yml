@@ -1,0 +1,51 @@
+# Consumer workflow for the OWASP-CTF/DVWA CTF fork.
+#
+# Everything is delegated to OWASP-CTF/score-action: it builds + boots the PR's app
+# (pre-score.sh, keyed by `target`), scores it against the embedded rubric, and records
+# the result on the leaderboard. This fork only checks out the PR head (so the action can
+# `docker build` it) and mints the OIDC id-token the leaderboard authorizes.
+#
+# SECURITY — pull_request_target runs with the base repo's token while the PR is untrusted.
+# The PR's code is only ever `docker build`/`docker run` into containers on an --internal
+# network by the action; it never executes on the runner host, so it can't read the OIDC
+# id-token or GITHUB_TOKEN. Do NOT add a step that runs PR-controlled code directly here.
+name: score
+
+on:
+  pull_request_target:
+    branches: [master]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: score-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read # checkout the PR head for the action to docker-build
+      packages: read # runner pulls the org-internal scorer image
+      id-token: write # mint the OIDC id-token POST /score authorizes
+      pull-requests: write # the result comment
+    steps:
+      - name: Check out the PR head (untrusted — only docker-built by the action, never run on the host)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Mint the OIDC id-token for the leaderboard
+        id: identity
+        uses: cnuss/actions-identity@b9bc5d6472e00dfca0490bdf539eb4d4b729807d # v1.1.0
+        with:
+          id-token-audience: ctf-score
+
+      - name: Score + record
+        uses: OWASP-CTF/score-action@main
+        with:
+          target: dvwa
+          app-url: http://app
+          id-token: ${{ steps.identity.outputs.id-token }}
