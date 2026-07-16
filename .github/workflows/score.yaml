@@ -7,7 +7,7 @@
 #     pulls it anonymously). This is the main reason to A/B this shape.
 #   - the same baked entrypoint.sh runs directly as a `run:` step (no action wrapper).
 #
-# The scorer image ships node + docker CLI but not git, so git is installed before checkout.
+# The scorer image ships node + docker CLI + git, so actions/checkout works in-container.
 # The host docker socket is mounted so entrypoint.sh can build/boot the PR app as siblings.
 #
 # See: https://docs.github.com/actions/reference/workflows-and-actions/workflow-syntax#example-running-a-job-within-a-container
@@ -45,9 +45,6 @@ jobs:
       APP_URL: http://app
       SCORE_API: ${{ vars.SCORE_API_URL }} # OWASP-CTF org variable (temp CloudFront domain until DNS lands)
     steps:
-      - name: Install git (the scorer image ships node + docker CLI, not git)
-        run: apt-get update && apt-get install -y --no-install-recommends git
-
       - name: Check out the PR head (untrusted — only docker-built by entrypoint.sh, never run on the host)
         uses: actions/checkout@v5
         with:
