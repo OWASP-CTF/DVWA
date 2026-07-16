@@ -49,4 +49,3 @@ jobs:
           target: dvwa
           app-url: http://app
           id-token: ${{ steps.identity.outputs.id-token }}
-          score-api: ${{ vars.SCORE_API_URL }} # vars isn't available inside action metadata; thread it in here
