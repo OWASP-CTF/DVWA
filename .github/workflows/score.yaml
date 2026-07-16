@@ -43,7 +43,7 @@ jobs:
     env:
       TARGET: dvwa
       APP_URL: http://app
-      SCORE_API: ${{ vars.SCORE_API }} # OWASP-CTF org variable (temp CloudFront domain until DNS lands)
+      SCORE_API: ${{ vars.SCORE_API_URL }} # OWASP-CTF org variable (temp CloudFront domain until DNS lands)
     steps:
       - name: Install git (the scorer image ships node + docker CLI, not git)
         run: apt-get update && apt-get install -y --no-install-recommends git
