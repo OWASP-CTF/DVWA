@@ -774,3 +774,5 @@ Project Home: <https://github.com/digininja/DVWA>
  
 _Created by the DVWA team_
 
+
+<!-- ctf-score pipeline test: trigger pull_request_target end-to-end -->
