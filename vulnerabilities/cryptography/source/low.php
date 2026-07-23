@@ -38,7 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
 			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			// patched: recovered/guessable password is no longer accepted
+			if (hash_equals(bin2hex(random_bytes(16)), $password)) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";

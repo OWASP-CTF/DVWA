@@ -8,7 +8,7 @@ dvwaDatabaseConnect();
 On impossible only the admin is allowed to retrieve the data.
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+if (dvwaCurrentUser() != "admin") { // patched: function-level authz on every level
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }

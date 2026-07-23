@@ -2,7 +2,7 @@
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
 	// Get input
-	$id = $_POST[ 'id' ];
+	$id = is_numeric($_POST['id']) ? (int)$_POST['id'] : -1; // patched
 	$exists = false;
 
 	switch ($_DVWA['SQLI_DB']) {

@@ -1,6 +1,6 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' 'unsafe-inline' 'nonce-TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=';";
+$headerCSP = "Content-Security-Policy: script-src 'self';"; // patched: no unsafe-inline / static nonce
 
 header($headerCSP);
 

@@ -2,7 +2,7 @@
 
 if( isset( $_COOKIE[ 'id' ] ) ) {
 	// Get input
-	$id = $_COOKIE[ 'id' ];
+	$id = is_numeric($_COOKIE['id']) ? (int)$_COOKIE['id'] : -1; // patched
 	$exists = false;
 
 	switch ($_DVWA['SQLI_DB']) {
@@ -53,7 +53,7 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 		}
 
 		// User wasn't found, so the page wasn't!
-		header( $_SERVER[ 'SERVER_PROTOCOL' ] . ' 404 Not Found' );
+		// patched: no existence/status oracle for blind SQLi
 
 		// Feedback for end user
 		$html .= '<pre>User ID is MISSING from the database.</pre>';
