@@ -1,6 +1,6 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+$headerCSP = "Content-Security-Policy: script-src 'self';"; // only allow js served from this origin
 
 header($headerCSP);
 
