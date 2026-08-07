@@ -36,11 +36,11 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         if (!$user_exists) {
             $html .= "<p>No user found with ID: {$id}</p>";
         } else {
-            // "Secure" session-based check (but vulnerable to session fixation)
-            if (isset($_SESSION['user_id'])) {
-                $session_id = intval($_SESSION['user_id']);
-
-                if ($id == $session_id) {
+            // Access control check against the identity derived from the
+            // authenticated session principal on every request. A stale
+            // $_SESSION['user_id'] left over from a previous login is not trusted.
+            if ($current_user_id > 0) {
+                if ($current_user_id === $id) {
                     // Access granted - using prepared statement
                     $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = ?";
                     $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
@@ -103,8 +103,7 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
     }
 }
 
-// Set initial session if not exists
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = $current_user_id;
-}
+// Re-pin the session identity to the currently authenticated user on every
+// request, so a stale value cannot survive a logout and a login as someone else.
+$_SESSION['user_id'] = $current_user_id;
 ?>

@@ -62,14 +62,22 @@ if ($log_result && mysqli_num_rows($log_result) > 0) {
     $html .= "<tr><th>ID</th><th>Accessor</th><th>Target</th><th>IP Address</th><th>Timestamp</th></tr>";
 
     while ($log = mysqli_fetch_assoc($log_result)) {
-        $target_user = $log['target_user'] ? $log['target_user'] : 'Non-existent User (ID: ' . $log['target_id'] . ')';
+        // Every column is rendered encoded: ip_address is populated from the
+        // attacker-controlled X-Forwarded-For header and is a stored XSS sink.
+        $enc = function ($v) {
+            return htmlspecialchars(strval($v), ENT_QUOTES, 'UTF-8');
+        };
+
+        $target_user = $log['target_user']
+            ? $enc($log['target_user'])
+            : 'Non-existent User (ID: ' . $enc($log['target_id']) . ')';
 
         $html .= "<tr>";
-        $html .= "<td>{$log['id']}</td>";
-        $html .= "<td>{$log['accessor_user']} (ID: {$log['user_id']})</td>";
+        $html .= "<td>" . $enc($log['id']) . "</td>";
+        $html .= "<td>" . $enc($log['accessor_user']) . " (ID: " . $enc($log['user_id']) . ")</td>";
         $html .= "<td>{$target_user}</td>";
-        $html .= "<td>{$log['ip_address']}</td>";
-        $html .= "<td>{$log['timestamp']}</td>";
+        $html .= "<td>" . $enc($log['ip_address']) . "</td>";
+        $html .= "<td>" . $enc($log['timestamp']) . "</td>";
         $html .= "</tr>";
     }
 
