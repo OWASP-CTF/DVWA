@@ -5,22 +5,19 @@ if( isset( $_POST[ 'Change' ] ) ) {
 	$hide_form = true;
 
 	// Get input
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
+	$pass_new  = isset( $_POST[ 'password_new' ] )  ? $_POST[ 'password_new' ]  : '';
+	$pass_conf = isset( $_POST[ 'password_conf' ] ) ? $_POST[ 'password_conf' ] : '';
 
 	// Check CAPTCHA from 3rd party
 	$resp = recaptcha_check_answer(
 		$_DVWA[ 'recaptcha_private_key' ],
-		$_POST['g-recaptcha-response']
+		isset( $_POST['g-recaptcha-response'] ) ? $_POST['g-recaptcha-response'] : ''
 	);
 
-	if (
-		$resp || 
-		(
-			$_POST[ 'g-recaptcha-response' ] == 'hidd3n_valu3'
-			&& $_SERVER[ 'HTTP_USER_AGENT' ] == 'reCAPTCHA'
-		)
-	){
+	// The only way past the CAPTCHA is a genuine verification from the 3rd
+	// party. The old development bypass (a magic response value plus a spoofed
+	// User-Agent) has been removed.
+	if ( $resp ) {
 		// CAPTCHA was correct. Do both new passwords match?
 		if ($pass_new == $pass_conf) {
 			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
