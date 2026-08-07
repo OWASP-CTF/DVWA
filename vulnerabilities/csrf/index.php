@@ -67,7 +67,9 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
+// Every security level now uses the Anti-CSRF token, so the hidden token field
+// has to be rendered for all of them (each source file calls generateSessionToken()).
+if( $vulnerabilityFile == 'low.php' || $vulnerabilityFile == 'medium.php' || $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
 	$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
