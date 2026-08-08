@@ -5,33 +5,35 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 	$id = $_POST[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			// Check database, using a prepared statement so the input can never
-			// be parsed as SQL.
-			try {
-				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
-				$data->bindValue( ':id', (int)$id, PDO::PARAM_INT );
+	// Only ever look up a whole number, so nothing else can reach the query.
+	if( is_numeric( $id ) ) {
+		$id = intval( $id );
+
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				// Check database, using a prepared statement so the input can
+				// never be parsed as SQL.
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
+				$data->bindParam( ':id', $id, PDO::PARAM_INT );
 				$data->execute();
-				$exists = ( $data->fetch() !== false );
-			} catch (Exception $e) {
-				$exists = false;
-			}
 
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
+				$exists = ( $data->rowCount() == 1 );
 
-			try {
-				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
-				$stmt->bindValue( ':id', (int)$id, SQLITE3_INTEGER );
-				$results = $stmt->execute();
-				$row = $results->fetchArray();
-				$exists = $row !== false;
-			} catch(Exception $e) {
-				$exists = false;
-			}
-			break;
+				((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				$stmt = $sqlite_db_connection->prepare( 'SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = :id LIMIT 1;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$result = $stmt->execute();
+				if( $result !== false ) {
+					$row = $result->fetchArray();
+					$exists = ( $row[ 'numrows' ] == 1 );
+				}
+
+				break;
+		}
 	}
 
 	if ($exists) {

@@ -42,26 +42,21 @@ $page[ 'body' ] = <<<EOF
 	<h1>Vulnerability: DOM Based Cross Site Scripting (XSS)</h1>
 
 	<div class="vulnerable_code_area">
-
+ 
  		<p>Please choose a language:</p>
 
 		<form name="XSS" method="GET">
-			<select name="default" id="xss_d_language"></select>
-			<script>
-				(function () {
-					var select = document.getElementById("xss_d_language");
-
-					// Build the options through the DOM rather than by writing a
-					// string of HTML, so nothing taken from the URL is ever parsed
-					// as markup.
-					function addOption(value, label, disabled) {
-						var option = document.createElement("option");
-						option.value = value;
-						option.textContent = label;
-						if (disabled) {
-							option.disabled = true;
-						}
-						select.appendChild(option);
+			<select name="default">
+				<script>
+					// Encode anything taken from the URL for the HTML context it is
+					// written into, so it can never be parsed as markup.
+					function xssdEscape(value) {
+						return String(value)
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#39;");
 					}
 
 					if (document.location.href.indexOf("default=") >= 0) {
@@ -72,16 +67,16 @@ $page[ 'body' ] = <<<EOF
 						} catch (e) {
 							label = lang;
 						}
-						addOption(lang, label, false);
-						addOption("", "----", true);
+						document.write("<option value='" + xssdEscape(lang) + "'>" + xssdEscape(label) + "</option>");
+						document.write("<option value='' disabled='disabled'>----</option>");
 					}
-
-					addOption("English", "English", false);
-					addOption("French", "French", false);
-					addOption("Spanish", "Spanish", false);
-					addOption("German", "German", false);
-				})();
-			</script>
+					    
+					document.write("<option value='English'>English</option>");
+					document.write("<option value='French'>French</option>");
+					document.write("<option value='Spanish'>Spanish</option>");
+					document.write("<option value='German'>German</option>");
+				</script>
+			</select>
 			<input type="submit" value="Select" />
 		</form>
 	</div>

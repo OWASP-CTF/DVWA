@@ -7,14 +7,10 @@ if( isset( $_POST[ 'btnSign' ] ) ) {
 
 	// Sanitize message input
 	$message = stripslashes( $message );
-	$message = htmlspecialchars( $message, ENT_QUOTES, 'UTF-8' );
 
-	// Sanitize name input
-	$name = stripslashes( $name );
-	$name = htmlspecialchars( $name, ENT_QUOTES, 'UTF-8' );
-
-	// Update database, using a prepared statement so the input can never be
-	// parsed as SQL.
+	// Store the comment exactly as it was written. It is encoded by
+	// dvwaGuestbook() for the HTML context it is rendered into, which is the
+	// only place the browser could ever parse it as markup.
 	$data = $db->prepare( 'INSERT INTO guestbook ( comment, name ) VALUES ( :message, :name );' );
 	$data->bindParam( ':message', $message, PDO::PARAM_STR );
 	$data->bindParam( ':name', $name, PDO::PARAM_STR );
