@@ -1,15 +1,15 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
+if( isset( $_POST[ 'Login' ] ) ) {
 	// A single-use token has to be fetched from the form before each attempt,
 	// which is what stops an automated guesser replaying the login endpoint.
 	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
 	// Get username
-	$user = isset( $_GET[ 'username' ] ) ? stripslashes( $_GET[ 'username' ] ) : '';
+	$user = isset( $_POST[ 'username' ] ) ? stripslashes( $_POST[ 'username' ] ) : '';
 
 	// Get password
-	$pass = isset( $_GET[ 'password' ] ) ? stripslashes( $_GET[ 'password' ] ) : '';
+	$pass = isset( $_POST[ 'password' ] ) ? stripslashes( $_POST[ 'password' ] ) : '';
 	$pass = md5( $pass );
 
 	// Unlimited guessing is the whole attack, so an account is taken out of

@@ -12,7 +12,11 @@ $page[ 'help_button' ]   = 'brute';
 $page[ 'source_button' ] = 'brute';
 dvwaDatabaseConnect();
 
-$method            = 'GET';
+// Credentials never belong in a URL: a GET login puts the password in the
+// address bar, the browser history, the referrer and every proxy log, and
+// makes the endpoint trivial to drive from a list of links. Every level now
+// posts, as the impossible level always did.
+$method            = 'POST';
 $vulnerabilityFile = '';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
