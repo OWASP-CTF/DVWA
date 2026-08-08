@@ -436,12 +436,33 @@ function dvwaLocaleSet( $pLocale ) {
 
 // Start message functions --
 
+/*
+ * Queue a message for the next page render.
+ *
+ * The text is treated as text: messagesPopAllToHtml() encodes it. A caller that
+ * genuinely needs markup asks for it explicitly with dvwaMessagePushHtml(),
+ * rather than the sink trusting every caller to have remembered to encode.
+ */
 function dvwaMessagePush( $pMessage ) {
+	dvwaMessageQueue( $pMessage, false );
+}
+
+/*
+ * Queue a message that already contains trusted markup.
+ *
+ * Everything passed here is emitted verbatim, so any untrusted value folded
+ * into it has to be encoded by the caller first.
+ */
+function dvwaMessagePushHtml( $pMessage ) {
+	dvwaMessageQueue( $pMessage, true );
+}
+
+function dvwaMessageQueue( $pMessage, $pIsHtml ) {
 	$dvwaSession =& dvwaSessionGrab();
 	if( !isset( $dvwaSession[ 'messages' ] ) ) {
 		$dvwaSession[ 'messages' ] = array();
 	}
-	$dvwaSession[ 'messages' ][] = $pMessage;
+	$dvwaSession[ 'messages' ][] = array( 'html' => (bool) $pIsHtml, 'body' => $pMessage );
 }
 
 
@@ -457,10 +478,18 @@ function dvwaMessagePop() {
 function messagesPopAllToHtml() {
 	$messagesHtml = '';
 	while( $message = dvwaMessagePop() ) {
-		// Messages are deliberately allowed to carry markup, so they are not
-		// encoded here. Any caller that folds user supplied data into a message
-		// encodes it first: see the login banner in login.php.
-		$messagesHtml .= "<div class=\"message\">{$message}</div>";
+		// Encode by default. Only a message queued through
+		// dvwaMessagePushHtml() is emitted as markup. A bare string is a
+		// message left over from an older session, so encode that too.
+		if( is_array( $message ) && !empty( $message[ 'html' ] ) ) {
+			$body = $message[ 'body' ];
+		}
+		else {
+			$raw  = is_array( $message ) ? $message[ 'body' ] : $message;
+			$body = htmlspecialchars( $raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
+		}
+
+		$messagesHtml .= "<div class=\"message\">{$body}</div>";
 	}
 
 	return $messagesHtml;

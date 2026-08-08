@@ -26,7 +26,7 @@ if( isset( $_POST[ 'Login' ] ) ) {
 				LIMIT 1");
 	$result = @mysqli_query($GLOBALS["___mysqli_ston"],  $query );
 	if( !$result || mysqli_num_rows( $result ) != 1 ) {
-		dvwaMessagePush( "First time using DVWA.<br />Need to run 'setup.php'." );
+		dvwaMessagePushHtml( "First time using DVWA.<br />Need to run 'setup.php'." );
 		dvwaRedirect( DVWA_WEB_PAGE_TO_ROOT . 'setup.php' );
 	}
 
@@ -55,7 +55,8 @@ if( isset( $_POST[ 'Login' ] ) ) {
 		// user=Unknown and repeated the key.
 		dvwaLogin( $row[ 'user' ] );
 		dvwaSecurityLog( 'login.success' );
-		dvwaMessagePush( "You have logged in as '" . htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' ) . "'" );
+		// Plain text: messagesPopAllToHtml() encodes it.
+		dvwaMessagePush( "You have logged in as '{$user}'" );
 		dvwaRedirect( DVWA_WEB_PAGE_TO_ROOT . 'index.php' );
 	}
 
