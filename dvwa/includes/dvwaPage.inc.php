@@ -43,18 +43,11 @@ if( !isset( $_COOKIE[ 'security' ] ) || !in_array( $_COOKIE[ 'security' ], $secu
  * flags and the new id (or the same one if we wish to keep it).
 */
 function dvwa_start_session() {
-	// This will setup the session cookie based on
-	// the security level.
-
-	$security_level = dvwaSecurityLevelGet();
-	if ($security_level == 'impossible') {
-		$httponly = true;
-		$samesite = "Strict";
-	}
-	else {
-		$httponly = false;
-		$samesite = "";
-	}
+	// Harden the session cookie at every security level. Leaving HttpOnly off
+	// (or SameSite empty) at low/medium/high lets XSS steal the session and
+	// lets cross-site navigations ride an authenticated session.
+	$httponly = true;
+	$samesite = "Strict";
 
 	$maxlifetime = 86400;
 	$secure = false;
@@ -632,13 +625,11 @@ function dvwaGuestbook() {
 
 // Token functions --
 function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the given (CSRF) token
-	global $_DVWA;
-
-	if (array_key_exists("disable_authentication", $_DVWA) && $_DVWA['disable_authentication']) {
-		return true;
-	}
-
-	if( $user_token !== $session_token || !isset( $session_token ) ) {
+	// Compare with hash_equals() so the check does not leak the expected token
+	// through timing differences. disable_authentication must not silently
+	// disable CSRF protection.
+	if( !isset( $session_token ) || !is_string( $session_token ) || $session_token === ''
+		|| !is_string( $user_token ) || !hash_equals( $session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -648,7 +639,9 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = md5( uniqid() );
+	// uniqid() is time-based and predictable — use a CSPRNG instead.
+	// 16 bytes keeps the same 32-hex shape md5() produced.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
