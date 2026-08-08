@@ -67,8 +67,11 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
-	$page[ 'body' ] .= "			" . tokenField();
+// Anti-CSRF token: rendered at every security level so low/medium/high are
+// actually protected by the checkToken() calls in their source files, and
+// regenerated on each page load (see generateSessionToken() calls in
+// source/low.php, medium.php, high.php, impossible.php).
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>

@@ -1,19 +1,43 @@
 <?php
 
-function xor_this($cleartext, $key) {
-    // Our output text
-    $outText = '';
+require_once __DIR__ . '/crypto_key.php';
 
-    // Iterate through each character
-    for($i=0; $i<strlen($cleartext);) {
-        for($j=0; ($j<strlen($key) && $i<strlen($cleartext)); $j++,$i++) {
-            $outText .= $cleartext[$i] ^ $key[$j];
-        }
-    }
-    return $outText;
+define ('CRYPTOGRAPHY_LOW_ALGO', 'aes-256-gcm');
+define ('CRYPTOGRAPHY_LOW_NONCE_LEN', 12);
+define ('CRYPTOGRAPHY_LOW_TAG_LEN', 16);
+
+// Real authenticated encryption with a per-install random key and a
+// fresh nonce on every call, replacing the old repeating-key XOR
+// "encoding" which let anyone recover the static key from a single
+// chosen-plaintext round trip and then decrypt any other message
+// protected under that same key.
+function low_encode ($plaintext) {
+	$key = dvwa_crypto_get_key ('low', 32);
+	$nonce = random_bytes (CRYPTOGRAPHY_LOW_NONCE_LEN);
+	$tag = '';
+	$ciphertext = openssl_encrypt ($plaintext, CRYPTOGRAPHY_LOW_ALGO, $key, OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($ciphertext === false) {
+		throw new Exception ("Encoding failed");
+	}
+	return base64_encode ($nonce . $tag . $ciphertext);
 }
 
-$key = "wachtwoord";
+function low_decode ($encoded) {
+	$key = dvwa_crypto_get_key ('low', 32);
+	$raw = base64_decode ((string) $encoded, true);
+	$minLen = CRYPTOGRAPHY_LOW_NONCE_LEN + CRYPTOGRAPHY_LOW_TAG_LEN;
+	if ($raw === false || strlen ($raw) < $minLen) {
+		throw new Exception ("Message is in the wrong format");
+	}
+	$nonce = substr ($raw, 0, CRYPTOGRAPHY_LOW_NONCE_LEN);
+	$tag = substr ($raw, CRYPTOGRAPHY_LOW_NONCE_LEN, CRYPTOGRAPHY_LOW_TAG_LEN);
+	$ciphertext = substr ($raw, $minLen);
+	$plaintext = openssl_decrypt ($ciphertext, CRYPTOGRAPHY_LOW_ALGO, $key, OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($plaintext === false) {
+		throw new Exception ("Could not decode message");
+	}
+	return $plaintext;
+}
 
 $errors = "";
 $success = "";
@@ -28,16 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = low_decode ($message);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = low_encode ($message);
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
 			if ($password == "Olifant") {
 				$success = "Welcome back user";
 			} else {
@@ -47,6 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	} catch(Exception $e) {
 		$errors = $e->getMessage();
 	}
+}
+
+try {
+	$intercepted = htmlentities (low_encode ("Your new password is: Olifant"));
+} catch (Exception $e) {
+	$intercepted = "";
 }
 
 $html = "
@@ -59,7 +88,7 @@ $html = "
 				<textarea style='width: 600px; height: 56px' id='message' name='message'>" . htmlentities ($message) . "</textarea>
 			</p>
 			<p>
-				<input type='radio' value='encode' name='direction' id='direction_encode' " . $encode_radio_selected . "><label for='direction_encode'>Encode</label> or 
+				<input type='radio' value='encode' name='direction' id='direction_encode' " . $encode_radio_selected . "><label for='direction_encode'>Encode</label> or
 				<input type='radio' value='decode' name='direction' id='direction_decode' " . $decode_radio_selected . "><label for='direction_decode'>Decode</label>
 			</p>
 			<p>
@@ -82,7 +111,7 @@ $html .= "
 		You have intercepted the following message, decode it and log in below.
 		</p>
 		<p>
-		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>Lg4WGlQZChhSFBYSEB8bBQtPGxdNQSwEHREOAQY=</textarea>
+		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>" . $intercepted . "</textarea>
 		</p>
 ";
 

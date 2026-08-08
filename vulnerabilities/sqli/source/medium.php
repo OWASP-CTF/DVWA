@@ -4,48 +4,55 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_POST[ 'id' ];
 
-	$id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);
+	// Was a number entered? (the dropdown only ever submits digits, but the
+	// handler must not trust that — validate server-side too)
+	if( is_numeric( $id ) ) {
+		$id = intval( $id );
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				// Parameterised query - the id is bound as data, never concatenated into SQL text
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
+				$data->bindParam( ':id', $id, PDO::PARAM_INT );
+				$data->execute();
+				$row = $data->fetch();
 
-			// Get results
-			while( $row = mysqli_fetch_assoc( $result ) ) {
-				// Display values
-				$first = $row["first_name"];
-				$last  = $row["last_name"];
+				if( $data->rowCount() == 1 ) {
+					// Display values
+					$first = $row[ 'first_name' ];
+					$last  = $row[ 'last_name' ];
 
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
-			}
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
-
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			#print $query;
-			try {
-				$results = $sqlite_db_connection->query($query);
-			} catch (Exception $e) {
-				echo 'Caught exception: ' . $e->getMessage();
-				exit();
-			}
-
-			if ($results) {
-				while ($row = $results->fetchArray()) {
-					// Get values
-					$first = $row["first_name"];
-					$last  = $row["last_name"];
-
-					// Feedback for end user
-					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					// Feedback for end user (output encoded to prevent reflected XSS)
+					$html .= "<pre>ID: " . htmlspecialchars( $id ) . "<br />First name: " . htmlspecialchars( $first ) . "<br />Surname: " . htmlspecialchars( $last ) . "</pre>";
 				}
-			} else {
-				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
-			}
-			break;
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				try {
+					$result = $stmt->execute();
+				} catch (Exception $e) {
+					echo 'Caught exception: ' . $e->getMessage();
+					exit();
+				}
+
+				if ($result !== false) {
+					$row = $result->fetchArray();
+					if ($row) {
+						// Get values
+						$first = $row["first_name"];
+						$last  = $row["last_name"];
+
+						// Feedback for end user (output encoded to prevent reflected XSS)
+						$html .= "<pre>ID: " . htmlspecialchars( $id ) . "<br />First name: " . htmlspecialchars( $first ) . "<br />Surname: " . htmlspecialchars( $last ) . "</pre>";
+					}
+				} else {
+					echo "Error in fetch ".$sqlite_db->lastErrorMsg();
+				}
+				break;
+		}
 	}
 }
 

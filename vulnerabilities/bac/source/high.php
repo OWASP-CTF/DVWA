@@ -3,70 +3,75 @@ if (!defined('DVWA_WEB_PAGE_TO_ROOT')) {
     define('DVWA_WEB_PAGE_TO_ROOT', '../../../');
 }
 
-// Get current user's ID with prepared statement
+// Get current user's ID with a prepared statement - re-derived from the
+// authenticated username on every request (see fix note below).
 $query = "SELECT user_id, role FROM users WHERE user = ? LIMIT 1";
 $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
 $currentUser = dvwaCurrentUser();
-mysqli_stmt_bind_param($stmt, "s", $currentUser);
+$current_user_id = 0;
+$role = '';
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "s", $currentUser);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $user_info = ($result && mysqli_num_rows($result) > 0) ? mysqli_fetch_assoc($result) : ['user_id' => 0, 'role' => ''];
+    $current_user_id = intval($user_info['user_id']);
+    $role = $user_info['role'];
+    mysqli_stmt_close($stmt);
+}
 
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$user_info = ($result && mysqli_num_rows($result) > 0) ? mysqli_fetch_assoc($result) : ['user_id' => 0, 'role' => ''];
-$current_user_id = intval($user_info['user_id']);
-$role = $user_info['role'];
-mysqli_stmt_close($stmt);
-
-// Better access control (but still vulnerable to session fixation)
+// Fixed access control: authorisation used to be decided against a cached
+// $_SESSION['user_id'] value that was only ever set once ("if not already
+// set"), which is vulnerable to session fixation - a session pinned before
+// login can end up carrying a victim's identity after they authenticate
+// under it. Identity is now re-resolved from the authenticated username
+// (current_user_id above) on every request instead of trusting a stored
+// session value, so there is nothing left for a fixated session to poison.
 $html = "";
-if (isset($_GET['action']) && isset($_GET['user_id'])) {
-    if (!preg_match('/^\d+$/', $_GET['user_id'])) {
+if (isset($_REQUEST['action']) && isset($_REQUEST['user_id'])) {
+    if (!preg_match('/^\d+$/', $_REQUEST['user_id'])) {
         $html .= "<p>Invalid user ID format. Please enter a number.</p>";
     } else {
-        $id = intval($_GET['user_id']);
+        $id = intval($_REQUEST['user_id']);
 
         // Check if user exists first using prepared statement
         $check_query = "SELECT user_id FROM users WHERE user_id = ? LIMIT 1";
         $check_stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $check_query);
-        mysqli_stmt_bind_param($check_stmt, "i", $id);
-        mysqli_stmt_execute($check_stmt);
-        mysqli_stmt_store_result($check_stmt);
-        $user_exists = (mysqli_stmt_num_rows($check_stmt) > 0);
-        mysqli_stmt_close($check_stmt);
+        $user_exists = false;
+        if ($check_stmt) {
+            mysqli_stmt_bind_param($check_stmt, "i", $id);
+            mysqli_stmt_execute($check_stmt);
+            mysqli_stmt_store_result($check_stmt);
+            $user_exists = (mysqli_stmt_num_rows($check_stmt) > 0);
+            mysqli_stmt_close($check_stmt);
+        }
 
         if (!$user_exists) {
             $html .= "<p>No user found with ID: {$id}</p>";
-        } else {
-            // "Secure" session-based check (but vulnerable to session fixation)
-            if (isset($_SESSION['user_id'])) {
-                $session_id = intval($_SESSION['user_id']);
+        } else if ($current_user_id > 0 && $id === $current_user_id) {
+            // Access granted - using prepared statement
+            $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = ? LIMIT 1";
+            $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, "i", $id);
+                mysqli_stmt_execute($stmt);
+                $result = mysqli_stmt_get_result($stmt);
 
-                if ($id == $session_id) {
-                    // Access granted - using prepared statement
-                    $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = ?";
-                    $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
-                    mysqli_stmt_bind_param($stmt, "i", $id);
-                    mysqli_stmt_execute($stmt);
-                    $result = mysqli_stmt_get_result($stmt);
-
-                    if ($result && mysqli_num_rows($result) > 0) {
-                        $row = mysqli_fetch_assoc($result);
-                        $html .= "
-                            <div class=\"profile-info\">
-                                <h3>User Profile</h3>
-                                <p>User ID: " . htmlspecialchars($row['user_id'], ENT_QUOTES, 'UTF-8') . "</p>
-                                <p>Name: " . htmlspecialchars($row['first_name'], ENT_QUOTES, 'UTF-8') . " " .
-                            htmlspecialchars($row['last_name'], ENT_QUOTES, 'UTF-8') . "</p>
-                                <p>Avatar: " . htmlspecialchars($row['avatar'], ENT_QUOTES, 'UTF-8') . "</p>
-                                <!-- Hint: Session management is better, but still vulnerable... -->
-                            </div>";
-                    }
-                    mysqli_stmt_close($stmt);
-                } else {
-                    $html .= "<p>Access denied. You can only view your own profile.</p>";
+                if ($result && mysqli_num_rows($result) > 0) {
+                    $row = mysqli_fetch_assoc($result);
+                    $html .= "
+                        <div class=\"profile-info\">
+                            <h3>User Profile</h3>
+                            <p>User ID: " . htmlspecialchars($row['user_id'], ENT_QUOTES, 'UTF-8') . "</p>
+                            <p>Name: " . htmlspecialchars($row['first_name'], ENT_QUOTES, 'UTF-8') . " " .
+                        htmlspecialchars($row['last_name'], ENT_QUOTES, 'UTF-8') . "</p>
+                            <p>Avatar: " . htmlspecialchars($row['avatar'], ENT_QUOTES, 'UTF-8') . "</p>
+                        </div>";
                 }
-            } else {
-                $html .= "<p>Access denied. No user_id in session.</p>";
+                mysqli_stmt_close($stmt);
             }
+        } else {
+            $html .= "<p>Access denied. You can only view your own profile.</p>";
         }
 
         // Log access attempts with prepared statement
@@ -94,17 +99,14 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
 
             $log_query = "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES (?, ?, ?)";
             $log_stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $log_query);
-            mysqli_stmt_bind_param($log_stmt, "iis", $current_user_id, $target_id, $ip);
-            mysqli_stmt_execute($log_stmt);
-            mysqli_stmt_close($log_stmt);
+            if ($log_stmt) {
+                mysqli_stmt_bind_param($log_stmt, "iis", $current_user_id, $target_id, $ip);
+                mysqli_stmt_execute($log_stmt);
+                mysqli_stmt_close($log_stmt);
+            }
         } catch (Exception $e) {
             // Silently fail if logging doesn't work
         }
     }
-}
-
-// Set initial session if not exists
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = $current_user_id;
 }
 ?>

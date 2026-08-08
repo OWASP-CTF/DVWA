@@ -1,13 +1,52 @@
 <?php
-function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+
+require_once __DIR__ . '/crypto_key.php';
+
+define ('CRYPTOGRAPHY_MEDIUM_ALGO', 'aes-256-gcm');
+define ('CRYPTOGRAPHY_MEDIUM_NONCE_LEN', 12);
+define ('CRYPTOGRAPHY_MEDIUM_TAG_LEN', 16);
+
+// Authenticated encryption (random nonce per token, per-install random
+// key, integrity-checked on decrypt) replaces AES-128-ECB. ECB encrypts
+// every 16-byte block independently with no chaining, so identical
+// plaintext blocks always produce identical ciphertext blocks and any
+// two blocks encrypted under the same key are interchangeable - that is
+// what let an attacker splice a username block from one token, an
+// expiry block from another and a privilege-level block from a third
+// into one forged, still-"decryptable" token. GCM ties every byte of
+// the ciphertext to a single authentication tag, so cutting and pasting
+// blocks (or any other bit-flip) makes the whole token fail to decrypt.
+function medium_encrypt ($plaintext) {
+	$key = dvwa_crypto_get_key ('medium', 32);
+	$nonce = random_bytes (CRYPTOGRAPHY_MEDIUM_NONCE_LEN);
+	$tag = '';
+	$ciphertext = openssl_encrypt ($plaintext, CRYPTOGRAPHY_MEDIUM_ALGO, $key, OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($ciphertext === false) {
+		throw new Exception ("Encryption failed");
+	}
+	return bin2hex ($nonce . $tag . $ciphertext);
+}
+
+function decrypt ($token, $key) {
+	if (!is_string ($token) || $token === '' || strlen ($token) % 2 !== 0 || !ctype_xdigit ($token)) {
+		throw new Exception ("Token is in wrong format");
+	}
+	$raw = hex2bin ($token);
+	$minLen = CRYPTOGRAPHY_MEDIUM_NONCE_LEN + CRYPTOGRAPHY_MEDIUM_TAG_LEN;
+	if ($raw === false || strlen ($raw) <= $minLen) {
+		throw new Exception ("Token is in wrong format");
+	}
+	$nonce = substr ($raw, 0, CRYPTOGRAPHY_MEDIUM_NONCE_LEN);
+	$tag = substr ($raw, CRYPTOGRAPHY_MEDIUM_NONCE_LEN, CRYPTOGRAPHY_MEDIUM_TAG_LEN);
+	$ciphertext = substr ($raw, $minLen);
+	$e = openssl_decrypt ($ciphertext, CRYPTOGRAPHY_MEDIUM_ALGO, $key, OPENSSL_RAW_DATA, $nonce, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
 	return $e;
 }
 
-$key = "ik ben een aardbei";
+$key = dvwa_crypto_get_key ('medium', 32);
 
 $errors = "";
 $success = "";
@@ -19,26 +58,45 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			throw new Exception ("No token passed");
 		} else {
 			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
-				throw new Exception ("Token is in wrong format");
+			$decrypted = decrypt ($token, $key);
+
+			$user = json_decode ($decrypted);
+			if ($user === null) {
+				throw new Exception ("Could not decode JSON object.");
+			}
+
+			if ($user->user == "sweep" && $user->ex > time() && $user->level == "admin") {
+				$success = "Welcome administrator Sweep";
 			} else {
-				$decrypted = decrypt(hex2bin ($token), $key);
-
-				$user = json_decode ($decrypted);
-				if ($user === null) {
-					throw new Exception ("Could not decode JSON object.");
-				}
-
-				if ($user->user == "sweep" && $user->ex > time() && $user->level == "admin") {
-					$success = "Welcome administrator Sweep";
-				} else {
-					$messages = "Login successful but not as the right user.";
-				}
+				$messages = "Login successful but not as the right user.";
 			}
 		}
 	} catch(Exception $e) {
 		$errors = $e->getMessage();
 	}
+}
+
+try {
+	$sooty_token = medium_encrypt (json_encode (array (
+		"user"  => "sooty",
+		"ex"    => time() - 3600,
+		"level" => "admin",
+		"bio"   => "Izzy wizzy let's get busy"
+	)));
+	$sweep_token = medium_encrypt (json_encode (array (
+		"user"  => "sweep",
+		"ex"    => time() - 3600,
+		"level" => "user",
+		"bio"   => "Squeeeeek"
+	)));
+	$soo_token = medium_encrypt (json_encode (array (
+		"user"  => "soo",
+		"ex"    => time() + 3600,
+		"level" => "user",
+		"bio"   => "I won The Weakest Link"
+	)));
+} catch (Exception $e) {
+	$sooty_token = $sweep_token = $soo_token = "";
 }
 
 $html = "
@@ -49,19 +107,19 @@ $html = "
 		<strong>Sooty (admin), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>e287af752ed3f9601befd45726785bd9b85bb230876912bf3c66e50758b222d0837d1e6b16bfae07b776feb7afe576305aec34b41499579d3fb6acc8dc92fd5fcea8743c3b2904de83944d6b19733cdb48dd16048ed89967c250ab7f00629dba</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($sooty_token) . "</textarea>
 		</p>
 		<p>
 		<strong>Sweep (user), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>3061837c4f9debaf19d4539bfa0074c1b85bb230876912bf3c66e50758b222d083f2d277d9e5fb9a951e74bee57c77a3caeb574f10f349ed839fbfd223903368873580b2e3e494ace1e9e8035f0e7e07</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($sweep_token) . "</textarea>
 		</p>
 		<p>
 		<strong>Soo (user), session valid</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>5fec0b1c993f46c8bad8a5c8d9bb9698174d4b2659239bbc50646e14a70becef83f2d277d9e5fb9a951e74bee57c77a3c9acb1f268c06c5e760a9d728e081fab65e83b9f97e65cb7c7c4b8427bd44abc16daa00fd8cd0105c97449185be77ef5</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($soo_token) . "</textarea>
 		</p>
 		<p>
 		Based on the documentation, you know the format of the token is:

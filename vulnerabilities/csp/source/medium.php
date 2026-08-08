@@ -1,13 +1,12 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' 'unsafe-inline' 'nonce-TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=';";
+// A fresh, unpredictable nonce is generated on every request; 'unsafe-inline' is
+// dropped so browsers that don't understand nonces still refuse inline scripts.
+$nonce = base64_encode(random_bytes(16));
+
+$headerCSP = "Content-Security-Policy: script-src 'self' 'nonce-{$nonce}';";
 
 header($headerCSP);
-
-// Disable XSS protections so that inline alert boxes will work
-header ("X-XSS-Protection: 0");
-
-# <script nonce="TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=">alert(1)</script>
 
 ?>
 <?php

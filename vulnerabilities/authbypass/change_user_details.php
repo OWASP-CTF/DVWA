@@ -5,10 +5,13 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On impossible only the admin is allowed to retrieve the data.
+This endpoint is shared by every security level. Only the admin user is
+ever allowed to change user data, regardless of which level rendered the
+calling page (or whether the caller went through the page at all) -
+enforce it unconditionally rather than branching on the security level.
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+if (dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
