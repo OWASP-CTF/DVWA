@@ -8,26 +8,28 @@ dvwaDatabaseConnect();
 $login_state = "";
 
 if( isset( $_POST[ 'Login' ] ) ) {
+	$user = stripslashes( $_POST[ 'username' ] );
+	$pass = stripslashes( $_POST[ 'password' ] );
 
-	$user = $_POST[ 'username' ];
-	$user = stripslashes( $user );
-	$user = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $user);
+	// Bound parameter for the lookup, and the password is verified in PHP so
+	// this page works with the salted hashes the rest of the application now
+	// stores.
+	$data = $db->prepare( 'SELECT password FROM users WHERE user = (:user) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->execute();
+	$row = $data->fetch();
 
-	$pass = $_POST[ 'password' ];
-	$pass = stripslashes( $pass );
-	$pass = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $pass);
-	$pass = md5( $pass );
+	$safe_user = htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' );
 
-	$query  = "SELECT * FROM `users` WHERE user='$user' AND password='$pass';";
-	$result = @mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>'.  mysqli_connect_error() . '.<br />Try <a href="setup.php">installing again</a>.</pre>' );
-	if( $result && mysqli_num_rows( $result ) == 1 ) {    // Login Successful...
-		$login_state = "<h3 class=\"loginSuccess\">Valid password for '{$user}'</h3>";
-	}else{
-		// Login failed
-		$login_state = "<h3 class=\"loginFail\">Wrong password for '{$user}'</h3>";
+	if( $row && dvwaPasswordVerify( $pass, $row[ 'password' ] ) ) {
+		$login_state = "<h3 class=\"loginSuccess\">Valid password for '{$safe_user}'</h3>";
+	} else {
+		$login_state = "<h3 class=\"loginFail\">Wrong password for '{$safe_user}'</h3>";
 	}
 
+	dvwaSecurityLog( 'csrf.test_credentials', array( 'target' => $user ) );
 }
+
 $messagesHtml = messagesPopAllToHtml();
 $page = dvwaPageNewGrab();
 
