@@ -9,6 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	setcookie("dvwaSession", $cookie_value, [
 		'expires'  => time() + 3600,
 		'path'     => '/vulnerabilities/weak_id/',
+		'secure'   => true,
 		'httponly' => true,
 		'samesite' => 'Strict'
 	]);
