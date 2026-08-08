@@ -29,6 +29,12 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+// Key used to derive the expected token. It is generated per session and
+// never sent to the client, so the token cannot be computed off the page.
+if (!array_key_exists ('js_secret', $_SESSION)) {
+	$_SESSION['js_secret'] = bin2hex (random_bytes (32));
+}
+
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
@@ -37,47 +43,24 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$phrase = $_POST['phrase'];
 		$token = $_POST['token'];
 
-		/*
-		 * The token the page's own JavaScript builds is not a security control,
-		 * it is just a value the caller can compute for themselves. The
-		 * submission therefore also has to carry the one time token this server
-		 * handed out with the form, which is consumed here so it cannot be
-		 * replayed.
-		 */
-		$submitted_form_token = array_key_exists ("user_token", $_POST) ? $_POST['user_token'] : '';
-		$valid_form_token = array_key_exists ("js_token", $_SESSION)
-			&& is_string ($submitted_form_token)
-			&& hash_equals ($_SESSION['js_token'], $submitted_form_token);
-		unset ($_SESSION['js_token']);
+		if ($phrase == "success") {
+			if( dvwaSecurityLevelGet() == 'impossible' ) {
+				$vulnerabilityFile = 'impossible.php';
+			} else {
+				/*
+				 * The token the page's own JavaScript builds is derived from
+				 * the phrase by rules the caller can read and reimplement, so
+				 * it proves nothing. The token is instead a keyed hash of the
+				 * phrase, and the key never leaves the server, so a token for
+				 * a phrase the server never issued one for cannot be produced.
+				 */
+				$expected = hash_hmac( "sha256", $phrase, $_SESSION[ 'js_secret' ] );
 
-		if (!$valid_form_token) {
-			$message = "<p>Invalid token.</p>";
-		} else if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
+				if (is_string ($token) && hash_equals ($expected, $token)) {
+					$message = "<p style='color:red'>Well done!</p>";
+				} else {
+					$message = "<p>Invalid token.</p>";
+				}
 			}
 		} else {
 			$message = "<p>You got the phrase wrong.</p>";
@@ -86,10 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$message = "<p>Missing phrase or token.</p>";
 	}
 }
-
-// Issue a fresh one time token for the form.
-$_SESSION[ 'js_token' ] = bin2hex( random_bytes( 16 ) );
-$js_token_field = "<input type=\"hidden\" name=\"user_token\" value=\"{$_SESSION[ 'js_token' ]}\" />";
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
 $page[ 'body' ] = <<<EOF
@@ -115,7 +94,6 @@ $page[ 'body' ] = <<<EOF
 
 	<form name="low_js" method="post">
 		<input type="hidden" name="token" value="" id="token" />
-		$js_token_field
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>
