@@ -2,24 +2,26 @@
 
 require_once ("token_library_high.php");
 
-$ret = "";
+header ("Content-Type: application/json");
 
-if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if ($_SERVER['CONTENT_TYPE'] != "application/json") {
-		$ret = json_encode (array (
-						"status" => 527,
-						"message" => "Content type must be application/json"
-					));
-	} else {
-		$token = $jsonData = file_get_contents('php://input');
-		$ret = check_token ($token);
-	}
-} else {
-	$ret = json_encode (array (
+if ($_SERVER['REQUEST_METHOD'] != "POST") {
+	print json_encode (array (
 					"status" => 405,
 					"message" => "Method not supported"
 				));
+	exit;
 }
 
-print $ret;
+// array_key_exists first: a request with no Content-Type header used to reach
+// straight into $_SERVER and warn (CWE-234 Failure to Handle Missing
+// Parameter).
+if (!array_key_exists ("CONTENT_TYPE", $_SERVER) || strpos ($_SERVER['CONTENT_TYPE'], "application/json") !== 0) {
+	print json_encode (array (
+					"status" => 527,
+					"message" => "Content type must be application/json"
+				));
+	exit;
+}
+
+print check_token (file_get_contents('php://input'));
 exit;
