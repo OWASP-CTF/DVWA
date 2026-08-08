@@ -37,16 +37,12 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
 
             if ($result && mysqli_num_rows($result) > 0) {
                 $row = mysqli_fetch_assoc($result);
-				$user_id = intval($row['user_id']);
-				$first_name = htmlspecialchars((string) $row['first_name'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-				$last_name = htmlspecialchars((string) $row['last_name'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
-				$avatar = htmlspecialchars((string) $row['avatar'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 $html .= "
                     <div class=\"profile-info\">
                         <h3>User Profile</h3>
-                        <p>User ID: {$user_id}</p>
-                        <p>Name: {$first_name} {$last_name}</p>
-                        <p>Avatar: {$avatar}</p>
+                        <p>User ID: {$row['user_id']}</p>
+                        <p>Name: {$row['first_name']} {$row['last_name']}</p>
+                        <p>Avatar: {$row['avatar']}</p>
                     </div>";
             }
         }
