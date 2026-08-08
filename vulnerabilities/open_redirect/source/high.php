@@ -5,8 +5,23 @@
 // so there is nothing for a caller to point somewhere else.
 $target = "";
 
-if (array_key_exists ("redirect", $_GET) && is_numeric ($_GET['redirect'])) {
-	switch (intval ($_GET['redirect'])) {
+if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] !== "") {
+	// Accept either the bare id or the "info.php?id=N" form the module has
+	// always linked to, and resolve both to an id before doing anything else.
+	$requested = $_GET['redirect'];
+	if (preg_match ('/^info\.php\?id=([0-9]{1,9})$/', $requested, $matches)) {
+		$requested = $matches[1];
+	}
+
+	if (!is_numeric ($requested)) {
+		http_response_code (500);
+		?>
+		<p>Unknown redirect target.</p>
+		<?php
+		exit;
+	}
+
+	switch (intval ($requested)) {
 		case 1:
 			$target = "info.php?id=1";
 			break;
