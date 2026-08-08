@@ -59,7 +59,7 @@ class LoginController
 
 			if ($username == "mrbennett" && $password == "becareful") {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';
-				$response['body'] = json_encode (array ("token" => Login::create_token($username)));
+				$response['body'] = json_encode (array ("token" => Login::create_token()));
 			} else {
 				$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 				$response['body'] = json_encode (array ("status" => "Invalid credentials"));
@@ -95,7 +95,7 @@ class LoginController
 
 								if ($username == "mrbennett" && $password == "becareful") {
 									$response['status_code_header'] = 'HTTP/1.1 200 OK';
-									$response['body'] = Login::create_token($username);
+									$response['body'] = Login::create_token();
 								} else {
 									$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 									$response['body'] = json_encode (array ("status" => "Invalid user credentials"));
@@ -114,10 +114,9 @@ class LoginController
 								# puts them back to plus characters.
 								$ref = str_replace (" ", "+", $refresh_token);
 
-								$refreshSubject = Login::get_refresh_token_subject($ref);
-								if ($refreshSubject !== false) {
+								if (Login::check_refresh_token($ref)) {
 									$response['status_code_header'] = 'HTTP/1.1 200 OK';
-									$response['body'] = Login::create_token($refreshSubject);
+									$response['body'] = Login::create_token();
 								} else {
 									$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 									$response['body'] = json_encode (array ("status" => "Invalid refresh token"));
