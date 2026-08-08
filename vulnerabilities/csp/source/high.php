@@ -1,5 +1,4 @@
 <?php
-// Only scripts served by this origin may run, and no inline script at all.
 $headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
@@ -8,7 +7,7 @@ header($headerCSP);
 <?php
 if (isset ($_POST['include'])) {
 $page[ 'body' ] .= "
-	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
+	" . $_POST['include'] . "
 ";
 }
 $page[ 'body' ] .= '
@@ -20,3 +19,4 @@ $page[ 'body' ] .= '
 
 <script src="source/high.js"></script>
 ';
+

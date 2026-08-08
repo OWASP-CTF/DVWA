@@ -36,13 +36,26 @@ final class User
 	}
 
 	public function toArray($version) {
-		// The credential is never part of a user representation, whichever
-		// version of the API asked for it.
-		return array (
-			"id" => $this->id,
-			"name" => $this->name,
-			"level" => $this->level,
-		);
+		switch ($version) {
+			case 1:
+				$a = array (
+					"id" => $this->id,
+					"name" => $this->name,
+					"level" => $this->level,
+					"password" => $this->password,
+				);
+				break;
+			default:
+			case 2:
+				$a = array (
+					"id" => $this->id,
+					"name" => $this->name,
+					"level" => $this->level,
+				);
+				break;
+		}
+
+		return $a;
 	}
 }
 
