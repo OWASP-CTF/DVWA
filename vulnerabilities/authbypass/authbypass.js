@@ -37,16 +37,34 @@ function populate_form() {
 		table_body = document.getElementById('user_table').getElementsByTagName('tbody')[0];
 		users.forEach(updateTable);
 
+		// The rows are built through the DOM rather than by concatenating a
+		// string of HTML, so stored values can never be parsed as markup.
+		function makeInput (type, id, name, value) {
+			var input = document.createElement('input');
+			input.type = type;
+			input.id = id;
+			input.name = name;
+			input.value = value;
+			return input;
+		}
+
 		function updateTable (user) {
+			var id = String(user['user_id']);
+
 			var row = table_body.insertRow(0);
 			var cell0 = row.insertCell(-1);
-			cell0.innerHTML = user['user_id'] + '<input type="hidden" id="user_id_' + user['user_id'] + '" name="user_id" value="' + user['user_id'] + '" />';
+			cell0.appendChild(document.createTextNode(id));
+			cell0.appendChild(makeInput('hidden', 'user_id_' + id, 'user_id', id));
 			var cell1 = row.insertCell(1);
-			cell1.innerHTML = '<input type="text" id="first_name_' + user['user_id'] + '" name="first_name" value="' + user['first_name'] + '" />';
+			cell1.appendChild(makeInput('text', 'first_name_' + id, 'first_name', user['first_name']));
 			var cell2 = row.insertCell(2);
-			cell2.innerHTML = '<input type="text" id="surname_' + user['user_id'] + '" name="surname" value="' + user['surname'] + '" />';
+			cell2.appendChild(makeInput('text', 'surname_' + id, 'surname', user['surname']));
 			var cell3 = row.insertCell(3);
-			cell3.innerHTML = '<input type="button" value="Update" onclick="submit_change(' + user['user_id'] + ')" />';
+			var button = document.createElement('input');
+			button.type = 'button';
+			button.value = 'Update';
+			button.addEventListener('click', function () { submit_change(id); });
+			cell3.appendChild(button);
 		}
 	};
 	xhr.send();
