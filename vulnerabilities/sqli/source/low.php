@@ -25,7 +25,6 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 				}
 
-				mysqli_close($GLOBALS["___mysqli_ston"]);
 				break;
 			case SQLITE:
 				global $sqlite_db_connection;

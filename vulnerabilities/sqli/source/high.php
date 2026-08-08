@@ -25,7 +25,6 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 				}
 
-				((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 				break;
 			case SQLITE:
 				global $sqlite_db_connection;
