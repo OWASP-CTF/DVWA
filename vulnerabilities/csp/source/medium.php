@@ -12,8 +12,12 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// The submitted value used to be dropped straight into the page as raw
+// markup. The CSP header already blocks any script it contains from
+// running, but nothing else did - encode it so it can only ever render as
+// inert text, never as HTML.
 $page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '
