@@ -8,6 +8,7 @@ function decrypt ($ciphertext, $key) {
 }
 
 $key = "ik ben een aardbei";
+$authentication_key = "DVWA medium token authentication key";
 
 $errors = "";
 $success = "";
@@ -19,10 +20,18 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			throw new Exception ("No token passed");
 		} else {
 			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
+			if (!is_string($token) || strlen($token) < 96 || (strlen($token) - 64) % 32 != 0 || !ctype_xdigit($token)) {
 				throw new Exception ("Token is in wrong format");
 			} else {
-				$decrypted = decrypt(hex2bin ($token), $key);
+				$ciphertext = hex2bin (substr ($token, 0, -64));
+				$provided_mac = substr ($token, -64);
+				$expected_mac = hash_hmac ('sha256', $ciphertext, $authentication_key);
+
+				if (!hash_equals ($expected_mac, $provided_mac)) {
+					throw new Exception ("Token authentication failed");
+				}
+
+				$decrypted = decrypt($ciphertext, $key);
 
 				$user = json_decode ($decrypted);
 				if ($user === null) {
@@ -49,19 +58,19 @@ $html = "
 		<strong>Sooty (admin), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>e287af752ed3f9601befd45726785bd9b85bb230876912bf3c66e50758b222d0837d1e6b16bfae07b776feb7afe576305aec34b41499579d3fb6acc8dc92fd5fcea8743c3b2904de83944d6b19733cdb48dd16048ed89967c250ab7f00629dba</textarea>
+<textarea style='width: 600px; height: 56px'>e287af752ed3f9601befd45726785bd9b85bb230876912bf3c66e50758b222d0837d1e6b16bfae07b776feb7afe576305aec34b41499579d3fb6acc8dc92fd5fcea8743c3b2904de83944d6b19733cdb48dd16048ed89967c250ab7f00629dbab13df1e1c2babdd6c5ba826a1b82dc24905155e664cddcb8e4675b2030011765</textarea>
 		</p>
 		<p>
 		<strong>Sweep (user), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>3061837c4f9debaf19d4539bfa0074c1b85bb230876912bf3c66e50758b222d083f2d277d9e5fb9a951e74bee57c77a3caeb574f10f349ed839fbfd223903368873580b2e3e494ace1e9e8035f0e7e07</textarea>
+<textarea style='width: 600px; height: 56px'>3061837c4f9debaf19d4539bfa0074c1b85bb230876912bf3c66e50758b222d083f2d277d9e5fb9a951e74bee57c77a3caeb574f10f349ed839fbfd223903368873580b2e3e494ace1e9e8035f0e7e075ab07eca3de52874085aadcd31c4e84761c32b42b11f0e52e9a27a2076008ec9</textarea>
 		</p>
 		<p>
 		<strong>Soo (user), session valid</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>5fec0b1c993f46c8bad8a5c8d9bb9698174d4b2659239bbc50646e14a70becef83f2d277d9e5fb9a951e74bee57c77a3c9acb1f268c06c5e760a9d728e081fab65e83b9f97e65cb7c7c4b8427bd44abc16daa00fd8cd0105c97449185be77ef5</textarea>
+<textarea style='width: 600px; height: 56px'>5fec0b1c993f46c8bad8a5c8d9bb9698174d4b2659239bbc50646e14a70becef83f2d277d9e5fb9a951e74bee57c77a3c9acb1f268c06c5e760a9d728e081fab65e83b9f97e65cb7c7c4b8427bd44abc16daa00fd8cd0105c97449185be77ef5f0a90f50bab64a3884f9cca9e5b4202c4d9810ee5890d4cf420d23f0cfefe723</textarea>
 		</p>
 		<p>
 		Based on the documentation, you know the format of the token is:
