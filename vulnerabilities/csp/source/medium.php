@@ -1,8 +1,10 @@
 <?php
 
-// Only scripts served by this origin may run: no 'unsafe-inline' and no
-// shared, guessable nonce.
-$headerCSP = "Content-Security-Policy: script-src 'self';";
+// A nonce is only worth anything if it is unpredictable and changes every
+// response. This one is minted per request, and 'unsafe-inline' is gone, so a
+// nonce copied out of an earlier page is of no use.
+$csp_nonce = base64_encode( random_bytes( 16 ) );
+$headerCSP = "Content-Security-Policy: script-src 'self' 'nonce-{$csp_nonce}';";
 
 header($headerCSP);
 

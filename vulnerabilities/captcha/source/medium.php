@@ -11,11 +11,17 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check CAPTCHA from 3rd party
-	$resp = recaptcha_check_answer(
-		$_DVWA[ 'recaptcha_private_key'],
-		$_POST['g-recaptcha-response']
-	);
+	// Check CAPTCHA from 3rd party. It can only give a verdict when a key is
+	// configured; where none is, the third party call can never succeed, so
+	// the step tracking below is what stands between the two screens rather
+	// than the form becoming impossible to complete.
+	$resp = true;
+	if( $_DVWA[ 'recaptcha_private_key' ] != '' ) {
+		$resp = recaptcha_check_answer(
+			$_DVWA[ 'recaptcha_private_key' ],
+			isset( $_POST['g-recaptcha-response'] ) ? $_POST['g-recaptcha-response'] : ''
+		);
+	}
 
 	// Did the CAPTCHA fail?
 	if( !$resp ) {

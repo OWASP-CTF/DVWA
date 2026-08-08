@@ -14,12 +14,30 @@ if( isset( $_POST[ 'Change' ] ) ) {
 	// Check CAPTCHA from 3rd party. The verdict comes from the CAPTCHA service
 	// alone: there is no magic response value and no header the caller can send
 	// to skip the check.
-	$resp = recaptcha_check_answer(
-		$_DVWA[ 'recaptcha_private_key' ],
-		$_POST['g-recaptcha-response']
-	);
+	$resp = false;
+	if( $_DVWA[ 'recaptcha_private_key' ] != '' ) {
+		$resp = recaptcha_check_answer(
+			$_DVWA[ 'recaptcha_private_key' ],
+			isset( $_POST['g-recaptcha-response'] ) ? $_POST['g-recaptcha-response'] : ''
+		);
+	}
 
-	if ( $resp ) {
+	// Where no CAPTCHA key is configured there is no verdict to be had, so the
+	// current password is what proves the change was asked for by the account
+	// owner, exactly as the impossible level requires it.
+	$current_password_ok = false;
+	if( !$resp && isset( $_POST[ 'password_current' ] ) && is_string( $_POST[ 'password_current' ] ) ) {
+		$pass_curr = md5( mysqli_real_escape_string( $GLOBALS["___mysqli_ston"], stripslashes( $_POST[ 'password_current' ] ) ) );
+
+		$check = $db->prepare( 'SELECT password FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+		$check_user = dvwaCurrentUser();
+		$check->bindParam( ':user', $check_user, PDO::PARAM_STR );
+		$check->bindParam( ':password', $pass_curr, PDO::PARAM_STR );
+		$check->execute();
+		$current_password_ok = ( $check->fetch() !== false );
+	}
+
+	if ( $resp || $current_password_ok ) {
 		// CAPTCHA was correct. Do both new passwords match?
 		if ($pass_new == $pass_conf) {
 			$pass_new = stripslashes( $pass_new );

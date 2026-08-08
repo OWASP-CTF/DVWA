@@ -1,7 +1,10 @@
 <?php
 
-// Only scripts served by this origin may run, and no inline script at all.
-$headerCSP = "Content-Security-Policy: script-src 'self';";
+// The page's job is to pull in an external script, so the policy still allows
+// one, but only from a source that serves fixed library releases. Every host in
+// the original list that lets anyone publish arbitrary JavaScript (jsDelivr,
+// UNPKG, the paste sites, digi.ninja) is gone, and there is no inline script.
+$headerCSP = "Content-Security-Policy: script-src 'self' code.jquery.com;";
 
 header($headerCSP);
 
