@@ -1,13 +1,18 @@
 <?php
 
 if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
-	// A substring check for "info.php" is bypassable - e.g.
-	// "https://evil.com/?x=info.php" also contains that substring.
-	// Whitelist the exact, known-good targets instead.
-	$allowedRedirects = [ "info.php?id=1", "info.php?id=2" ];
+	$target = "";
 
-	if (in_array($_GET['redirect'], $allowedRedirects, true)) {
-		header ("location: " . $_GET['redirect']);
+	// A substring/whitelist check on the raw value is still bypassable if
+	// it isn't anchored to the whole string. Rebuild the destination from a
+	// validated numeric id instead, so the redirect target can never be
+	// anything other than the local info page.
+	if (preg_match ('/^info\.php\?id=([0-9]{1,9})$/', $_GET['redirect'], $matches)) {
+		$target = "info.php?id=" . intval ($matches[1]);
+	}
+
+	if ($target != "") {
+		header ("location: " . $target);
 		exit;
 	} else {
 		http_response_code (500);

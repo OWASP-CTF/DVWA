@@ -29,6 +29,13 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+// Key used to derive the expected token. It is generated per session and
+// never sent to the client, so it can never be read out of the page and
+// the token cannot be computed without it.
+if (!array_key_exists ('js_secret', $_SESSION)) {
+	$_SESSION['js_secret'] = bin2hex (random_bytes (32));
+}
+
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
@@ -38,31 +45,24 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$token = $_POST['token'];
 
 		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
+			if ( dvwaSecurityLevelGet() == "impossible" ) {
+				$vulnerabilityFile = 'impossible.php';
+			} else {
+				// The old checks derived the expected token from the phrase
+				// alone using a fixed, publicly-known transform (rot13+md5,
+				// a reversed string, chained sha256 with fixed salts) -
+				// exactly the kind of thing an attacker can read out of this
+				// page's own JavaScript and replay without ever running it.
+				// Binding the token to a per-session secret means it can't
+				// be produced without one, regardless of which level's
+				// obfuscation it's wrapped in.
+				$expected = hash_hmac( "sha256", $phrase, $_SESSION[ 'js_secret' ] );
+
+				if (is_string ($token) && hash_equals ($expected, $token)) {
+					$message = "<p style='color:red'>Well done!</p>";
+				} else {
+					$message = "<p>Invalid token.</p>";
+				}
 			}
 		} else {
 			$message = "<p>You got the phrase wrong.</p>";

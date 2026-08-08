@@ -1,20 +1,25 @@
 <?php
 
 if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
-	// Only ever redirect to one of the known, local info pages - never to
-	// an arbitrary, attacker-controlled URL.
-	$allowedRedirects = [ "info.php?id=1", "info.php?id=2" ];
+	$target = "";
 
-	if (in_array($_GET['redirect'], $allowedRedirects, true)) {
-		header ("location: " . $_GET['redirect']);
-		exit;
-	} else {
-		http_response_code (500);
-		?>
-		<p>You can only redirect to the info page.</p>
-		<?php
+	// Only ever redirect to the local info page, rebuilt from a validated
+	// numeric id, so the destination can never be chosen by whoever crafted
+	// the link - never to an arbitrary, attacker-controlled URL.
+	if (preg_match ('/^info\.php\?id=([0-9]{1,9})$/', $_GET['redirect'], $matches)) {
+		$target = "info.php?id=" . intval ($matches[1]);
+	}
+
+	if ($target != "") {
+		header ("location: " . $target);
 		exit;
 	}
+
+	http_response_code (500);
+	?>
+	<p>You can only redirect to the info page.</p>
+	<?php
+	exit;
 }
 
 http_response_code (500);
