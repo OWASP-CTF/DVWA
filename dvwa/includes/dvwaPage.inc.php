@@ -46,18 +46,17 @@ function dvwa_start_session() {
 	// This will setup the session cookie based on
 	// the security level.
 
-	$security_level = dvwaSecurityLevelGet();
-	if ($security_level == 'impossible') {
-		$httponly = true;
-		$samesite = "Strict";
-	}
-	else {
-		$httponly = false;
-		$samesite = "";
-	}
+	// The session cookie is hardened the same way at every security level. The
+	// difficulty levels are about the vulnerable modules, not about weakening
+	// the session handling of the application itself.
+	$httponly = true;
+	$samesite = "Strict";
 
 	$maxlifetime = 86400;
-	$secure = false;
+	// Only flag the cookie as Secure when the request actually came in over
+	// TLS, otherwise the browser would never send it back on a plain HTTP
+	// deployment and nobody could log in.
+	$secure = dvwaIsHttps();
 	$domain = parse_url($_SERVER['HTTP_HOST'], PHP_URL_HOST);
 
 	/*
@@ -84,25 +83,32 @@ function dvwa_start_session() {
 	 * session_start() might not generate a Set-Cookie header if a cookie already
 	 * exists.
 	 *
-	 * For impossible security level, we regenerate the session id, PHP will
-	 * generate a new random id. This is good security practice because it
-	 * prevents the reuse of a previous unauthenticated id that an attacker
-	 * might have knowledge of (aka session fixation attack).
-   *
-	 * For lower levels, we want to allow session fixation attacks, so if an id
-	 * already exists, we don't want it to change after authentication. We thus
-	 * set the id to its previous value using session_id(), which will force
-	 * the Set-Cookie header.
+	 * The id is always regenerated, at every security level. Reusing a
+	 * pre-authentication id that an attacker may already know is a session
+	 * fixation vulnerability, so the previous behaviour of keeping the old id
+	 * on the low/medium/high levels has been removed.
 	*/
-	if ($security_level == 'impossible') {
-		session_start();
-		session_regenerate_id(); // force a new id to be generated
+	session_start();
+	session_regenerate_id( true ); // force a new id, and drop the old session file
+}
+
+/*
+ * Returns true when the current request reached us over TLS, either directly
+ * or through a reverse proxy that terminated it.
+ */
+function dvwaIsHttps() {
+	if( !empty( $_SERVER[ 'HTTPS' ] ) && strtolower( $_SERVER[ 'HTTPS' ] ) !== 'off' ) {
+		return true;
 	}
-	else {
-		if (isset($_COOKIE[session_name()])) // if a session id already exists
-			session_id($_COOKIE[session_name()]); // we keep the same id
-		session_start(); // otherwise a new one will be generated here
+	// X-Forwarded-Proto is set by the client just as easily as by a proxy, so
+	// it is only consulted when the deployment says it is actually behind one.
+	// dvwaClientIp() refuses X-Forwarded-For for exactly the same reason.
+	if( getenv( 'DVWA_TRUST_PROXY' )
+		&& isset( $_SERVER[ 'HTTP_X_FORWARDED_PROTO' ] )
+		&& strtolower( $_SERVER[ 'HTTP_X_FORWARDED_PROTO' ] ) === 'https' ) {
+		return true;
 	}
+	return false;
 }
 
 if (array_key_exists ("Login", $_POST) && $_POST['Login'] == "Login") {
@@ -138,6 +144,11 @@ function dvwaPageStartup( $pActions ) {
 }
 
 function dvwaLogin( $pUsername ) {
+	// Regenerate the session id on the privilege change so that an id which was
+	// known before authentication cannot be reused afterwards (session fixation).
+	if( session_status() === PHP_SESSION_ACTIVE ) {
+		session_regenerate_id( true );
+	}
 	$dvwaSession =& dvwaSessionGrab();
 	$dvwaSession[ 'username' ] = $pUsername;
 }
@@ -155,8 +166,19 @@ function dvwaIsLoggedIn() {
 
 
 function dvwaLogout() {
-	$dvwaSession =& dvwaSessionGrab();
-	unset( $dvwaSession[ 'username' ] );
+	// Dropping the username from the session array is not enough: the id that
+	// was handed out before logout has to stop working, otherwise it can be
+	// replayed.
+	//
+	// session_regenerate_id( true ) deletes the old session storage and issues
+	// a new id in one step, which both kills the old id and leaves a usable
+	// session for the "you have logged out" flash message. Calling
+	// session_destroy() first and regenerating afterwards would warn, because
+	// there would be no session left to regenerate.
+	if( session_status() === PHP_SESSION_ACTIVE ) {
+		$_SESSION = array();
+		session_regenerate_id( true );
+	}
 }
 
 
@@ -269,7 +291,10 @@ function dvwaMessagePop() {
 
 function messagesPopAllToHtml() {
 	$messagesHtml = '';
-	while( $message = dvwaMessagePop() ) {   // TODO- sharpen!
+	while( $message = dvwaMessagePop() ) {
+		// Messages are deliberately allowed to carry markup, so they are not
+		// encoded here. Any caller that folds user supplied data into a message
+		// encodes it first: see the login banner in login.php.
 		$messagesHtml .= "<div class=\"message\">{$message}</div>";
 	}
 
