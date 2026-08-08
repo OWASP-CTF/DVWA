@@ -217,6 +217,47 @@ function dvwaDummyPasswordHash() {
 // -- END (Password functions)
 
 /*
+ * The client address, taken from REMOTE_ADDR only.
+ *
+ * X-Forwarded-For is set by the client and is trivially spoofed, so it is not
+ * consulted. Anything that does not parse as an address becomes 'unknown'
+ * rather than being written through to a log line.
+ */
+function dvwaClientIp() {
+	$ip = isset( $_SERVER[ 'REMOTE_ADDR' ] ) ? $_SERVER[ 'REMOTE_ADDR' ] : '';
+	return ( filter_var( $ip, FILTER_VALIDATE_IP ) !== false ) ? $ip : 'unknown';
+}
+
+/*
+ * Record a security relevant event (A09:2025 Security Logging & Alerting
+ * Failures).
+ *
+ * Authentication outcomes, authorisation denials and privilege changes need to
+ * leave a trace, otherwise an attack in progress is invisible. Field values are
+ * stripped of CR/LF so a crafted username cannot forge extra log lines
+ * (CWE-117 Improper Output Neutralization for Logs).
+ */
+function dvwaSecurityLog( $pEvent, $pFields = array() ) {
+	$parts = array(
+		'event=' . $pEvent,
+		'user=' . dvwaLogSafe( dvwaCurrentUser() ),
+		'ip=' . dvwaClientIp(),
+	);
+
+	foreach( $pFields as $key => $value ) {
+		$parts[] = dvwaLogSafe( (string) $key ) . '=' . dvwaLogSafe( (string) $value );
+	}
+
+	error_log( 'dvwa-security ' . implode( ' ', $parts ) );
+}
+
+function dvwaLogSafe( $pValue ) {
+	// Collapse anything that could start a new log record, and cap the length.
+	$clean = preg_replace( '/[\r\n\t]+/', ' ', $pValue );
+	return substr( $clean, 0, 200 );
+}
+
+/*
  * Returns true when the current request reached us over TLS, either directly
  * or through a reverse proxy that terminated it.
  */
