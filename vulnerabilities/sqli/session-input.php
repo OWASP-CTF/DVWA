@@ -9,11 +9,16 @@ $page = dvwaPageNewGrab();
 $page[ 'title' ] = 'SQL Injection Session Input' . $page[ 'title_separator' ].$page[ 'title' ];
 
 if( isset( $_POST[ 'id' ] ) ) {
-	$_SESSION[ 'id' ] =  $_POST[ 'id' ];
-	//$page[ 'body' ] .= "Session ID set!<br /><br /><br />";
-	// Output encoded to prevent reflected XSS via the id value
-	$page[ 'body' ] .= "Session ID: " . htmlspecialchars( $_SESSION[ 'id' ] ) . "<br /><br /><br />";
-	$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	$id = $_POST[ 'id' ];
+	if( is_string( $id ) && preg_match( '/^\d+$/D', $id ) ) {
+		$_SESSION[ 'id' ] = (int) $id;
+		$page[ 'body' ] .= "Session ID: " . htmlspecialchars( (string) $_SESSION[ 'id' ], ENT_QUOTES, 'UTF-8' ) . "<br /><br /><br />";
+		$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	}
+	else {
+		http_response_code( 422 );
+		$page[ 'body' ] .= "Invalid user ID.<br /><br /><br />";
+	}
 }
 
 $page[ 'body' ] .= "

@@ -19,7 +19,7 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 	// scope still stops a brute-force run dead (the attacker is the session
 	// doing the guessing) without mutating shared account state.
 	$total_failed_login = 3;
-	$lockout_time       = 60; // seconds
+	$lockout_time       = 10; // seconds; matches the shared sliding window below
 	$account_locked     = false;
 
 	if( !isset( $_SESSION[ 'brute_high_failed' ] ) ) {
@@ -31,6 +31,11 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 	    && ( time() - $_SESSION[ 'brute_high_last' ] ) < $lockout_time ) {
 		$account_locked = true;
 	}
+	elseif( $_SESSION[ 'brute_high_failed' ] >= $total_failed_login ) {
+		// The cooldown elapsed before this attempt, so legitimate credentials
+		// can be accepted immediately rather than being rejected one extra time.
+		$_SESSION[ 'brute_high_failed' ] = 0;
+	}
 
 	// The session counter above is defeated by a guesser that simply starts a
 	// new session (and fetches a new token) for each attempt. So the high level
@@ -40,12 +45,19 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 	// decays within seconds and never leaves a legitimate user shut out the way
 	// a persistent failed_login flag in the users table would.
 	$window   = 10; // seconds
-	$max_fail = 5;  // failures per window, all sessions
+	$max_fail = $total_failed_login; // same three-failure policy across sessions
 	$bucket   = sys_get_temp_dir() . '/dvwa_brute_' . md5( 'high|' . strtolower( $user ) ) . '.json';
 	$attempts = array();
+	$bucket_handle = @fopen( $bucket, 'c+' );
+	$bucket_locked = false;
 
-	if( is_readable( $bucket ) ) {
-		$decoded = json_decode( (string) @file_get_contents( $bucket ), true );
+	// Hold one exclusive lock across the read/check/update sequence. Without
+	// this, concurrent requests can all observe the same pre-limit count and
+	// then overwrite one another's updates.
+	if( $bucket_handle !== false && flock( $bucket_handle, LOCK_EX ) ) {
+		$bucket_locked = true;
+		rewind( $bucket_handle );
+		$decoded = json_decode( (string) stream_get_contents( $bucket_handle ), true );
 		if( is_array( $decoded ) ) {
 			// Drop anything that has aged out of the window.
 			foreach( $decoded as $when ) {
@@ -58,10 +70,6 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 
 	if( count( $attempts ) >= $max_fail ) {
 		$account_locked = true;
-	}
-	elseif( $_SESSION[ 'brute_high_failed' ] >= $total_failed_login ) {
-		// Cooldown elapsed -- start a fresh window.
-		$_SESSION[ 'brute_high_failed' ] = 0;
 	}
 
 	// Parameterised query: defeats the `admin' or '1'='1' -- ` auth bypass,
@@ -82,7 +90,10 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 
 		// A good login clears the throttle for this session.
 		$_SESSION[ 'brute_high_failed' ] = 0;
-		@unlink( $bucket );
+		if( $bucket_locked ) {
+			ftruncate( $bucket_handle, 0 );
+			fflush( $bucket_handle );
+		}
 	}
 	else {
 		// Login failed. No sleep() here on purpose: the token requirement and
@@ -94,9 +105,21 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 
 		// Record this failure in the shared velocity window.
 		$attempts[] = time();
-		@file_put_contents( $bucket, json_encode( $attempts ), LOCK_EX );
+		if( $bucket_locked ) {
+			ftruncate( $bucket_handle, 0 );
+			rewind( $bucket_handle );
+			fwrite( $bucket_handle, json_encode( $attempts ) );
+			fflush( $bucket_handle );
+		}
 
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
+	}
+
+	if( $bucket_handle !== false ) {
+		if( $bucket_locked ) {
+			flock( $bucket_handle, LOCK_UN );
+		}
+		fclose( $bucket_handle );
 	}
 }
 

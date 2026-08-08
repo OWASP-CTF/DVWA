@@ -9,9 +9,21 @@ $page = dvwaPageNewGrab();
 $page[ 'title' ] = 'Blind SQL Injection Cookie Input' . $page[ 'title_separator' ].$page[ 'title' ];
 
 if( isset( $_POST[ 'id' ] ) ) {
-	setcookie( 'id', $_POST[ 'id' ]);
-	$page[ 'body' ] .= "Cookie ID set!<br /><br /><br />";
-	$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	$id = $_POST[ 'id' ];
+	if( is_string( $id ) && preg_match( '/^\d+$/D', $id ) ) {
+		setcookie( 'id', (string) (int) $id, [
+			'path'     => '/vulnerabilities/sqli_blind/',
+			'secure'   => false,
+			'httponly' => true,
+			'samesite' => 'Strict',
+		] );
+		$page[ 'body' ] .= "Cookie ID set!<br /><br /><br />";
+		$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	}
+	else {
+		http_response_code( 422 );
+		$page[ 'body' ] .= "Invalid user ID.<br /><br /><br />";
+	}
 }
 
 $page[ 'body' ] .= "

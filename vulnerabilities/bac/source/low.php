@@ -106,10 +106,11 @@ if (isset($_REQUEST['action']) && isset($_REQUEST['user_id'])) {
     }
 }
 
-// Show current user's role for context (display only - not used for any
-// access decision above)
-$role = isset($_COOKIE['user_role']) ? $_COOKIE['user_role'] : 'regular_user';
-$html .= "<div class='info-banner'>Current Role: {$role}</div>";
+// Show the database-derived role for context. The old display trusted the
+// user_role cookie, which let a caller claim any role in the rendered UI even
+// though the access decision above correctly ignored it.
+$display_role = $role !== '' ? $role : 'user';
+$html .= "<div class='info-banner'>Current Role: " . htmlspecialchars($display_role, ENT_QUOTES, 'UTF-8') . "</div>";
 
 // Set initial role cookie if not exists
 if (!isset($_COOKIE['user_role'])) {
