@@ -4,12 +4,12 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_POST[ 'id' ];
 
-	$id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);
-
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+			$stmt = $GLOBALS["___mysqli_ston"]->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = ?;' );
+			$stmt->bind_param( 'i', $id );
+			$stmt->execute();
+			$result = $stmt->get_result();
 
 			// Get results
 			while( $row = mysqli_fetch_assoc( $result ) ) {
@@ -24,10 +24,10 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			#print $query;
+			$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
+			$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$results = $stmt->execute();
 			} catch (Exception $e) {
 				echo 'Caught exception: ' . $e->getMessage();
 				exit();
