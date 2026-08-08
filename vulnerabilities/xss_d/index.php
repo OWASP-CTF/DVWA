@@ -48,16 +48,32 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
+					// Options are built as text nodes so nothing from the URL is ever parsed as HTML.
+					var languageSelect = document.getElementsByName("default")[0];
+
+					function addLanguageOption(value, label, disabled) {
+						var option = document.createElement("option");
+						option.value = value;
+						option.textContent = label;
+						option.disabled = disabled;
+						languageSelect.appendChild(option);
+					}
+
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
-						document.write("<option value='' disabled='disabled'>----</option>");
+						var label = lang;
+						try {
+							label = $decodeURI(lang);
+						} catch (e) {
+						}
+						addLanguageOption(lang, label, false);
+						addLanguageOption("", "----", true);
 					}
-					    
-					document.write("<option value='English'>English</option>");
-					document.write("<option value='French'>French</option>");
-					document.write("<option value='Spanish'>Spanish</option>");
-					document.write("<option value='German'>German</option>");
+
+					addLanguageOption("English", "English", false);
+					addLanguageOption("French", "French", false);
+					addLanguageOption("Spanish", "Spanish", false);
+					addLanguageOption("German", "German", false);
 				</script>
 			</select>
 			<input type="submit" value="Select" />
