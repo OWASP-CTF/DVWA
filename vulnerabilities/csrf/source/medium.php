@@ -1,8 +1,11 @@
 <?php
 
 if( isset( $_GET[ 'Change' ] ) ) {
+	// Check Anti-CSRF token
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Checks to see where the request came from
-	if( stripos( $_SERVER[ 'HTTP_REFERER' ] ,$_SERVER[ 'SERVER_NAME' ]) !== false ) {
+	if( isset( $_SERVER[ 'HTTP_REFERER' ] ) && parse_url( $_SERVER[ 'HTTP_REFERER' ], PHP_URL_HOST ) === $_SERVER[ 'SERVER_NAME' ] ) {
 		// Get input
 		$pass_new  = $_GET[ 'password_new' ];
 		$pass_conf = $_GET[ 'password_conf' ];
@@ -15,8 +18,10 @@ if( isset( $_GET[ 'Change' ] ) ) {
 
 			// Update the database
 			$current_user = dvwaCurrentUser();
-			$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . $current_user . "';";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+			$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user);' );
+			$data->bindParam( ':password', $pass_new, PDO::PARAM_STR );
+			$data->bindParam( ':user', $current_user, PDO::PARAM_STR );
+			$data->execute();
 
 			// Feedback for the user
 			$html .= "<pre>Password Changed.</pre>";
@@ -31,7 +36,9 @@ if( isset( $_GET[ 'Change' ] ) ) {
 		$html .= "<pre>That request didn't look correct.</pre>";
 	}
 
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>

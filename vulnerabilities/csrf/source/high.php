@@ -40,8 +40,10 @@ if ($change) {
 
 		// Update the database
 		$current_user = dvwaCurrentUser();
-		$insert = "UPDATE `users` SET password = '" . $pass_new . "' WHERE user = '" . $current_user . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert );
+		$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user);' );
+		$data->bindParam( ':password', $pass_new, PDO::PARAM_STR );
+		$data->bindParam( ':user', $current_user, PDO::PARAM_STR );
+		$data->execute();
 
 		// Feedback for the user
 		$return_message = "Password Changed.";
