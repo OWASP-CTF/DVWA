@@ -22,8 +22,10 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 				$first = $row["first_name"];
 				$last  = $row["last_name"];
 
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+				// Feedback for end user. Encode for the HTML context, since
+				// loose type coercion in the query above does not guarantee
+				// $id is a plain number by the time it gets here.
+				$html .= "<pre>ID: " . htmlspecialchars( (string) $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( (string) $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( (string) $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 			}
 
 			mysqli_stmt_close($stmt);
@@ -50,7 +52,7 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 					$last  = $row["last_name"];
 
 					// Feedback for end user
-					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					$html .= "<pre>ID: " . htmlspecialchars( (string) $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( (string) $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( (string) $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 				}
 			} else {
 				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
