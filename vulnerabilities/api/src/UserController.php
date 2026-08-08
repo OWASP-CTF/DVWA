@@ -37,18 +37,6 @@ class UserController
 		$this->version = $version;
 	}
 
-	// Every one of these endpoints - including the ones below that read or
-	// modify another user's record, and expose a password hash while doing
-	// it - used to be reachable with no authentication at all, unlike every
-	// method on OrderController. Require the same bearer token here.
-	private function checkToken() {
-		$token = Helpers::extractBearerToken();
-		if ($token === null) {
-			return false;
-		}
-		return Login::check_access_token($token);
-	}
-
 	private function validateAdd($input)
 	{
 		if (! isset($input['name'])) {
@@ -104,12 +92,6 @@ class UserController
 	
 	private function getUser($id)
 	{
-		if (!$this->checkToken()) {
-			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
-			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
-			return $response;
-		}
-
 		if (!array_key_exists ($id, $this->data)) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
@@ -139,12 +121,6 @@ class UserController
     ]  
 
 	private function getAllUsers() {
-		if (!$this->checkToken()) {
-			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
-			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
-			return $response;
-		}
-
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$all = array();
 		foreach ($this->data as $user) {
@@ -239,12 +215,6 @@ class UserController
 	
 	private function updateUser($id)
 	{
-		if (!$this->checkToken()) {
-			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
-			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
-			return $response;
-		}
-
 		if (!array_key_exists ($id, $this->data)) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
@@ -290,12 +260,6 @@ class UserController
     ]  
 	
 	private function deleteUser($id) {
-		if (!$this->checkToken()) {
-			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
-			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
-			return $response;
-		}
-
 		if (!array_key_exists ($id, $this->data)) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
