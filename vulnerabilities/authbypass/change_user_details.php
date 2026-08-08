@@ -12,8 +12,6 @@ enforce it unconditionally rather than branching on the security level.
 */
 
 if (dvwaCurrentUser() != "admin") {
-	http_response_code(403);
-	header('Content-Type: application/json; charset=UTF-8');
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }

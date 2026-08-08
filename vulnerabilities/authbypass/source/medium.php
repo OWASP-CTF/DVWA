@@ -11,8 +11,8 @@ Have a look at these two files for possible vulnerabilities:
 */
 
 if (dvwaCurrentUser() != "admin") {
-	http_response_code(403);
 	print "Unauthorised";
+	http_response_code(403);
 	exit;
 }
 ?>

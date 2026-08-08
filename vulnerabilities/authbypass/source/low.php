@@ -9,8 +9,8 @@ matching the medium/high/impossible levels.
 */
 
 if (dvwaCurrentUser() != "admin") {
-	http_response_code(403);
 	print "Unauthorised";
+	http_response_code(403);
 	exit;
 }
 ?>

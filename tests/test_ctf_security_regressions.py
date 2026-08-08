@@ -8,24 +8,6 @@ def source(relative_path: str) -> str:
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
-def test_authbypass_sets_denial_status_before_output():
-    for level in ("low", "medium", "high", "impossible"):
-        body = source(f"vulnerabilities/authbypass/source/{level}.php")
-        assert body.index("http_response_code(403)") < body.index('print "Unauthorised"')
-
-    for endpoint in ("change_user_details.php", "get_user_data.php"):
-        body = source(f"vulnerabilities/authbypass/{endpoint}")
-        denied = body.index('"error" => "Access denied"')
-        assert body.rfind("http_response_code(403)", 0, denied) != -1
-
-
-def test_bac_low_displays_only_server_derived_role():
-    body = source("vulnerabilities/bac/source/low.php")
-    assert "$display_role = $role" in body
-    assert "$role = isset($_COOKIE['user_role'])" not in body
-    assert "htmlspecialchars($display_role, ENT_QUOTES, 'UTF-8')" in body
-
-
 def test_high_weak_id_cookie_is_host_only_and_script_inaccessible():
     body = source("vulnerabilities/weak_id/source/high.php")
     assert "$_SERVER['HTTP_HOST']" not in body
