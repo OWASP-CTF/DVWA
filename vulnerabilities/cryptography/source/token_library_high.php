@@ -1,36 +1,29 @@
 <?php
 
 define ("KEY", "rainbowclimbinghigh");
-define ("ALGO", "aes-256-gcm");
+define ("ALGO", "aes-128-cbc");
+define ("IV", "1234567812345678");
 
 function encrypt ($plaintext, $iv) {
-	# Authenticated encryption with a fresh IV for every token, so a token
-	# cannot be tampered with, replayed against a fixed IV, or used as a
-	# padding oracle.
+	# Default padding is PKCS#7 which is interchangeable with PKCS#5
+	# https://en.wikipedia.org/wiki/Padding_%28cryptography%29#PKCS#5_and_PKCS#7
 
-	if (strlen ($iv) != 12) {
-		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 16) {
+		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
 	}
-
+	$tag = "";
 	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
-	return $e . $tag;
+	return $e;
 }
 
 function decrypt ($ciphertext, $iv) {
-	if (strlen ($iv) != 12) {
-		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 16) {
+		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
 	}
-
-	$tag = substr($ciphertext, -16);
-	$text = substr($ciphertext, 0, -16);
-
-	# The tag is verified as part of the decryption, so any modified
-	# ciphertext is rejected outright rather than decrypted to something the
-	# caller chose.
-	$e = openssl_decrypt($text, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_decrypt($ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -42,16 +35,17 @@ function decrypt ($ciphertext, $iv) {
 
 function create_token ($debug = false) {
 	$token = "userid:2";
-	$iv = openssl_random_pseudo_bytes(12, $cstrong);
 
 	if ($debug) {
 		print "Clear text token: " . $token . "\n";
+		print "Encryption key: " . KEY . "\n";
+		print "IV: " . (IV) . "\n";
 	}
 
-	$e = encrypt ($token, $iv);
+	$e = encrypt ($token, IV);
 	$data = array (
 					"token" => base64_encode ($e),
-					"iv" => base64_encode ($iv),
+					"iv" => base64_encode (IV)
 				);
 	return json_encode($data);
 }
@@ -94,7 +88,7 @@ function check_token ($data) {
 						);
 			return json_encode ($ret);
 		}
-
+			
 		$ciphertext = base64_decode ($data_array['token']);
 		$iv = base64_decode ($data_array['iv']);
 
@@ -104,7 +98,7 @@ function check_token ($data) {
 						"message" => "Unknown error"
 					);
 		try {
-			$d = decrypt ($ciphertext, $iv);
+			$d = decrypt ($ciphertext, $iv); 
 			if (preg_match ("/^userid:(\d+)$/", $d, $matches)) {
 				$id = $matches[1];
 				if (array_key_exists ($id, $users)) {

@@ -1,24 +1,6 @@
 <?php
-
-define ("CRYPTO_MEDIUM_ALGO", "aes-256-gcm");
-
-// ECB leaks structure and lets whole blocks be swapped between tokens, which is
-// how a user token gets turned into an admin one. Tokens use authenticated
-// encryption instead, carrying their own IV and authentication tag.
-
-function crypto_key ($key) {
-	return hash ("sha256", $key, true);
-}
-
-function decrypt ($raw, $key) {
-	if (strlen ($raw) < 29) {
-		throw new Exception ("Token is in wrong format");
-	}
-	$iv = substr ($raw, 0, 12);
-	$tag = substr ($raw, -16);
-	$ciphertext = substr ($raw, 12, -16);
-
-	$e = openssl_decrypt($ciphertext, CRYPTO_MEDIUM_ALGO, crypto_key ($key), OPENSSL_RAW_DATA, $iv, $tag);
+function decrypt ($ciphertext, $key) {
+	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -36,8 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (!array_key_exists ('token', $_POST)) {
 			throw new Exception ("No token passed");
 		} else {
-			$token = trim ($_POST['token']);
-			if (strlen($token) % 2 != 0 || !ctype_xdigit($token)) {
+			$token = $_POST['token'];
+			if (strlen($token) % 32 != 0) {
 				throw new Exception ("Token is in wrong format");
 			} else {
 				$decrypted = decrypt(hex2bin ($token), $key);
@@ -67,19 +49,19 @@ $html = "
 		<strong>Sooty (admin), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>3c151a5aa15fb746f71c1739f705252e7bf01b007c729c75739902a74c58fa48fc7dde4810aa0e90fdf6d71436aace721dbea67076f57f80f3e9389460432e5d05f737efe317d68690f2d1e97442fb9aed24fa10f296c248c15a20c47e95cbbef88d45</textarea>
+<textarea style='width: 600px; height: 56px'>e287af752ed3f9601befd45726785bd9b85bb230876912bf3c66e50758b222d0837d1e6b16bfae07b776feb7afe576305aec34b41499579d3fb6acc8dc92fd5fcea8743c3b2904de83944d6b19733cdb48dd16048ed89967c250ab7f00629dba</textarea>
 		</p>
 		<p>
 		<strong>Sweep (user), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>d54d2b9614e1c6d1d97c050220d8f66db56b5d43dcb6b9ec1fc7c70aa493f3ec1b1c76f64c7d5eab29039f5a3e2367571081d1b29f5bfb06414b034d4773dc14c84eade9f96b574896eb1f5c76669e68a6a8c9938f21123d3cea74a50877244436</textarea>
+<textarea style='width: 600px; height: 56px'>3061837c4f9debaf19d4539bfa0074c1b85bb230876912bf3c66e50758b222d083f2d277d9e5fb9a951e74bee57c77a3caeb574f10f349ed839fbfd223903368873580b2e3e494ace1e9e8035f0e7e07</textarea>
 		</p>
 		<p>
 		<strong>Soo (user), session valid</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>c57b8276fa5843a54a7309bf06e57062922c600fca22c07f3f85cc4a07aaa7e09eb4896636885a716bb19935829f258dc3117141a542a05f6c9f34fcc7672f76956498e8dc6f549f454cf9598778ac90ee18ff0f1355c46a860cf9580a140a</textarea>
+<textarea style='width: 600px; height: 56px'>5fec0b1c993f46c8bad8a5c8d9bb9698174d4b2659239bbc50646e14a70becef83f2d277d9e5fb9a951e74bee57c77a3c9acb1f268c06c5e760a9d728e081fab65e83b9f97e65cb7c7c4b8427bd44abc16daa00fd8cd0105c97449185be77ef5</textarea>
 		</p>
 		<p>
 		Based on the documentation, you know the format of the token is:
@@ -94,7 +76,7 @@ $html = "
 You also spot this comment in the docs:
 </p>
 <blockquote><i>
-To ensure your security, we use aes-256-gcm throughout our application.
+To ensure your security, we use aes-128-ecb throughout our application.
 </i></blockquote>
 
 		<hr>
