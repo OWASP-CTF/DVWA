@@ -62,6 +62,7 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	}
 	else {
 		// Login failed
+		sleep( 2 );
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
 
 		// Update bad login count
