@@ -36,26 +36,16 @@ final class User
 	}
 
 	public function toArray($version) {
-		switch ($version) {
-			case 1:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-					"password" => $this->password,
-				);
-				break;
-			default:
-			case 2:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-				);
-				break;
-		}
-
-		return $a;
+		// Version 1 of this representation included the user's password, so
+		// simply asking the older endpoint (/api/v1/user/) for the user list
+		// dumped every credential in the system. Keeping an old version alive
+		// for backward compatibility is fine; keeping its data leak alive is
+		// not. No version of this representation exposes the password.
+		return array (
+			"id" => $this->id,
+			"name" => $this->name,
+			"level" => $this->level,
+		);
 	}
 }
 
