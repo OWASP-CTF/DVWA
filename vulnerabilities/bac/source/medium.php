@@ -25,7 +25,7 @@ if ($stmt) {
 // influence via a query-string value.
 $html = "";
 if (isset($_REQUEST['action']) && isset($_REQUEST['user_id'])) {
-    if (!preg_match('/^\d+$/', $_REQUEST['user_id'])) {
+    if (!is_string($_REQUEST['user_id']) || !preg_match('/^\d+$/', $_REQUEST['user_id'])) {
         $html .= "<p>Invalid user ID format. Please enter a number.</p>";
     } else {
         $id = intval($_REQUEST['user_id']);

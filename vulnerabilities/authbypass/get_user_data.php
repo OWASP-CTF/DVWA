@@ -21,16 +21,19 @@ $result = mysqli_query($GLOBALS["___mysqli_ston"],  $query );
 $guestbook = ''; 
 $users = array();
 
-while ($row = mysqli_fetch_row($result) ) { 
-	if( dvwaSecurityLevelGet() == 'impossible' ) { 
-		$user_id = $row[0];
-		$first_name = htmlspecialchars( $row[1] );
-		$surname = htmlspecialchars( $row[2] );
-	} else {
-		$user_id = $row[0];
-		$first_name = $row[1];
-		$surname = $row[2];
-	}   
+/*
+Output is HTML-encoded for every level, not just impossible. This endpoint's
+JSON is rendered into the DOM with innerHTML (see authbypass.js), and
+first_name/surname come straight out of the users table with no guarantee
+they are free of HTML metacharacters - matching impossible's encoding here
+closes that stored-XSS-via-admin's-browser path uniformly, and it is a
+no-op for the stock seed data (gordonb, 1337, pablo, smithy, admin), so the
+JSON shape the page consumes is unchanged for the benign path.
+*/
+while ($row = mysqli_fetch_row($result) ) {
+	$user_id = $row[0];
+	$first_name = htmlspecialchars( $row[1] );
+	$surname = htmlspecialchars( $row[2] );
 
 	$user = array (
 					"user_id" => $user_id,

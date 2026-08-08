@@ -48,6 +48,17 @@ class UserController
 		if (!is_numeric ($input['level'])) {
 			return false;
 		}
+		// Broken Function Level Authorization guard (OWASP API5): this
+		// endpoint is reachable by anyone, with no authentication at
+		// all, so it must never be able to mint a privileged (level 0
+		// / admin) account - that is a self-service signup endpoint,
+		// not an admin-provisioning one. The OpenAPI spec documenting
+		// "level" as a required field on UserAdd is not a licence to
+		// let a caller choose to become admin; it still has to be a
+		// valid non-privileged level.
+		if (intval($input['level']) <= 0) {
+			return false;
+		}
 		return true;
 	}
 

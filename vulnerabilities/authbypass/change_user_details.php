@@ -47,8 +47,38 @@ try {
 	exit;
 }
 
-$query = "UPDATE users SET first_name = '" . $data->first_name . "', last_name = '" .  $data->surname . "' where user_id = " . $data->id . "";
-$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+/*
+The query below used to be built by concatenating $data->id / first_name /
+surname straight into the SQL string. That is a SQL injection regardless of
+who is allowed to call this endpoint - the admin-only check above stops the
+authorisation-bypass exploit this module is about, but it does nothing to
+stop an authenticated admin request (or any request that gets past a future
+change to that check) from breaking out of the string. Parameterise it with
+a prepared statement, matching the pattern already used elsewhere in this
+codebase (e.g. vulnerabilities/bac/source/low.php).
+*/
+if (!isset($data->id) || !is_numeric($data->id)
+	|| !isset($data->first_name) || !is_scalar($data->first_name)
+	|| !isset($data->surname) || !is_scalar($data->surname)) {
+	$result = array (
+						"result" => "fail",
+						"error" => 'Invalid format, expecting "{id: {user ID}, first_name: "{first name}", surname: "{surname}"}'
+					);
+	echo json_encode($result);
+	exit;
+}
+
+$id         = (int) $data->id;
+$first_name = (string) $data->first_name;
+$surname    = (string) $data->surname;
+
+$query = "UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?";
+$stmt  = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+if ($stmt) {
+	mysqli_stmt_bind_param($stmt, "ssi", $first_name, $surname, $id);
+	mysqli_stmt_execute($stmt);
+	mysqli_stmt_close($stmt);
+}
 
 print json_encode (array ("result" => "ok"));
 exit;

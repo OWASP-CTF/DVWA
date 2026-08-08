@@ -11,8 +11,14 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// Belt and braces: the per-request nonce above already stops any inline
+// <script> the attacker submits from executing (they cannot know the nonce
+// for a response before the server generates it). HTML-encoding the
+// reflection on top of that means the submitted markup is never emitted as
+// live tags/attributes at all, so a check of the response body alone -- not
+// just a CSP-aware browser -- also sees no injected markup.
 $page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	" . htmlspecialchars( $_POST['include'], ENT_QUOTES, 'UTF-8' ) . "
 ";
 }
 $page[ 'body' ] .= '

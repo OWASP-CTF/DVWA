@@ -7,8 +7,13 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// Belt and braces: the CSP header above is the primary control (it stops the
+// browser executing anything not same-origin), but the reflected value is
+// also HTML-encoded so it can never break out of the src='...' attribute to
+// inject markup of its own, regardless of what any given client makes of the
+// CSP header.
 $page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
+	<script src='" . htmlspecialchars( $_POST['include'], ENT_QUOTES, 'UTF-8' ) . "'></script>
 ";
 }
 $page[ 'body' ] .= '
