@@ -50,7 +50,11 @@ function dvwa_start_session() {
 	// difficulty levels are about the vulnerable modules, not about weakening
 	// the session handling of the application itself.
 	$httponly = true;
-	$samesite = "Strict";
+	// Lax, not Strict: Lax already withholds the cookie from a cross-site POST,
+	// which is the CSRF case that matters here. Strict also withholds it from
+	// an ordinary top-level navigation that started somewhere else, which
+	// breaks clients that drive the application from another page.
+	$samesite = "Lax";
 
 	$maxlifetime = 86400;
 	// Only flag the cookie as Secure when the request actually came in over
@@ -895,7 +899,12 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 		destroySessionToken();
 	}
 	// uniqid() is time based and therefore predictable, so use a CSPRNG instead.
-	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
+	//
+	// 16 bytes, i.e. the same 32 hex characters md5() produced. The strength
+	// comes from the source of the bytes, not from the length, and keeping the
+	// shape means anything that scrapes the token with a fixed-width pattern
+	// still works.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
