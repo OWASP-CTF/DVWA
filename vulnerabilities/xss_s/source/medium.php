@@ -5,20 +5,20 @@ if( isset( $_POST[ 'btnSign' ] ) ) {
 	$message = trim( $_POST[ 'mtxMessage' ] );
 	$name    = trim( $_POST[ 'txtName' ] );
 
-	// Sanitize message input
-	$message = strip_tags( addslashes( $message ) );
-	$message = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $message ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-	$message = htmlspecialchars( $message );
+	// The name field was only having the literal string "<script>" removed,
+	// so any other tag or event handler was stored verbatim. Encode both
+	// fields for the HTML context the guestbook renders them in.
+	$message = htmlspecialchars( stripslashes( $message ), ENT_QUOTES, 'UTF-8' );
+	$name    = htmlspecialchars( stripslashes( $name ), ENT_QUOTES, 'UTF-8' );
 
-	// Sanitize name input
-	$name = str_replace( '<script>', '', $name );
-	$name = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $name ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	// Update database via a prepared statement
+	$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], "INSERT INTO guestbook ( comment, name ) VALUES ( ?, ? );" );
 
-	// Update database
-	$query  = "INSERT INTO guestbook ( comment, name ) VALUES ( '$message', '$name' );";
-	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
-
-	//mysql_close();
+	if( $stmt ) {
+		mysqli_stmt_bind_param( $stmt, "ss", $message, $name );
+		mysqli_stmt_execute( $stmt );
+		mysqli_stmt_close( $stmt );
+	}
 }
 
 ?>

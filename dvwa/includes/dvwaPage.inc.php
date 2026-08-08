@@ -614,14 +614,10 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
-			$name    = htmlspecialchars( $row[0] );
-			$comment = htmlspecialchars( $row[1] );
-		}
-		else {
-			$name    = $row[0];
-			$comment = $row[1];
-		}
+		// Stored entries are always encoded on the way out, whatever the
+		// current security level and whatever is already in the table.
+		$name    = htmlspecialchars( $row[0], ENT_QUOTES, 'UTF-8' );
+		$comment = htmlspecialchars( $row[1], ENT_QUOTES, 'UTF-8' );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}
@@ -638,7 +634,9 @@ function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the
 		return true;
 	}
 
-	if( $user_token !== $session_token || !isset( $session_token ) ) {
+	// Compare in constant time so the token cannot be recovered byte by byte
+	// through response timing. Semantics are otherwise unchanged.
+	if( !isset( $session_token ) || !is_string( $user_token ) || !hash_equals( (string) $session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -648,7 +646,8 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = md5( uniqid() );
+	// md5( uniqid() ) is derived from the clock and is therefore guessable.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
