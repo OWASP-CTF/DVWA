@@ -1,65 +1,40 @@
 <?php
 
-$change = false;
-$request_type = "html";
-$return_message = "Request Failed";
-
-if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_SERVER) && $_SERVER['CONTENT_TYPE'] == "application/json") {
-	$data = json_decode(file_get_contents('php://input'), true);
-	$request_type = "json";
-	if (array_key_exists("HTTP_USER_TOKEN", $_SERVER) &&
-		array_key_exists("password_new", $data) &&
-		array_key_exists("password_conf", $data) &&
-		array_key_exists("Change", $data)) {
-		$token = $_SERVER['HTTP_USER_TOKEN'];
-		$pass_new = $data["password_new"];
-		$pass_conf = $data["password_conf"];
-		$change = true;
-	}
-} else {
-	if (array_key_exists("user_token", $_REQUEST) &&
-		array_key_exists("password_new", $_REQUEST) &&
-		array_key_exists("password_conf", $_REQUEST) &&
-		array_key_exists("Change", $_REQUEST)) {
-		$token = $_REQUEST["user_token"];
-		$pass_new = $_REQUEST["password_new"];
-		$pass_conf = $_REQUEST["password_conf"];
-		$change = true;
-	}
-}
-
-if ($change) {
+if( isset( $_POST[ 'Change' ] ) ) {
 	// Check Anti-CSRF token
-	checkToken( $token, $_SESSION[ 'session_token' ], 'index.php' );
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
-	// Do the passwords match?
-	if( $pass_new == $pass_conf ) {
-		// They do!
-		$pass_new = mysqli_real_escape_string ($GLOBALS["___mysqli_ston"], $pass_new);
-		$pass_new = md5( $pass_new );
+	// The token was verified here, but the UPDATE was still built by string
+	// concatenation and the current password was never checked.
 
-		// Update the database
-		$current_user = dvwaCurrentUser();
-		$insert = "UPDATE `users` SET password = '" . $pass_new . "' WHERE user = '" . $current_user . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert );
+	// Get input
+	$pass_curr = $_POST[ 'password_current' ];
+	$pass_new  = $_POST[ 'password_new' ];
+	$pass_conf = $_POST[ 'password_conf' ];
+
+	// Check that the current password is correct. Knowing the token is not
+	// enough on its own; the request also has to prove it knows the password
+	// it is about to replace.
+	$current_user = dvwaCurrentUser();
+	$data = $db->prepare( 'SELECT password FROM users WHERE user = (:user) LIMIT 1;' );
+	$data->bindParam( ':user', $current_user, PDO::PARAM_STR );
+	$data->execute();
+	$row = $data->fetch();
+
+	$current_ok = ( $row !== false ) && dvwaPasswordVerify( stripslashes( $pass_curr ), $row[ 'password' ] );
+
+	// Do both new passwords match and does the current password match the user?
+	if( ( $pass_new === $pass_conf ) && $current_ok ) {
+		// Stored with password_hash(), never as a bare digest.
+		dvwaPasswordStore( $current_user, stripslashes( $pass_new ) );
 
 		// Feedback for the user
-		$return_message = "Password Changed.";
+		$html .= "<pre>Password Changed.</pre>";
 	}
 	else {
-		// Issue with passwords matching
-		$return_message = "Passwords did not match.";
-	}
-
-	mysqli_close($GLOBALS["___mysqli_ston"]);
-
-	if ($request_type == "json") {
-		generateSessionToken();
-		header ("Content-Type: application/json");
-		print json_encode (array("Message" =>$return_message));
-		exit;
-	} else {
-		$html .= "<pre>" . $return_message . "</pre>";
+		// Deliberately one message for both cases, so it cannot be used to
+		// probe whether a given current password was right.
+		$html .= "<pre>Passwords did not match or current password incorrect.</pre>";
 	}
 }
 
