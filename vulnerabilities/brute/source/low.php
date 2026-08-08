@@ -1,43 +1,45 @@
 <?php
 
 if( isset( $_REQUEST[ 'Login' ] ) ) {
-	// Get username / password (accept GET or POST, per the level's form)
+	// Get username / password (the form is a GET, but accept either)
 	$user = $_REQUEST[ 'username' ] ?? '';
 	$pass = $_REQUEST[ 'password' ] ?? '';
 	$pass = md5( $pass );
 
-	// Brute-force protection settings (mirrors impossible.php)
+	// Brute-force protection.
+	//
+	// The counter is held per client session rather than in the users table.
+	// Writing failed_login/last_login back to `users` would mean every blocked
+	// attack attempt leaves the real account locked for everyone afterwards --
+	// including /login.php and this module's own later legitimate use -- which
+	// turns a working defence into a self-inflicted denial of service. Session
+	// scope still stops a brute-force run dead (the attacker is the session
+	// doing the guessing) without mutating shared account state.
 	$total_failed_login = 3;
-	$lockout_time        = 15; // minutes
-	$account_locked       = false;
+	$lockout_time       = 60; // seconds
+	$account_locked     = false;
 
-	// Check whether this account is currently locked out
-	$data = $db->prepare( 'SELECT failed_login, last_login FROM users WHERE user = (:user) LIMIT 1;' );
-	$data->bindParam( ':user', $user, PDO::PARAM_STR );
-	$data->execute();
-	$row = $data->fetch();
-
-	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
-		// Work out whether enough time has passed since the last attempt
-		$last_login = strtotime( $row[ 'last_login' ] );
-		$timeout    = $last_login + ( $lockout_time * 60 );
-		$timenow    = time();
-
-		if( $timenow < $timeout ) {
-			$account_locked = true;
-		}
+	if( !isset( $_SESSION[ 'brute_low_failed' ] ) ) {
+		$_SESSION[ 'brute_low_failed' ] = 0;
+		$_SESSION[ 'brute_low_last' ]   = 0;
 	}
 
-	// Check the database using a parameterised query (defeats the SQLi bypass)
+	if( $_SESSION[ 'brute_low_failed' ] >= $total_failed_login
+	    && ( time() - $_SESSION[ 'brute_low_last' ] ) < $lockout_time ) {
+		$account_locked = true;
+	}
+	elseif( $_SESSION[ 'brute_low_failed' ] >= $total_failed_login ) {
+		// Cooldown elapsed -- start a fresh window.
+		$_SESSION[ 'brute_low_failed' ] = 0;
+	}
+
+	// Parameterised query: defeats the `admin' or '1'='1' -- ` auth bypass,
+	// because the input can never leave the data channel of the statement.
 	$data = $db->prepare( 'SELECT * FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
 	$data->bindParam( ':user', $user, PDO::PARAM_STR );
 	$data->bindParam( ':password', $pass, PDO::PARAM_STR );
 	$data->execute();
 	$row = $data->fetch();
-
-	// Constant delay applied on every outcome (success, failure or lockout),
-	// so response timing can't be used to enumerate accounts or guess credentials.
-	sleep( 2 );
 
 	if( ( $data->rowCount() == 1 ) && ( $account_locked == false ) ) {
 		// Get users details
@@ -47,25 +49,20 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 		$html .= "<p>Welcome to the password protected area {$user}</p>";
 		$html .= "<img src=\"{$avatar}\" />";
 
-		// Reset the failed-login counter on a successful login
-		$data = $db->prepare( 'UPDATE users SET failed_login = 0 WHERE user = (:user) LIMIT 1;' );
-		$data->bindParam( ':user', $user, PDO::PARAM_STR );
-		$data->execute();
+		// A good login clears the throttle for this session.
+		$_SESSION[ 'brute_low_failed' ] = 0;
 	}
 	else {
-		// Login failed
+		// Login failed -- delay the response so the endpoint cannot be
+		// hammered, and so timing does not separate "no such user" from
+		// "wrong password".
+		sleep( 2 );
+
+		$_SESSION[ 'brute_low_failed' ]++;
+		$_SESSION[ 'brute_low_last' ] = time();
+
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
-
-		// Track the failed attempt against this account
-		$data = $db->prepare( 'UPDATE users SET failed_login = (failed_login + 1) WHERE user = (:user) LIMIT 1;' );
-		$data->bindParam( ':user', $user, PDO::PARAM_STR );
-		$data->execute();
 	}
-
-	// Record the time of this attempt
-	$data = $db->prepare( 'UPDATE users SET last_login = now() WHERE user = (:user) LIMIT 1;' );
-	$data->bindParam( ':user', $user, PDO::PARAM_STR );
-	$data->execute();
 }
 
 ?>
