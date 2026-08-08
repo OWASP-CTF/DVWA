@@ -15,13 +15,15 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
-// The CSP already restricts which origin a script can load from, but the
-// submitted value used to be dropped straight into a single-quoted HTML
-// attribute with no escaping - a value containing a quote could close the
-// attribute early and inject arbitrary markup regardless of what the CSP
-// header allows. Encode it for this attribute context.
+// The submitted value used to be built into a <script src="..."> tag, so
+// the "include a script" feature this page demonstrates was itself the
+// gadget: the CSP header restricts *which origin* a script can come from,
+// but never stopped this page from being talked into emitting a script
+// element pointing wherever the caller chose within that origin. Show
+// the value back as inert text instead of ever using it to construct a
+// script element.
 $page[ 'body' ] .= "
-	<script src='" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "'></script>
+	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '
