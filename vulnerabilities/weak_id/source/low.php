@@ -3,11 +3,14 @@
 $html = "";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if (!isset ($_SESSION['last_session_id'])) {
-		$_SESSION['last_session_id'] = 0;
-	}
-	$_SESSION['last_session_id']++;
-	$cookie_value = $_SESSION['last_session_id'];
-	setcookie("dvwaSession", $cookie_value);
+	// This level handed out a plain incrementing counter, so seeing one id gave
+	// you every other id.
+	//
+	// The value comes from a cryptographically secure random source, so nothing
+	// about one id says anything about the next. It is scoped to this module,
+	// marked HttpOnly so script cannot read it, and marked Secure whenever the
+	// request arrived over TLS.
+	$cookie_value = bin2hex(random_bytes(20));
+	setcookie("dvwaSession", $cookie_value, time()+3600, "/vulnerabilities/weak_id/", "", dvwaIsHttps(), true);
 }
 ?>
