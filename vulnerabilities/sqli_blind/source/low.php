@@ -11,7 +11,7 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
-			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT first_name, last_name FROM users WHERE user_id = ?;");
+			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT first_name, last_name FROM users WHERE user_id = ? LIMIT 1;");
 			try {
 				$result = false;
 				if ($stmt !== false && true) {
@@ -38,7 +38,7 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 			global $sqlite_db_connection;
 
 			try {
-				$stmt = $sqlite_db_connection->prepare("SELECT first_name, last_name FROM users WHERE user_id = :id;");
+				$stmt = $sqlite_db_connection->prepare("SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;");
 				$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
 				$results = $stmt->execute();
 				$row = $results === false ? false : $results->fetchArray();
