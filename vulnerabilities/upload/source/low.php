@@ -1,6 +1,14 @@
 <?php
 
 if( isset( $_POST[ 'Upload' ] ) ) {
+	// Check Anti-CSRF token
+	if (array_key_exists ("session_token", $_SESSION)) {
+		$session_token = $_SESSION[ 'session_token' ];
+	} else {
+		$session_token = "";
+	}
+	checkToken( $_REQUEST[ 'user_token' ], $session_token, 'index.php' );
+
 	// Where are we going to be writing to?
 	$target_path  = DVWA_WEB_PAGE_TO_ROOT . "hackable/uploads/";
 	$target_path .= basename( $_FILES[ 'uploaded' ][ 'name' ] );
@@ -34,5 +42,8 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 		$html .= '<pre>Your image was not uploaded. We can only accept JPEG or PNG images.</pre>';
 	}
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
