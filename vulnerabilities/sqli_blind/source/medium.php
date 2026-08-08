@@ -1,8 +1,8 @@
 <?php
 
-if( isset( $_POST[ 'Submit' ]  ) ) {
+if( isset( $_POST[ 'Submit' ] ) || isset( $_COOKIE[ 'id' ] ) ) {
 	// Get input
-	$id = $_POST[ 'id' ];
+	$id = isset( $_POST[ 'id' ] ) ? $_POST[ 'id' ] : $_COOKIE[ 'id' ];
 	$exists = false;
 
 	// The id is a number, so anything trailing it is not part of the lookup
