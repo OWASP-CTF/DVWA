@@ -1,52 +1,54 @@
 <?php
 
+// The id comes from the session, set by session-input.php. A session value is
+// still attacker influenced here, so it gets exactly the same validation and
+// binding as a value straight off the request.
 if( isset( $_SESSION [ 'id' ] ) ) {
 	// Get input
 	$id = $_SESSION[ 'id' ];
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query ) or die( '<pre>Something went wrong.</pre>' );
+	if( !is_numeric( $id ) ) {
+		$html .= '<pre>ID must be a number.</pre>';
+	}
+	else {
+		$id = intval( $id );
 
-			// Get results
-			while( $row = mysqli_fetch_assoc( $result ) ) {
-				// Get values
-				$first = $row["first_name"];
-				$last  = $row["last_name"];
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
+				$data->bindParam( ':id', $id, PDO::PARAM_INT );
+				$data->execute();
+				$row = $data->fetch();
 
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
-			}
-
-			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);		
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
-
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
-			#print $query;
-			try {
-				$results = $sqlite_db_connection->query($query);
-			} catch (Exception $e) {
-				echo 'Caught exception: ' . $e->getMessage();
-				exit();
-			}
-
-			if ($results) {
-				while ($row = $results->fetchArray()) {
+				if( $row ) {
 					// Get values
-					$first = $row["first_name"];
-					$last  = $row["last_name"];
+					$first = htmlspecialchars( $row[ 'first_name' ], ENT_QUOTES, 'UTF-8' );
+					$last  = htmlspecialchars( $row[ 'last_name' ], ENT_QUOTES, 'UTF-8' );
 
 					// Feedback for end user
 					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 				}
-			} else {
-				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
-			}
-			break;
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$results = $stmt->execute();
+
+				if( $results !== false ) {
+					$row = $results->fetchArray();
+					if( $row ) {
+						// Get values
+						$first = htmlspecialchars( $row[ 'first_name' ], ENT_QUOTES, 'UTF-8' );
+						$last  = htmlspecialchars( $row[ 'last_name' ], ENT_QUOTES, 'UTF-8' );
+
+						// Feedback for end user
+						$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					}
+				}
+				break;
+		}
 	}
 }
 

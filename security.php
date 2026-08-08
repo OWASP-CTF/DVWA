@@ -31,6 +31,11 @@ if( isset( $_POST['seclev_submit'] ) ) {
 	}
 
 	dvwaSecurityLevelSet( $securityLevel );
+
+	// Changing the security level changes which code paths run, so it is a
+	// security relevant event and needs to leave a trace (A09:2025).
+	dvwaSecurityLog( 'security.level.change', array( 'level' => $securityLevel ) );
+
 	dvwaMessagePush( "Security level set to {$securityLevel}" );
 	dvwa_start_session();
 	dvwaPageReload();

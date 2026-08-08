@@ -36,26 +36,14 @@ final class User
 	}
 
 	public function toArray($version) {
-		switch ($version) {
-			case 1:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-					"password" => $this->password,
-				);
-				break;
-			default:
-			case 2:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-				);
-				break;
-		}
-
-		return $a;
+		// The password hash is never part of an API response, in any version.
+		// Serving it from v1 was plain credential disclosure: an old version of
+		// an endpoint is still a live endpoint.
+		return array (
+			"id" => $this->id,
+			"name" => $this->name,
+			"level" => $this->level,
+		);
 	}
 }
 

@@ -20,9 +20,9 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 
 				// Make sure only 1 result is returned
 				if( $data->rowCount() == 1 ) {
-					// Get values
-					$first = $row[ 'first_name' ];
-					$last  = $row[ 'last_name' ];
+					// Get values, encoded for the HTML they are about to land in.
+					$first = htmlspecialchars( $row[ 'first_name' ], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
+					$last  = htmlspecialchars( $row[ 'last_name' ], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 
 					// Feedback for end user
 					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
@@ -45,9 +45,9 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 					if ($num_columns == 2) {
 						$row = $result->fetchArray();
 
-						// Get values
-						$first = $row[ 'first_name' ];
-						$last  = $row[ 'last_name' ];
+						// Get values, encoded for the HTML they are about to land in.
+						$first = htmlspecialchars( $row[ 'first_name' ], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
+						$last  = htmlspecialchars( $row[ 'last_name' ], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 
 						// Feedback for end user
 						$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";

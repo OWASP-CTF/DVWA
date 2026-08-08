@@ -8,11 +8,32 @@ use Src\OrderController;
 use Src\LoginController;
 use Src\Helpers;
 
-header("Access-Control-Allow-Origin: *");
+// Same origin only. Combining a wildcard origin with an allowed Authorization
+// header let any site on the internet issue authenticated calls against this
+// API from a visitor's browser.
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
 header("Access-Control-Max-Age: 3600");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
+/*
+ * The user and health controllers are deliberately left open.
+ *
+ * An earlier revision put a session-or-bearer-token gate in front of them. That
+ * is defensible in the abstract, but it is not what this module's weaknesses
+ * were, and it makes the endpoints unreachable for anything that does not hold
+ * a DVWA cookie — including the tooling the OpenAPI document tells you to point
+ * at them. Every actual problem is fixed where it lives, and none of the fixes
+ * depend on the caller being authenticated:
+ *
+ *   - the password hash is no longer part of any response (User::toArray)
+ *   - 'level' is no longer mass assignable (UserController::updateUser)
+ *   - the connectivity probe validates its target and quotes the shell argument
+ *     (HealthController::isAllowedTarget / checkConnectivity)
+ *
+ * The order controller keeps its own bearer token check, which is this module's
+ * own authentication exercise.
+ */
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $uri = explode( '/', $uri );

@@ -80,12 +80,66 @@ class HealthController
     )   
     ]
 	
+	/*
+	 * Is this a host we are willing to probe?
+	 *
+	 * Two problems had to be closed here. The value reached the shell unquoted,
+	 * which was command injection, and it could name any host at all, which
+	 * made the endpoint a reachability probe for whatever sits on the internal
+	 * network (SSRF, folded into A01 in the 2025 Top 10).
+	 */
+	private function isAllowedTarget($target) {
+		if (!is_string($target) || $target === '' || strlen($target) > 253) {
+			return false;
+		}
+
+		// A literal address, or a hostname built only from label characters.
+		$isIp   = filter_var($target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false;
+		$isHost = preg_match('/^[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$/', $target) === 1;
+
+		if (!$isIp && !$isHost) {
+			return false;
+		}
+
+		// An explicit opt-in for a deployment that really does have to probe an
+		// internal host. Comma separated, matched against what was asked for.
+		// Empty by default, so the safe path below is what normally applies.
+		$allowed = array_filter(array_map('trim', explode(',', (string) getenv('DVWA_HEALTH_ALLOWED_TARGETS'))));
+		if (in_array($target, $allowed, true)) {
+			return true;
+		}
+
+		$resolved = $isIp ? $target : gethostbyname($target);
+		if (!$isIp && $resolved === $target) {
+			// The name did not resolve.
+			return false;
+		}
+
+		// Refuse anything that resolves into the private, loopback, link local
+		// or otherwise reserved ranges. Those are exactly the destinations an
+		// SSRF is aimed at, and an endpoint that reports reachability is a
+		// perfectly good scanner for them.
+		return filter_var(
+			$resolved,
+			FILTER_VALIDATE_IP,
+			FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+		) !== false;
+	}
+
 	private function checkConnectivity() {
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("target", $input)) {
 			$target = $input['target'];
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			if (!$this->isAllowedTarget ($target)) {
+				$response['status_code_header'] = 'HTTP/1.1 400 Bad Request';
+				$response['body'] = json_encode (array ("status" => "Invalid target"));
+				return $response;
+			}
+
+			// Passed as a single quoted argument, so it can never be read as
+			// shell syntax even if the validation above is ever loosened.
+			exec ("ping -c 4 " . escapeshellarg ($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

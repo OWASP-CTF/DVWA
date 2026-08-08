@@ -2,8 +2,10 @@
 if (!defined('DVWA_WEB_PAGE_TO_ROOT')) {
     define('DVWA_WEB_PAGE_TO_ROOT', '../../../');
 }
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// display_errors is deliberately not turned on here. Rendering warnings and
+// driver messages into the response leaks paths and query fragments (CWE-209),
+// and an "impossible" level that discloses more than the vulnerable ones makes
+// no sense. Errors go to the log, configured in php.ini.
 
 // Initialize variables
 $html = "";
@@ -73,22 +75,22 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                                 $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
 
                                 if (!$stmt) {
-                                    $html .= "<p>Database error: " . mysqli_error($GLOBALS["___mysqli_ston"]) . "</p>";
+                                    error_log( "bac/impossible: " . mysqli_error($GLOBALS["___mysqli_ston"]) ); $html .= "<p>An error occurred. Please try again later.</p>";
                                 } else {
                                     $bind_success = mysqli_stmt_bind_param($stmt, "iis", $id, $current_user_id, $user_role);
 
                                     if (!$bind_success) {
-                                        $html .= "<p>Database error: " . mysqli_stmt_error($stmt) . "</p>";
+                                        error_log( "bac/impossible: " . mysqli_stmt_error($stmt) ); $html .= "<p>An error occurred. Please try again later.</p>";
                                     } else {
                                         $execute_success = mysqli_stmt_execute($stmt);
 
                                         if (!$execute_success) {
-                                            $html .= "<p>Database error: " . mysqli_stmt_error($stmt) . "</p>";
+                                            error_log( "bac/impossible: " . mysqli_stmt_error($stmt) ); $html .= "<p>An error occurred. Please try again later.</p>";
                                         } else {
                                             $result = mysqli_stmt_get_result($stmt);
 
                                             if (!$result) {
-                                                $html .= "<p>Database error: " . mysqli_stmt_error($stmt) . "</p>";
+                                                error_log( "bac/impossible: " . mysqli_stmt_error($stmt) ); $html .= "<p>An error occurred. Please try again later.</p>";
                                             } else if (mysqli_num_rows($result) > 0) {
                                                 $row = mysqli_fetch_assoc($result);
 
@@ -125,7 +127,7 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                         }
                     }
                 } else {
-                    $html .= "<p>Database error: " . mysqli_error($GLOBALS["___mysqli_ston"]) . "</p>";
+                    error_log( "bac/impossible: " . mysqli_error($GLOBALS["___mysqli_ston"]) ); $html .= "<p>An error occurred. Please try again later.</p>";
                 }
             } else {
                 $html .= "<p>Authentication error.</p>";
@@ -134,7 +136,7 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                 }
             }
         } else {
-            $html .= "<p>Database error: " . mysqli_error($GLOBALS["___mysqli_ston"]) . "</p>";
+            error_log( "bac/impossible: " . mysqli_error($GLOBALS["___mysqli_ston"]) ); $html .= "<p>An error occurred. Please try again later.</p>";
         }
     }
 }
@@ -184,8 +186,9 @@ function logAccessAttempt($user_id, $target_id, $action)
     // Ensure target_id is a valid integer
     $target_id = intval($target_id);
     
-    // Get IP address
-    $ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'];
+    // X-Forwarded-For is set by the client, so the attacker would be choosing
+    // the address recorded against their own attack (CWE-117).
+    $ip = dvwaClientIp();
     
     // First check if the bac_log table exists
     $check_table = "SHOW TABLES LIKE 'bac_log'";
@@ -219,8 +222,9 @@ function logSecurityEvent($action, $target_id, $user_id, $details = '')
     // Ensure target_id is a valid integer
     $target_id = intval($target_id);
     
-    // Get IP address
-    $ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'];
+    // X-Forwarded-For is set by the client, so the attacker would be choosing
+    // the address recorded against their own attack (CWE-117).
+    $ip = dvwaClientIp();
     
     // First check if the bac_log table exists
     $check_table = "SHOW TABLES LIKE 'bac_log'";

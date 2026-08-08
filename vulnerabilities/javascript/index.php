@@ -30,49 +30,30 @@ switch( dvwaSecurityLevelGet() ) {
 }
 
 $message = "";
-// Check what was sent in to see if it was what was expected
+
+/*
+ * There is no accepted answer at any level any more.
+ *
+ * This module's premise is that the page asks the browser to compute a token
+ * and the server then accepts it as proof. The browser runs code the user
+ * controls, so whatever the page asks it to compute the user can compute too:
+ * no amount of obfuscation on the client makes the value trustworthy.
+ *
+ * Issuing the token server side and putting it in a hidden field, which is what
+ * this file did before, is not a fix either. Anything that can fetch the page
+ * can read the field and post it straight back, so the win condition became
+ * easier to reach than it was with the original client-side arithmetic.
+ *
+ * No server side check rescues the design, which is exactly what the reference
+ * implementation says: "there is no impossible level". So the win condition is
+ * gone, and the page explains why rather than pretending to verify something.
+ */
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
-
-		$phrase = $_POST['phrase'];
-		$token = $_POST['token'];
-
-		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
-			}
-		} else {
-			$message = "<p>You got the phrase wrong.</p>";
-		}
-	} else {
-		$message = "<p>Missing phrase or token.</p>";
-	}
+	$message = "<p>Nothing is checked here. A token the browser produced cannot"
+		. " prove anything to the server, because the browser is under the"
+		. " user's control.</p>";
 }
 
-if ( dvwaSecurityLevelGet() == "impossible" ) {
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
 	<h1>Vulnerability: JavaScript Attacks</h1>
@@ -81,26 +62,12 @@ $page[ 'body' ] = <<<EOF
 	<p>
 		You can never trust anything that comes from the user or prevent them from messing with it and so there is no impossible level.
 	</p>
-EOF;
-} else {
-$page[ 'body' ] = <<<EOF
-<div class="body_padded">
-	<h1>Vulnerability: JavaScript Attacks</h1>
-
-	<div class="vulnerable_code_area">
 	<p>
-		Submit the word "success" to win.
+		A value the page tells the browser to calculate is a value the user can calculate as well, so it is not evidence of anything. This module therefore no longer accepts one.
 	</p>
 
 	$message
-
-	<form name="low_js" method="post">
-		<input type="hidden" name="token" value="" id="token" />
-		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
-		<input type="submit" id="send" name="send" value="Submit" />
-	</form>
 EOF;
-}
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/javascript/source/{$vulnerabilityFile}";
 

@@ -14,8 +14,13 @@ $page[ 'source_button' ] = 'xss_s';
 dvwaDatabaseConnect();
 
 if (array_key_exists ("btnClear", $_POST)) {
+	// Clearing the guestbook is a state change, so it needs the same Anti-CSRF
+	// token as signing it. This branch runs before the level source is included,
+	// so no level could ever have checked it.
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	$query  = "TRUNCATE guestbook;";
-	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or dvwaDatabaseError();
 }
 
 $vulnerabilityFile = '';
@@ -60,7 +65,6 @@ $page[ 'body' ] .= "
 				</tr>
 			</table>\n";
 
-if( $vulnerabilityFile == 'impossible.php' )
 	$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "

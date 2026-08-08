@@ -59,11 +59,10 @@ $page[ 'body' ] .= ">
 
 			<input type=\"hidden\" name=\"step\" value=\"1\" />\n";
 
-if( $vulnerabilityFile == 'impossible.php' ) {
-	$page[ 'body' ] .= "
+// Every level re-authenticates the user, so every level needs the field.
+$page[ 'body' ] .= "
 			Current password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_current\"><br />";
-}
 
 $page[ 'body' ] .= "			New password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_new\"><br />
@@ -71,10 +70,6 @@ $page[ 'body' ] .= "			New password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_conf\"><br />
 
 			" . recaptcha_get_html( $_DVWA[ 'recaptcha_public_key' ] );
-if( $vulnerabilityFile == 'high.php' )
-	$page[ 'body' ] .= "\n\n			<!-- **DEV NOTE**   Response: 'hidd3n_valu3'   &&   User-Agent: 'reCAPTCHA'   **/DEV NOTE** -->\n";
-
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
 	$page[ 'body' ] .= "\n			" . tokenField();
 
 $page[ 'body' ] .= "

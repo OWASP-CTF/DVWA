@@ -9,10 +9,17 @@ $page = dvwaPageNewGrab();
 $page[ 'title' ] = 'SQL Injection Session Input' . $page[ 'title_separator' ].$page[ 'title' ];
 
 if( isset( $_POST[ 'id' ] ) ) {
-	$_SESSION[ 'id' ] =  $_POST[ 'id' ];
-	//$page[ 'body' ] .= "Session ID set!<br /><br /><br />";
-	$page[ 'body' ] .= "Session ID: {$_SESSION[ 'id' ]}<br /><br /><br />";
-	$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	// Only ever store a number in the session. Validating where the value
+	// enters the application stops it being a second order injection source
+	// for sqli/source/high.php.
+	if( is_numeric( $_POST[ 'id' ] ) ) {
+		$_SESSION[ 'id' ] = intval( $_POST[ 'id' ] );
+		$page[ 'body' ] .= "Session ID: " . htmlspecialchars( (string) $_SESSION[ 'id' ], ENT_QUOTES, 'UTF-8' ) . "<br /><br /><br />";
+		$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	}
+	else {
+		$page[ 'body' ] .= "ID must be a number.<br /><br /><br />";
+	}
 }
 
 $page[ 'body' ] .= "
@@ -28,5 +35,3 @@ $page[ 'body' ] .= "
 dvwaSourceHtmlEcho( $page );
 
 ?>
-
-

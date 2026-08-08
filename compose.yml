@@ -10,10 +10,15 @@ services:
   dvwa:
     build: .
     image: ghcr.io/digininja/dvwa:latest
-    # Change `always` to `build` to build from local source
-    pull_policy: always
+    # Build from local source. `always` pulls the upstream image, and then
+    # none of the hardening in the Dockerfile, php.ini or the Apache config is
+    # present. Change back to `always` only to run the stock upstream image.
+    pull_policy: build
     environment:
       - DB_SERVER=db
+      # Passed explicitly rather than relying on the fallback baked into
+      # config.inc.php.dist, so the credential lives in one place.
+      - DB_PASSWORD=p@ssw0rd
     depends_on:
       - db
     # Uncomment the next 2 lines to serve local source

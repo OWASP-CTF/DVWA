@@ -9,9 +9,17 @@ $page = dvwaPageNewGrab();
 $page[ 'title' ] = 'Blind SQL Injection Cookie Input' . $page[ 'title_separator' ].$page[ 'title' ];
 
 if( isset( $_POST[ 'id' ] ) ) {
-	setcookie( 'id', $_POST[ 'id' ]);
-	$page[ 'body' ] .= "Cookie ID set!<br /><br /><br />";
-	$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	// Only ever write a number into the cookie. sqli_blind/source/high.php
+	// validates it again on the way back in, because a cookie can be edited
+	// in the browser without ever going through this page.
+	if( is_numeric( $_POST[ 'id' ] ) ) {
+		setcookie( 'id', (string) intval( $_POST[ 'id' ] ), 0, '/', '', dvwaIsHttps(), true );
+		$page[ 'body' ] .= "Cookie ID set!<br /><br /><br />";
+		$page[ 'body' ] .= "<script>window.opener.location.reload(true);</script>";
+	}
+	else {
+		$page[ 'body' ] .= "ID must be a number.<br /><br /><br />";
+	}
 }
 
 $page[ 'body' ] .= "
@@ -27,5 +35,3 @@ $page[ 'body' ] .= "
 dvwaSourceHtmlEcho( $page );
 
 ?>
-
-

@@ -39,7 +39,9 @@ class UserController
 
 	private function validateAdd($input)
 	{
-		if (! isset($input['name'])) {
+		// is_string, not just isset: User::$name is a typed property under
+		// strict_types, so assigning an array or an object is a fatal error.
+		if (! isset($input['name']) || ! is_string($input['name'])) {
 			return false;
 		}
 		if (! isset($input['level'])) {
@@ -53,7 +55,8 @@ class UserController
 
 	private function validateUpdate($input)
 	{
-		if (! isset($input['name'])) {
+		// is_string, not just isset: see validateAdd().
+		if (! isset($input['name']) || ! is_string($input['name'])) {
 			return false;
 		}
 		return true;
@@ -218,11 +221,14 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
+		// Only the field this endpoint is meant to update is assigned.
+		//
+		// 'level' used to be assignable here even though validateUpdate() never
+		// asked for it, so any caller could send {"name":"x","level":0} and
+		// promote themselves to admin. That is mass assignment: a privilege
+		// change needs its own, separately authorised endpoint.
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
-		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
 		}
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));

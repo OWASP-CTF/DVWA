@@ -4,7 +4,15 @@ require ("token_library_high.php");
 
 $message = "";
 
-$token_data = create_token();
+try {
+	$token_data = create_token();
+}
+catch ( Exception $e ) {
+	// Never let an encryption failure become a blank 500: the low and medium
+	// levels already catch this.
+	error_log( "cryptography/high: " . $e->getMessage() );
+	$token_data = "";
+}
 
 $html = "
 	<script>
