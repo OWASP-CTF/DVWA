@@ -29,19 +29,27 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 }
 
 if ($change) {
-	// Check Anti-CSRF token
-	checkToken( $token, $_SESSION[ 'session_token' ], 'index.php' );
+	// Check Anti-CSRF token. A request that cannot present the token bound to
+	// this session is not coming from our own form, so it is rejected.
+	if( !isset( $_SESSION[ 'session_token' ] ) || !isset( $token ) || !is_string( $token ) ||
+		!hash_equals( (string)$_SESSION[ 'session_token' ], $token ) ) {
+		dvwaMessagePush( 'CSRF token is incorrect' );
+		dvwaRedirect( 'index.php' );
+	}
 
 	// Do the passwords match?
 	if( $pass_new == $pass_conf ) {
 		// They do!
+		$pass_new = stripslashes( $pass_new );
 		$pass_new = mysqli_real_escape_string ($GLOBALS["___mysqli_ston"], $pass_new);
 		$pass_new = md5( $pass_new );
 
 		// Update the database
 		$current_user = dvwaCurrentUser();
-		$insert = "UPDATE `users` SET password = '" . $pass_new . "' WHERE user = '" . $current_user . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert );
+		$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user);' );
+		$data->bindParam( ':password', $pass_new, PDO::PARAM_STR );
+		$data->bindParam( ':user', $current_user, PDO::PARAM_STR );
+		$data->execute();
 
 		// Feedback for the user
 		$return_message = "Password Changed.";
