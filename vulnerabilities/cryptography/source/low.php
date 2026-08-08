@@ -1,19 +1,38 @@
 <?php
 
-function xor_this($cleartext, $key) {
-    // Our output text
-    $outText = '';
+function encrypt_message($cleartext, $key) {
+	$nonce = random_bytes(12);
+	$ciphertext = openssl_encrypt($cleartext, "aes-256-gcm", $key, OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($ciphertext === false) {
+		throw new Exception("Encryption failed");
+	}
 
-    // Iterate through each character
-    for($i=0; $i<strlen($cleartext);) {
-        for($j=0; ($j<strlen($key) && $i<strlen($cleartext)); $j++,$i++) {
-            $outText .= $cleartext[$i] ^ $key[$j];
-        }
-    }
-    return $outText;
+	return base64_encode($nonce . $tag . $ciphertext);
 }
 
-$key = "wachtwoord";
+function decrypt_message($message, $key) {
+	$payload = base64_decode($message, true);
+	if ($payload === false || strlen($payload) < 28) {
+		throw new Exception("Message is in the wrong format");
+	}
+
+	$nonce = substr($payload, 0, 12);
+	$tag = substr($payload, 12, 16);
+	$ciphertext = substr($payload, 28);
+	$cleartext = openssl_decrypt($ciphertext, "aes-256-gcm", $key, OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($cleartext === false) {
+		throw new Exception("Decryption failed");
+	}
+
+	return $cleartext;
+}
+
+if (!isset($_SESSION['cryptography_low_key'])) {
+	$_SESSION['cryptography_low_key'] = random_bytes(32);
+}
+
+$key = $_SESSION['cryptography_low_key'];
+$intercepted_message = encrypt_message("Your new password is: Olifant", $key);
 
 $errors = "";
 $success = "";
@@ -27,18 +46,20 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	try {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
+			if (!is_string($message)) {
+				throw new Exception("Message is in the wrong format");
+			}
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = decrypt_message($message, $key);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = encrypt_message($message, $key);
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			if (is_string($password) && hash_equals("Olifant", $password)) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
@@ -82,7 +103,7 @@ $html .= "
 		You have intercepted the following message, decode it and log in below.
 		</p>
 		<p>
-		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>Lg4WGlQZChhSFBYSEB8bBQtPGxdNQSwEHREOAQY=</textarea>
+		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>" . htmlentities ($intercepted_message) . "</textarea>
 		</p>
 ";
 
