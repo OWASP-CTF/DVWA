@@ -39,12 +39,15 @@ def test_blind_sqli_high_has_no_artificial_timing_branch():
     assert "rand(" not in body
 
 
-def test_brute_high_enforces_database_backed_failure_window():
+def test_brute_high_enforces_atomic_database_backed_failure_window():
     body = source("vulnerabilities/brute/source/high.php")
-    assert "$total_failed_login = 1" in body
+    assert "$total_failed_login = 3" in body
     assert "sleep( 2 );" in body
-    assert "SELECT failed_login, last_login FROM users" in body
+    assert "$db->beginTransaction();" in body
+    assert "SELECT * FROM users WHERE user = (:user) LIMIT 1 FOR UPDATE" in body
+    assert "$db->commit();" in body
     assert "failed_login = failed_login + 1, last_login = NOW()" in body
+    assert "if( $account_exists && !$account_locked )" in body
     assert "UPDATE users SET failed_login = 0" in body
 
 
