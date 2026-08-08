@@ -24,6 +24,9 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// Record server side that this session cleared the CAPTCHA
+			$_SESSION[ 'captcha_passed' ] = true;
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
@@ -50,6 +53,13 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
+	// Check to see if they did stage 1
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
+		$html     .= "<pre><br />The CAPTCHA was incorrect. Please try again.</pre>";
+		$hide_form = false;
+		return;
+	}
+
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
 		// They do!
@@ -59,6 +69,9 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 		// Update database
 		$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . dvwaCurrentUser() . "';";
 		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+
+		// The CAPTCHA is single use
+		unset( $_SESSION[ 'captcha_passed' ] );
 
 		// Feedback for the end user
 		$html .= "<pre>Password Changed.</pre>";
