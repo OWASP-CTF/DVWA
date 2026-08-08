@@ -31,11 +31,17 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
+# The inline script below re-reads document.location.href itself, which
+# includes the URL fragment (the part after '#'). The fragment is never
+# sent to the server, so the whitelist checks in low/medium/high.php never
+# see it - a payload appended after '#' sails straight through server-side
+# validation. The browser does percent-encode unsafe characters such as
+# '<' and '>' when it builds location.href from what was typed, so as long
+# as that value is never decoded again, an injected payload stays inert
+# text instead of becoming live markup when document.write() runs. Calling
+# decodeURI() on it undoes that protection, so never decode it - this
+# applies to every level, not just "impossible".
+$decodeURI = "";
 
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
