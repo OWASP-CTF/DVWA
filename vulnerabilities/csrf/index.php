@@ -53,11 +53,11 @@ $page[ 'body' ] .= "
 		</div><br />
 		<form action=\"#\" method=\"GET\">";
 
-// Every level accepts the current password as proof the change was asked for
-// by the user, so every level needs the field.
-$page[ 'body' ] .= "
+if( $vulnerabilityFile == 'impossible.php' ) {
+	$page[ 'body' ] .= "
 			Current password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_current\"><br />";
+}
 
 $page[ 'body' ] .= "
 			New password:<br />
@@ -67,8 +67,8 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-// Every level validates the Anti-CSRF token, so every level needs the field.
-$page[ 'body' ] .= "			" . tokenField();
+if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
+	$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>
