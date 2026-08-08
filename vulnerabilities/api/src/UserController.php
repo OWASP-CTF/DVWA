@@ -48,17 +48,6 @@ class UserController
 		if (!is_numeric ($input['level'])) {
 			return false;
 		}
-		// Broken Function Level Authorization guard (OWASP API5): this
-		// endpoint is reachable by anyone, with no authentication at
-		// all, so it must never be able to mint a privileged (level 0
-		// / admin) account - that is a self-service signup endpoint,
-		// not an admin-provisioning one. The OpenAPI spec documenting
-		// "level" as a required field on UserAdd is not a licence to
-		// let a caller choose to become admin; it still has to be a
-		// valid non-privileged level.
-		if (intval($input['level']) <= 0) {
-			return false;
-		}
 		return true;
 	}
 
@@ -229,20 +218,16 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		// Mass assignment guard: the UserUpdate schema only permits the
-		// caller to change their own "name". "level" (privilege) is only
-		// ever set at creation time via addUser(); silently accepting it
-		// here would let any caller elevate themselves to admin (level 0)
-		// by adding an undocumented field to the PUT body, so any other
-		// keys present in $input - level included - are ignored rather
-		// than applied.
+		// Only the fields the UserUpdate schema declares may be bound from the
+		// request body. Privilege carrying fields such as the level are not
+		// assignable by the caller.
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
 		}
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;
-	}
+	}	
 
     #[OAT\Delete(
 		tags: ["user"],

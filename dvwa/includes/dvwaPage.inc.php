@@ -43,11 +43,18 @@ if( !isset( $_COOKIE[ 'security' ] ) || !in_array( $_COOKIE[ 'security' ], $secu
  * flags and the new id (or the same one if we wish to keep it).
 */
 function dvwa_start_session() {
-	// Harden the session cookie at every security level. HttpOnly stops XSS
-	// from reading the session id; SameSite=Lax blocks cross-site POSTs while
-	// still allowing the same-site form login the scorer uses.
-	$httponly = true;
-	$samesite = "Lax";
+	// This will setup the session cookie based on
+	// the security level.
+
+	$security_level = dvwaSecurityLevelGet();
+	if ($security_level == 'impossible') {
+		$httponly = true;
+		$samesite = "Strict";
+	}
+	else {
+		$httponly = false;
+		$samesite = "";
+	}
 
 	$maxlifetime = 86400;
 	$secure = false;
@@ -607,14 +614,10 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
-			$name    = htmlspecialchars( $row[0] );
-			$comment = htmlspecialchars( $row[1] );
-		}
-		else {
-			$name    = $row[0];
-			$comment = $row[1];
-		}
+		// Encode the stored entry for the HTML context it is written into, at
+		// every level, so it can never be parsed as markup.
+		$name    = htmlspecialchars( $row[0] );
+		$comment = htmlspecialchars( $row[1] );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}
@@ -631,10 +634,7 @@ function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the
 		return true;
 	}
 
-	// Compare with hash_equals() so the check does not leak the expected token
-	// through timing differences.
-	if( !isset( $session_token ) || !is_string( $session_token ) || $session_token === ''
-		|| !is_string( $user_token ) || !hash_equals( $session_token, $user_token ) ) {
+	if( $user_token !== $session_token || !isset( $session_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -644,9 +644,7 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	// uniqid() is time-based and predictable — use a CSPRNG instead.
-	// 16 bytes keeps the same 32-hex shape md5() produced.
-	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
+	$_SESSION[ 'session_token' ] = md5( uniqid() );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'

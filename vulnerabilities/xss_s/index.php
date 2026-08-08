@@ -13,28 +13,6 @@ $page[ 'source_button' ] = 'xss_s';
 
 dvwaDatabaseConnect();
 
-// Render the guestbook safely regardless of security level. The shared
-// dvwaGuestbook() helper (dvwa/includes/dvwaPage.inc.php) only HTML-encodes
-// output for the 'impossible' level, so low/medium/high would otherwise
-// echo stored rows verbatim - including any XSS payload written to the
-// table by an earlier, unpatched request. Output is always encoded here,
-// independent of what sanitisation (if any) ran when the row was inserted.
-function xssStoredRenderGuestbook() {
-	global $db;
-
-	$guestbook = '';
-	$result    = $db->query( 'SELECT name, comment FROM guestbook' );
-
-	while( $row = $result->fetch( PDO::FETCH_NUM ) ) {
-		$name    = htmlspecialchars( (string) $row[0], ENT_QUOTES );
-		$comment = htmlspecialchars( (string) $row[1], ENT_QUOTES );
-
-		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
-	}
-
-	return $guestbook;
-}
-
 if (array_key_exists ("btnClear", $_POST)) {
 	$query  = "TRUNCATE guestbook;";
 	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
@@ -91,7 +69,7 @@ $page[ 'body' ] .= "
 	</div>
 	<br />
 
-	" . xssStoredRenderGuestbook() . "
+	" . dvwaGuestbook() . "
 	<br />
 
 	<h2>More Information</h2>

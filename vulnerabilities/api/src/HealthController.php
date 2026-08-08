@@ -85,20 +85,16 @@ class HealthController
 		if (array_key_exists ("target", $input)) {
 			$target = $input['target'];
 
-			// Allow-list the target to a plain hostname or IPv4/IPv6
-			// address before it ever reaches the shell. This blocks
-			// command injection (e.g. "127.0.0.1; id" or backticks/$())
-			// while still accepting every legitimate value the OpenAPI
-			// spec's example ("digi.ninja") or an IP address would need.
-			// escapeshellarg() is applied too as defence in depth.
-			if (!is_string($target) || $target === '' || strlen($target) > 253 ||
-				!preg_match('/^[a-zA-Z0-9]([a-zA-Z0-9_.:-]*[a-zA-Z0-9])?$/', $target)) {
-				$response['status_code_header'] = 'HTTP/1.1 422 Unprocessable Entity';
-				$response['body'] = json_encode (array ("status" => "Invalid target"));
+			// The target has to look like a host name or an IP address, and it
+			// is handed to the shell as a single escaped argument, so it can
+			// never be read as shell syntax.
+			if (!is_string ($target) || !preg_match ('/^[A-Za-z0-9]([A-Za-z0-9._:-]{0,253}[A-Za-z0-9])?$/', $target)) {
+				$response['status_code_header'] = 'HTTP/1.1 500 Internal Server Error';
+				$response['body'] = json_encode (array ("status" => "Connection failed"));
 				return $response;
 			}
 
-			exec ("ping -c 4 " . escapeshellarg($target), $output, $ret_var);
+			exec ("ping -c 4 " . escapeshellarg ($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

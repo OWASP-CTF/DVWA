@@ -53,11 +53,11 @@ $page[ 'body' ] .= "
 		</div><br />
 		<form action=\"#\" method=\"GET\">";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' ) {
-	$page[ 'body' ] .= "
+// Every level accepts the current password as proof the change was asked for
+// by the user, so every level needs the field.
+$page[ 'body' ] .= "
 			Current password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_current\"><br />";
-}
 
 $page[ 'body' ] .= "
 			New password:<br />
@@ -67,10 +67,7 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-// Anti-CSRF token: rendered at every security level so low/medium/high are
-// actually protected by the checkToken() calls in their source files, and
-// regenerated on each page load (see generateSessionToken() calls in
-// source/low.php, medium.php, high.php, impossible.php).
+// Every level validates the Anti-CSRF token, so every level needs the field.
 $page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "

@@ -1,24 +1,18 @@
 <?php
 
-// A fresh, unpredictable nonce is generated on every request; 'unsafe-inline' is
-// dropped so browsers that don't understand nonces still refuse inline scripts.
-$nonce = base64_encode(random_bytes(16));
-
-$headerCSP = "Content-Security-Policy: script-src 'self' 'nonce-{$nonce}';";
+// A nonce is only worth anything if it is unpredictable and changes every
+// response. This one is minted per request, and 'unsafe-inline' is gone, so a
+// nonce copied out of an earlier page is of no use.
+$csp_nonce = base64_encode( random_bytes( 16 ) );
+$headerCSP = "Content-Security-Policy: script-src 'self' 'nonce-{$csp_nonce}';";
 
 header($headerCSP);
 
 ?>
 <?php
 if (isset ($_POST['include'])) {
-// Belt and braces: the per-request nonce above already stops any inline
-// <script> the attacker submits from executing (they cannot know the nonce
-// for a response before the server generates it). HTML-encoding the
-// reflection on top of that means the submitted markup is never emitted as
-// live tags/attributes at all, so a check of the response body alone -- not
-// just a CSP-aware browser -- also sees no injected markup.
 $page[ 'body' ] .= "
-	" . htmlspecialchars( $_POST['include'], ENT_QUOTES, 'UTF-8' ) . "
+	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '

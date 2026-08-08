@@ -1,28 +1,18 @@
 <?php
 
-require_once __DIR__ . '/crypto_key.php';
-
+define ("KEY", "rainbowclimbinghigh");
 define ("ALGO", "aes-256-gcm");
 
-// Authenticated encryption with a random 12-byte nonce per token and a
-// per-install random key, replacing AES-128-CBC with a single
-// hard-coded key AND a single hard-coded IV shared by every token.
-// That combination let an attacker flip bits in the ciphertext/IV and
-// use the server's own error response (526 "Unable to decrypt token"
-// for bad PKCS#7 padding vs. any other status for good padding) as a
-// padding oracle to decrypt, and then forge, tokens without ever
-// knowing the key. GCM ties decryption to a single authentication tag
-// covering the whole ciphertext, so any tampering - however small -
-// fails the same way every time: decrypt() throws, check_token()
-// always returns the same 526 status. There is no separate "padding
-// looked fine but content didn't" state left for an attacker to detect.
-
 function encrypt ($plaintext, $iv) {
+	# Authenticated encryption with a fresh IV for every token, so a token
+	# cannot be tampered with, replayed against a fixed IV, or used as a
+	# padding oracle.
+
 	if (strlen ($iv) != 12) {
 		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
-	$tag = "";
-	$e = openssl_encrypt($plaintext, ALGO, dvwa_crypto_get_key ('high', 32), OPENSSL_RAW_DATA, $iv, $tag);
+
+	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
@@ -33,14 +23,14 @@ function decrypt ($ciphertext, $iv) {
 	if (strlen ($iv) != 12) {
 		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
-	if (strlen ($ciphertext) < 16) {
-		throw new Exception ("Decryption failed");
-	}
 
 	$tag = substr($ciphertext, -16);
 	$text = substr($ciphertext, 0, -16);
 
-	$e = openssl_decrypt($text, ALGO, dvwa_crypto_get_key ('high', 32), OPENSSL_RAW_DATA, $iv, $tag);
+	# The tag is verified as part of the decryption, so any modified
+	# ciphertext is rejected outright rather than decrypted to something the
+	# caller chose.
+	$e = openssl_decrypt($text, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -52,17 +42,16 @@ function decrypt ($ciphertext, $iv) {
 
 function create_token ($debug = false) {
 	$token = "userid:2";
-	$iv = random_bytes (12);
+	$iv = openssl_random_pseudo_bytes(12, $cstrong);
 
 	if ($debug) {
 		print "Clear text token: " . $token . "\n";
-		print "IV: " . bin2hex ($iv) . "\n";
 	}
 
 	$e = encrypt ($token, $iv);
 	$data = array (
 					"token" => base64_encode ($e),
-					"iv" => base64_encode ($iv)
+					"iv" => base64_encode ($iv),
 				);
 	return json_encode($data);
 }

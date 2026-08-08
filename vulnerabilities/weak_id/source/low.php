@@ -3,12 +3,12 @@
 $html = "";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	// Cryptographically secure random session identifier (was: predictable incrementing counter).
+	// Session identifiers must be unpredictable, so take them from the CSPRNG
+	// rather than from a counter or the clock.
 	$cookie_value = bin2hex(random_bytes(20));
-	// Note: intentionally not using the "secure" flag here (unlike impossible.php) because the
-	// lab is served over plain HTTP -- a browser will silently refuse to store/send back a
-	// Secure-flagged cookie on a non-HTTPS origin, which would stop this legitimate cookie from
-	// being issued/observable. httponly is safe to keep on since it only affects JS access.
-	setcookie("dvwaSession", $cookie_value, time() + 3600, "", "", false, true);
+	// Only mark the cookie Secure when the connection actually is, otherwise
+	// the browser would drop it and the lab would stop working.
+	$secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+	setcookie("dvwaSession", $cookie_value, time()+3600, "/vulnerabilities/weak_id/", $_SERVER['HTTP_HOST'], $secure, true);
 }
 ?>

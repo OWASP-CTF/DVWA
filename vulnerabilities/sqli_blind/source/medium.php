@@ -1,45 +1,37 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
-	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
 	// Get input
 	$id = $_POST[ 'id' ];
 	$exists = false;
 
-	// The dropdown only ever sends a plain integer, but the request is
-	// attacker controlled ($_REQUEST is used elsewhere in DVWA, so this must
-	// hold for GET as well as POST). Reject anything that isn't numeric
-	// instead of merely escaping it, since the original query had no quotes
-	// around the value and escaping alone does not stop numeric-context
-	// injection (e.g. "1 AND SLEEP(5)").
+	// Only ever look up a whole number, so nothing else can reach the query.
 	if( is_numeric( $id ) ) {
 		$id = intval( $id );
 
 		switch ($_DVWA['SQLI_DB']) {
 			case MYSQL:
-				global $db;
-
-				// Check database
-				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
+				// Check database, using a prepared statement so the input can
+				// never be parsed as SQL.
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
 				$data->bindParam( ':id', $id, PDO::PARAM_INT );
 				$data->execute();
 
-				$exists = ( $data->rowCount() > 0 );
+				$exists = ( $data->rowCount() == 1 );
+
+				((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 				break;
 			case SQLITE:
 				global $sqlite_db_connection;
 
-				try {
-					$stmt = $sqlite_db_connection->prepare( 'SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = :id;' );
-					$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
-					$result = $stmt->execute();
-					if ( $result !== false ) {
-						$row    = $result->fetchArray();
-						$exists = ( isset( $row[ 'numrows' ] ) && $row[ 'numrows' ] > 0 );
-					}
-				} catch ( Exception $e ) {
-					$exists = false;
+				$stmt = $sqlite_db_connection->prepare( 'SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = :id LIMIT 1;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$result = $stmt->execute();
+				if( $result !== false ) {
+					$row = $result->fetchArray();
+					$exists = ( $row[ 'numrows' ] == 1 );
 				}
+
 				break;
 		}
 	}
@@ -52,7 +44,5 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 		$html .= '<pre>User ID is MISSING from the database.</pre>';
 	}
 }
-
-generateSessionToken();
 
 ?>

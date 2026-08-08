@@ -36,19 +36,13 @@ final class User
 	}
 
 	public function toArray($version) {
-		// The password hash must never be returned by any version of this
-		// endpoint. Older/undocumented API versions are a common source of
-		// excessive data exposure (OWASP API3) when they are left holding
-		// legacy behaviour that a newer version deliberately removed - so
-		// the safe field list is applied unconditionally here rather than
-		// being tied to a specific $version value.
-		$a = array (
+		// The credential is never part of a user representation, whichever
+		// version of the API asked for it.
+		return array (
 			"id" => $this->id,
 			"name" => $this->name,
 			"level" => $this->level,
 		);
-
-		return $a;
 	}
 }
 

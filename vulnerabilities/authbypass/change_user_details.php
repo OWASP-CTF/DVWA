@@ -5,13 +5,12 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-This endpoint is shared by every security level. Only the admin user is
-ever allowed to change user data, regardless of which level rendered the
-calling page (or whether the caller went through the page at all) -
-enforce it unconditionally rather than branching on the security level.
+Only the admin is allowed to change the data. The check is applied here, on the
+endpoint itself, not just on the page that calls it, and it is applied at every
+security level.
 */
 
-if (dvwaCurrentUser() != "admin") {
+if (!dvwaIsLoggedIn() || dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
@@ -47,37 +46,24 @@ try {
 	exit;
 }
 
-/*
-The query below used to be built by concatenating $data->id / first_name /
-surname straight into the SQL string. That is a SQL injection regardless of
-who is allowed to call this endpoint - the admin-only check above stops the
-authorisation-bypass exploit this module is about, but it does nothing to
-stop an authenticated admin request (or any request that gets past a future
-change to that check) from breaking out of the string. Parameterise it with
-a prepared statement, matching the pattern already used elsewhere in this
-codebase (e.g. vulnerabilities/bac/source/low.php).
-*/
-if (!isset($data->id) || !is_numeric($data->id)
-	|| !isset($data->first_name) || !is_scalar($data->first_name)
-	|| !isset($data->surname) || !is_scalar($data->surname)) {
-	$result = array (
-						"result" => "fail",
-						"error" => 'Invalid format, expecting "{id: {user ID}, first_name: "{first name}", surname: "{surname}"}'
-					);
-	echo json_encode($result);
-	exit;
-}
-
-$id         = (int) $data->id;
-$first_name = (string) $data->first_name;
-$surname    = (string) $data->surname;
+// Prepared statement, so nothing supplied in the JSON body can be parsed as SQL.
+$first_name = isset( $data->first_name ) ? (string)$data->first_name : '';
+$surname    = isset( $data->surname )    ? (string)$data->surname    : '';
+$user_id    = isset( $data->id )         ? intval( $data->id )       : 0;
 
 $query = "UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?";
 $stmt  = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
-if ($stmt) {
-	mysqli_stmt_bind_param($stmt, "ssi", $first_name, $surname, $id);
-	mysqli_stmt_execute($stmt);
-	mysqli_stmt_close($stmt);
+if (!$stmt) {
+	print json_encode (array ("result" => "fail", "error" => "Unable to save"));
+	exit;
+}
+mysqli_stmt_bind_param($stmt, "ssi", $first_name, $surname, $user_id);
+$ok = mysqli_stmt_execute($stmt);
+mysqli_stmt_close($stmt);
+
+if (!$ok) {
+	print json_encode (array ("result" => "fail", "error" => "Unable to save"));
+	exit;
 }
 
 print json_encode (array ("result" => "ok"));

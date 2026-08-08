@@ -1,52 +1,31 @@
 <?php
 
-require_once __DIR__ . '/crypto_key.php';
+define ("CRYPTO_MEDIUM_ALGO", "aes-256-gcm");
 
-define ('CRYPTOGRAPHY_MEDIUM_ALGO', 'aes-256-gcm');
-define ('CRYPTOGRAPHY_MEDIUM_NONCE_LEN', 12);
-define ('CRYPTOGRAPHY_MEDIUM_TAG_LEN', 16);
+// ECB leaks structure and lets whole blocks be swapped between tokens, which is
+// how a user token gets turned into an admin one. Tokens use authenticated
+// encryption instead, carrying their own IV and authentication tag.
 
-// Authenticated encryption (random nonce per token, per-install random
-// key, integrity-checked on decrypt) replaces AES-128-ECB. ECB encrypts
-// every 16-byte block independently with no chaining, so identical
-// plaintext blocks always produce identical ciphertext blocks and any
-// two blocks encrypted under the same key are interchangeable - that is
-// what let an attacker splice a username block from one token, an
-// expiry block from another and a privilege-level block from a third
-// into one forged, still-"decryptable" token. GCM ties every byte of
-// the ciphertext to a single authentication tag, so cutting and pasting
-// blocks (or any other bit-flip) makes the whole token fail to decrypt.
-function medium_encrypt ($plaintext) {
-	$key = dvwa_crypto_get_key ('medium', 32);
-	$nonce = random_bytes (CRYPTOGRAPHY_MEDIUM_NONCE_LEN);
-	$tag = '';
-	$ciphertext = openssl_encrypt ($plaintext, CRYPTOGRAPHY_MEDIUM_ALGO, $key, OPENSSL_RAW_DATA, $nonce, $tag);
-	if ($ciphertext === false) {
-		throw new Exception ("Encryption failed");
-	}
-	return bin2hex ($nonce . $tag . $ciphertext);
+function crypto_key ($key) {
+	return hash ("sha256", $key, true);
 }
 
-function decrypt ($token, $key) {
-	if (!is_string ($token) || $token === '' || strlen ($token) % 2 !== 0 || !ctype_xdigit ($token)) {
+function decrypt ($raw, $key) {
+	if (strlen ($raw) < 29) {
 		throw new Exception ("Token is in wrong format");
 	}
-	$raw = hex2bin ($token);
-	$minLen = CRYPTOGRAPHY_MEDIUM_NONCE_LEN + CRYPTOGRAPHY_MEDIUM_TAG_LEN;
-	if ($raw === false || strlen ($raw) <= $minLen) {
-		throw new Exception ("Token is in wrong format");
-	}
-	$nonce = substr ($raw, 0, CRYPTOGRAPHY_MEDIUM_NONCE_LEN);
-	$tag = substr ($raw, CRYPTOGRAPHY_MEDIUM_NONCE_LEN, CRYPTOGRAPHY_MEDIUM_TAG_LEN);
-	$ciphertext = substr ($raw, $minLen);
-	$e = openssl_decrypt ($ciphertext, CRYPTOGRAPHY_MEDIUM_ALGO, $key, OPENSSL_RAW_DATA, $nonce, $tag);
+	$iv = substr ($raw, 0, 12);
+	$tag = substr ($raw, -16);
+	$ciphertext = substr ($raw, 12, -16);
+
+	$e = openssl_decrypt($ciphertext, CRYPTO_MEDIUM_ALGO, crypto_key ($key), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
 	return $e;
 }
 
-$key = dvwa_crypto_get_key ('medium', 32);
+$key = "ik ben een aardbei";
 
 $errors = "";
 $success = "";
@@ -57,46 +36,27 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (!array_key_exists ('token', $_POST)) {
 			throw new Exception ("No token passed");
 		} else {
-			$token = $_POST['token'];
-			$decrypted = decrypt ($token, $key);
-
-			$user = json_decode ($decrypted);
-			if ($user === null) {
-				throw new Exception ("Could not decode JSON object.");
-			}
-
-			if ($user->user == "sweep" && $user->ex > time() && $user->level == "admin") {
-				$success = "Welcome administrator Sweep";
+			$token = trim ($_POST['token']);
+			if (strlen($token) % 2 != 0 || !ctype_xdigit($token)) {
+				throw new Exception ("Token is in wrong format");
 			} else {
-				$messages = "Login successful but not as the right user.";
+				$decrypted = decrypt(hex2bin ($token), $key);
+
+				$user = json_decode ($decrypted);
+				if ($user === null) {
+					throw new Exception ("Could not decode JSON object.");
+				}
+
+				if ($user->user == "sweep" && $user->ex > time() && $user->level == "admin") {
+					$success = "Welcome administrator Sweep";
+				} else {
+					$messages = "Login successful but not as the right user.";
+				}
 			}
 		}
 	} catch(Exception $e) {
 		$errors = $e->getMessage();
 	}
-}
-
-try {
-	$sooty_token = medium_encrypt (json_encode (array (
-		"user"  => "sooty",
-		"ex"    => time() - 3600,
-		"level" => "admin",
-		"bio"   => "Izzy wizzy let's get busy"
-	)));
-	$sweep_token = medium_encrypt (json_encode (array (
-		"user"  => "sweep",
-		"ex"    => time() - 3600,
-		"level" => "user",
-		"bio"   => "Squeeeeek"
-	)));
-	$soo_token = medium_encrypt (json_encode (array (
-		"user"  => "soo",
-		"ex"    => time() + 3600,
-		"level" => "user",
-		"bio"   => "I won The Weakest Link"
-	)));
-} catch (Exception $e) {
-	$sooty_token = $sweep_token = $soo_token = "";
 }
 
 $html = "
@@ -107,19 +67,19 @@ $html = "
 		<strong>Sooty (admin), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>" . htmlentities ($sooty_token) . "</textarea>
+<textarea style='width: 600px; height: 56px'>3c151a5aa15fb746f71c1739f705252e7bf01b007c729c75739902a74c58fa48fc7dde4810aa0e90fdf6d71436aace721dbea67076f57f80f3e9389460432e5d05f737efe317d68690f2d1e97442fb9aed24fa10f296c248c15a20c47e95cbbef88d45</textarea>
 		</p>
 		<p>
 		<strong>Sweep (user), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>" . htmlentities ($sweep_token) . "</textarea>
+<textarea style='width: 600px; height: 56px'>d54d2b9614e1c6d1d97c050220d8f66db56b5d43dcb6b9ec1fc7c70aa493f3ec1b1c76f64c7d5eab29039f5a3e2367571081d1b29f5bfb06414b034d4773dc14c84eade9f96b574896eb1f5c76669e68a6a8c9938f21123d3cea74a50877244436</textarea>
 		</p>
 		<p>
 		<strong>Soo (user), session valid</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>" . htmlentities ($soo_token) . "</textarea>
+<textarea style='width: 600px; height: 56px'>c57b8276fa5843a54a7309bf06e57062922c600fca22c07f3f85cc4a07aaa7e09eb4896636885a716bb19935829f258dc3117141a542a05f6c9f34fcc7672f76956498e8dc6f549f454cf9598778ac90ee18ff0f1355c46a860cf9580a140a</textarea>
 		</p>
 		<p>
 		Based on the documentation, you know the format of the token is:
@@ -134,7 +94,7 @@ $html = "
 You also spot this comment in the docs:
 </p>
 <blockquote><i>
-To ensure your security, we use aes-128-ecb throughout our application.
+To ensure your security, we use aes-256-gcm throughout our application.
 </i></blockquote>
 
 		<hr>

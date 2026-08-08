@@ -1,61 +1,70 @@
 <?php
 
-if( isset( $_POST[ 'Upload' ] ) && isset( $_FILES[ 'uploaded' ] ) ) {
-
-	$uploaded_size  = $_FILES[ 'uploaded' ][ 'size' ];
-	$uploaded_tmp   = $_FILES[ 'uploaded' ][ 'tmp_name' ];
-	$uploaded_error = $_FILES[ 'uploaded' ][ 'error' ];
-
+if( isset( $_POST[ 'Upload' ] ) ) {
 	// Where are we going to be writing to?
-	$target_path  = DVWA_WEB_PAGE_TO_ROOT . "hackable/uploads/";
+	$target_dir = DVWA_WEB_PAGE_TO_ROOT . "hackable/uploads/";
 
-	// Low level used to trust the upload completely - no checks of any
-	// kind - so any file (e.g. a PHP web shell) was written straight to
-	// the uploads folder using the client-supplied name. We now verify
-	// the *actual* bytes of the file; the client-supplied name,
-	// extension and Content-Type are never trusted.
-	$image_info = ( $uploaded_error === UPLOAD_ERR_OK && is_uploaded_file( $uploaded_tmp ) )
-		? @getimagesize( $uploaded_tmp )
-		: false;
+	// File information
+	$uploaded_name = basename( $_FILES[ 'uploaded' ][ 'name' ] );
+	$uploaded_ext  = strtolower( pathinfo( $uploaded_name, PATHINFO_EXTENSION ) );
+	$uploaded_size = $_FILES[ 'uploaded' ][ 'size' ];
+	$uploaded_tmp  = $_FILES[ 'uploaded' ][ 'tmp_name' ];
 
-	if( $image_info !== false &&
-		( $image_info[ 2 ] === IMAGETYPE_JPEG || $image_info[ 2 ] === IMAGETYPE_PNG ) &&
-		( $uploaded_size < 100000 ) ) {
+	// Allow list of image types. What the file actually is decides, not the
+	// client supplied name or Content-Type header.
+	$allowed_types = array( 'jpg' => IMAGETYPE_JPEG, 'jpeg' => IMAGETYPE_JPEG, 'png' => IMAGETYPE_PNG );
 
-		// Re-encode via GD (as impossible.php does), so anything that
-		// isn't genuine pixel data - a web shell appended after the
-		// image data, hidden in a JPEG comment, in EXIF metadata, etc -
-		// is discarded rather than written to disk. The extension we
-		// save with is derived only from the verified image type, so a
-		// name like "shell.php.jpg", "shell.jpg.php" or a null-byte
-		// trick in the filename can no longer influence what gets saved.
-		if( $image_info[ 2 ] === IMAGETYPE_JPEG ) {
-			$img      = @imagecreatefromjpeg( $uploaded_tmp );
-			$safe_ext = 'jpg';
+	$image_info = ( is_uploaded_file( $uploaded_tmp ) ? @getimagesize( $uploaded_tmp ) : false );
+
+	// Is it an image?
+	if( isset( $allowed_types[ $uploaded_ext ] ) &&
+		( $uploaded_size < 100000 ) &&
+		( $image_info !== false ) &&
+		( $image_info[2] === $allowed_types[ $uploaded_ext ] ) ) {
+
+		// Build a safe name: no directory parts, and exactly one extension so
+		// nothing can be smuggled through as file.php.jpg.
+		$base_name = preg_replace( '/[^A-Za-z0-9_-]/', '_', pathinfo( $uploaded_name, PATHINFO_FILENAME ) );
+		if( $base_name === '' ) {
+			$base_name = bin2hex( random_bytes( 8 ) );
 		}
-		else {
-			$img      = @imagecreatefrompng( $uploaded_tmp );
-			$safe_ext = 'png';
-		}
+		$target_file = $base_name . '.' . $uploaded_ext;
+		$target_path = $target_dir . $target_file;
 
-		if( $img !== false ) {
-			$target_path .= bin2hex( random_bytes( 16 ) ) . '.' . $safe_ext;
-			$written = ( $safe_ext == 'jpg' ) ? imagejpeg( $img, $target_path, 100 ) : imagepng( $img, $target_path, 9 );
-			imagedestroy( $img );
+		// Re-encode the image so anything hidden inside it (metadata, appended
+		// script) is discarded rather than written to the web root.
+		$temp_file  = ( ( ini_get( 'upload_tmp_dir' ) == '' ) ? ( sys_get_temp_dir() ) : ( ini_get( 'upload_tmp_dir' ) ) );
+		$temp_file .= DIRECTORY_SEPARATOR . bin2hex( random_bytes( 16 ) ) . '.' . $uploaded_ext;
 
-			if( $written ) {
-				// Yes!
-				$html .= "<pre>{$target_path} succesfully uploaded!</pre>";
-			}
-			else {
-				// No
-				$html .= '<pre>Your image was not uploaded.</pre>';
+		$written = false;
+		if( $image_info[2] === IMAGETYPE_JPEG ) {
+			$img = @imagecreatefromjpeg( $uploaded_tmp );
+			if( $img !== false ) {
+				$written = imagejpeg( $img, $temp_file, 100 );
+				imagedestroy( $img );
 			}
 		}
 		else {
-			// GD could not decode it as a genuine image
-			$html .= '<pre>Your image was not uploaded. We can only accept JPEG or PNG images.</pre>';
+			$img = @imagecreatefrompng( $uploaded_tmp );
+			if( $img !== false ) {
+				$written = imagepng( $img, $temp_file, 9 );
+				imagedestroy( $img );
+			}
 		}
+
+		// Can we move the file to the upload folder?
+		if( !( $written && rename( $temp_file, getcwd() . DIRECTORY_SEPARATOR . $target_path ) ) ) {
+			// No
+			$html .= '<pre>Your image was not uploaded.</pre>';
+		}
+		else {
+			// Yes!
+			$html .= "<pre>{$target_path} succesfully uploaded!</pre>";
+		}
+
+		// Delete any temp files
+		if( file_exists( $temp_file ) )
+			unlink( $temp_file );
 	}
 	else {
 		// Invalid file

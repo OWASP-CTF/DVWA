@@ -31,56 +31,49 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# The client side script below is shared by every security level. It never
-# writes attacker-controlled data into the page as markup (no document.write
-# of concatenated HTML/attribute strings), so it cannot be broken out of with
-# a "<script>" tag, a "</option></select>...' injection, or any other markup.
-# It also reads the language only from the real query string (location.search)
-# and deliberately ignores location.hash, so a payload smuggled after a "#"
-# (which never reaches the server) is never even looked at, closing the
-# fragment based bypass. This makes the low/medium/high levels behave exactly
-# like the impossible level from the client's point of view.
-$page[ 'body' ] = <<<'EOF'
+# Never decode the querystring, at any level. Decoding is what turns a
+# percent encoded payload back into markup, and the impossible level
+# already relies on not doing it.
+$decodeURI = "";
+
+$page[ 'body' ] = <<<EOF
 <div class="body_padded">
 	<h1>Vulnerability: DOM Based Cross Site Scripting (XSS)</h1>
 
 	<div class="vulnerable_code_area">
-
+ 
  		<p>Please choose a language:</p>
 
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
-					(function () {
-						var selectBox = document.currentScript.parentNode;
+					// Encode anything taken from the URL for the HTML context it is
+					// written into, so it can never be parsed as markup.
+					function xssdEscape(value) {
+						return String(value)
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#39;");
+					}
 
-						function addOption(value, text, disabled) {
-							var option = document.createElement("option");
-							// Assigning to the value/text IDL properties never parses
-							// the string as HTML, so it cannot inject markup, attributes
-							// or new elements - it can only ever become inert text.
-							option.value = value;
-							option.text = text;
-							if (disabled) {
-								option.disabled = true;
-							}
-							selectBox.appendChild(option);
+					if (document.location.href.indexOf("default=") >= 0) {
+						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
+						var label = lang;
+						try {
+							label = $decodeURI(lang);
+						} catch (e) {
+							label = lang;
 						}
-
-						// Only the actual query string is consulted - the URL fragment
-						// ("#...") is never sent to the server and is not read here.
-						var params = new URLSearchParams(window.location.search);
-						if (params.has("default")) {
-							var lang = params.get("default");
-							addOption(lang, lang, false);
-							addOption("", "----", true);
-						}
-
-						addOption("English", "English", false);
-						addOption("French", "French", false);
-						addOption("Spanish", "Spanish", false);
-						addOption("German", "German", false);
-					})();
+						document.write("<option value='" + xssdEscape(lang) + "'>" + xssdEscape(label) + "</option>");
+						document.write("<option value='' disabled='disabled'>----</option>");
+					}
+					    
+					document.write("<option value='English'>English</option>");
+					document.write("<option value='French'>French</option>");
+					document.write("<option value='Spanish'>Spanish</option>");
+					document.write("<option value='German'>German</option>");
 				</script>
 			</select>
 			<input type="submit" value="Select" />

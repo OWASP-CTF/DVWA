@@ -1,72 +1,86 @@
 <?php
 
-if( isset( $_REQUEST[ 'Login' ] ) ) {
-	// Check Anti-CSRF token (index.php now renders tokenField() at every level)
-	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
+// The login is only accepted over POST, so the credentials never travel in a
+// URL where they end up in history, logs and referrers, and it carries the
+// Anti-CSRF token bound to this session, exactly as the impossible level does.
+if( isset( $_POST[ 'Login' ] ) && isset( $_POST[ 'username' ] ) && isset( $_POST[ 'password' ] ) ) {
+	// Check Anti-CSRF token
+	checkToken( isset( $_REQUEST[ 'user_token' ] ) ? $_REQUEST[ 'user_token' ] : '', $_SESSION[ 'session_token' ], 'index.php' );
 
-	// Get username / password (the form is a GET, but accept either)
-	$user = $_REQUEST[ 'username' ] ?? '';
-	$pass = $_REQUEST[ 'password' ] ?? '';
+	// Sanitise username input
+	$user = $_POST[ 'username' ];
+	$user = stripslashes( $user );
+
+	// Sanitise password input
+	$pass = $_POST[ 'password' ];
+	$pass = stripslashes( $pass );
 	$pass = md5( $pass );
 
-	// Brute-force protection.
-	//
-	// The counter is held per client session rather than in the users table.
-	// Writing failed_login/last_login back to `users` would mean every blocked
-	// attack attempt leaves the real account locked for everyone afterwards --
-	// including /login.php and this module's own later legitimate use -- which
-	// turns a working defence into a self-inflicted denial of service. Session
-	// scope still stops a brute-force run dead (the attacker is the session
-	// doing the guessing) without mutating shared account state.
+	// Default values
 	$total_failed_login = 3;
-	$lockout_time       = 60; // seconds
+	$lockout_time       = 15;
 	$account_locked     = false;
 
-	if( !isset( $_SESSION[ 'brute_low_failed' ] ) ) {
-		$_SESSION[ 'brute_low_failed' ] = 0;
-		$_SESSION[ 'brute_low_last' ]   = 0;
+	// Check the database (Check user information)
+	$data = $db->prepare( 'SELECT failed_login, last_login FROM users WHERE user = (:user) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->execute();
+	$row = $data->fetch();
+
+	// Check to see if the user has been locked out.
+	if( ( $row !== false ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
+		// Calculate when the user would be allowed to login again
+		$last_login = strtotime( $row[ 'last_login' ] );
+		$timeout    = $last_login + ($lockout_time * 60);
+		$timenow    = time();
+
+		// Check to see if enough time has passed, if it hasn't lock the account
+		if( $timenow < $timeout ) {
+			$account_locked = true;
+		}
 	}
 
-	if( $_SESSION[ 'brute_low_failed' ] >= $total_failed_login
-	    && ( time() - $_SESSION[ 'brute_low_last' ] ) < $lockout_time ) {
-		$account_locked = true;
-	}
-	elseif( $_SESSION[ 'brute_low_failed' ] >= $total_failed_login ) {
-		// Cooldown elapsed -- start a fresh window.
-		$_SESSION[ 'brute_low_failed' ] = 0;
-	}
-
-	// Parameterised query: defeats the `admin' or '1'='1' -- ` auth bypass,
-	// because the input can never leave the data channel of the statement.
+	// Check the database (if username matches the password), using a prepared
+	// statement so neither field can be parsed as SQL.
 	$data = $db->prepare( 'SELECT * FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
 	$data->bindParam( ':user', $user, PDO::PARAM_STR );
 	$data->bindParam( ':password', $pass, PDO::PARAM_STR );
 	$data->execute();
 	$row = $data->fetch();
 
-	if( ( $data->rowCount() == 1 ) && ( $account_locked == false ) ) {
+	// If its a valid login...
+	if( ( $row !== false ) && ( $account_locked == false ) ) {
 		// Get users details
 		$avatar = $row[ 'avatar' ];
 
 		// Login successful
-		$html .= "<p>Welcome to the password protected area {$user}</p>";
-		$html .= "<img src=\"{$avatar}\" />";
+		$html .= "<p>Welcome to the password protected area " . htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' ) . "</p>";
+		$html .= "<img src=\"" . htmlspecialchars( $avatar, ENT_QUOTES, 'UTF-8' ) . "\" />";
 
-		// A good login clears the throttle for this session.
-		$_SESSION[ 'brute_low_failed' ] = 0;
+		// Reset bad login count
+		$data = $db->prepare( 'UPDATE users SET failed_login = "0" WHERE user = (:user) LIMIT 1;' );
+		$data->bindParam( ':user', $user, PDO::PARAM_STR );
+		$data->execute();
 	}
 	else {
-		// Login failed. No sleep() here on purpose: the token requirement and
-		// the throttle above are what stop automation, and a per-attempt delay
-		// would only slow legitimate use (and any harness driving the page).
+		// Login failed. Count it, so repeated guesses lock the account, and
+		// delay every failure the way the impossible level does so guesses
+		// cannot be made at speed.
+		sleep( 2 );
 
-		$_SESSION[ 'brute_low_failed' ]++;
-		$_SESSION[ 'brute_low_last' ] = time();
+		$html .= "<pre><br />Username and/or password incorrect.<br /><br/>Alternative, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
 
-		$html .= "<pre><br />Username and/or password incorrect.</pre>";
+		// Update bad login count
+		$data = $db->prepare( 'UPDATE users SET failed_login = (failed_login + 1) WHERE user = (:user) LIMIT 1;' );
+		$data->bindParam( ':user', $user, PDO::PARAM_STR );
+		$data->execute();
 	}
-}
 
+	// Set the last login time
+	$data = $db->prepare( 'UPDATE users SET last_login = now() WHERE user = (:user) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->execute();
+}
 
 // Generate Anti-CSRF token
 generateSessionToken();

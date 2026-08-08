@@ -29,73 +29,45 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
-// A per-session, server-generated secret. It is only known to this server
-// and to whoever has actually loaded this page in this session (it gets
-// embedded in the hidden "js_secret" field below). The low/medium/high
-// "token" formulas below are all public - anyone can read this source and
-// reproduce md5(rot13("success")) etc. offline without ever touching the
-// app - so on their own they prove nothing. Requiring this nonce as well
-// ties a successful submission to a real, live visit to this page, which is
-// what an attacker computing the token out-of-band cannot produce.
-if ( ! isset( $_SESSION[ 'dvwa_js_secret' ] ) || ! is_string( $_SESSION[ 'dvwa_js_secret' ] ) ) {
-	$_SESSION[ 'dvwa_js_secret' ] = bin2hex( random_bytes( 16 ) );
+// Key used to derive the expected token. It is generated per session and
+// never sent to the client, so the token cannot be computed off the page.
+if (!array_key_exists ('js_secret', $_SESSION)) {
+	$_SESSION['js_secret'] = bin2hex (random_bytes (32));
 }
-$dvwaJsSecret = $_SESSION[ 'dvwa_js_secret' ];
 
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST) && array_key_exists ("js_secret", $_POST)) {
+	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
 
 		$phrase = $_POST['phrase'];
 		$token = $_POST['token'];
-		$submittedSecret = $_POST['js_secret'];
 
-		if ( is_string( $submittedSecret ) && hash_equals( $dvwaJsSecret, $submittedSecret ) ) {
-			if ($phrase == "success") {
-				switch( dvwaSecurityLevelGet() ) {
-					case 'low':
-						if ($token == md5(str_rot13("success"))) {
-							$message = "<p style='color:red'>Well done!</p>";
-						} else {
-							$message = "<p>Invalid token.</p>";
-						}
-						break;
-					case 'medium':
-						if ($token == strrev("XXsuccessXX")) {
-							$message = "<p style='color:red'>Well done!</p>";
-						} else {
-							$message = "<p>Invalid token.</p>";
-						}
-						break;
-					case 'high':
-						if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-							$message = "<p style='color:red'>Well done!</p>";
-						} else {
-							$message = "<p>Invalid token.</p>";
-						}
-						break;
-					default:
-						$vulnerabilityFile = 'impossible.php';
-						break;
-				}
+		if ($phrase == "success") {
+			if( dvwaSecurityLevelGet() == 'impossible' ) {
+				$vulnerabilityFile = 'impossible.php';
 			} else {
-				$message = "<p>You got the phrase wrong.</p>";
+				/*
+				 * The token the page's own JavaScript builds is derived from
+				 * the phrase by rules the caller can read and reimplement, so
+				 * it proves nothing. The token is instead a keyed hash of the
+				 * phrase, and the key never leaves the server, so a token for
+				 * a phrase the server never issued one for cannot be produced.
+				 */
+				$expected = hash_hmac( "sha256", $phrase, $_SESSION[ 'js_secret' ] );
+
+				if (is_string ($token) && hash_equals ($expected, $token)) {
+					$message = "<p style='color:red'>Well done!</p>";
+				} else {
+					$message = "<p>Invalid token.</p>";
+				}
 			}
 		} else {
-			// Correct phrase/token but no valid proof this request came from
-			// a real page load - reuse the same failure message the token
-			// check already uses so we don't invent a new page state.
-			$message = "<p>Invalid token.</p>";
+			$message = "<p>You got the phrase wrong.</p>";
 		}
 	} else {
 		$message = "<p>Missing phrase or token.</p>";
 	}
-
-	// Single-use: rotate the secret so a captured request can't be replayed
-	// against the freshly rendered form below.
-	$_SESSION[ 'dvwa_js_secret' ] = bin2hex( random_bytes( 16 ) );
-	$dvwaJsSecret = $_SESSION[ 'dvwa_js_secret' ];
 }
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
@@ -122,7 +94,6 @@ $page[ 'body' ] = <<<EOF
 
 	<form name="low_js" method="post">
 		<input type="hidden" name="token" value="" id="token" />
-		<input type="hidden" name="js_secret" value="$dvwaJsSecret" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>

@@ -1,63 +1,54 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ] ) ) {
-	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
 	// Get input
 	$id = $_POST[ 'id' ];
 
-	// Was a number entered? (the dropdown only ever submits digits, but the
-	// handler must not trust that — validate server-side too)
-	if( is_numeric( $id ) ) {
-		$id = intval( $id );
+	switch ($_DVWA['SQLI_DB']) {
+		case MYSQL:
+			// Prepared statement: the id is sent as a bound integer parameter and
+			// can never be parsed as SQL.
+			$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
+			$data->bindValue( ':id', (int)$id, PDO::PARAM_INT );
+			$data->execute();
 
-		switch ($_DVWA['SQLI_DB']) {
-			case MYSQL:
-				// Parameterised query - the id is bound as data, never concatenated into SQL text
-				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
-				$data->bindParam( ':id', $id, PDO::PARAM_INT );
-				$data->execute();
-				$row = $data->fetch();
+			// Get results
+			while( $row = $data->fetch() ) {
+				// Display values
+				$first = $row["first_name"];
+				$last  = $row["last_name"];
 
-				if( $data->rowCount() == 1 ) {
-					// Display values
-					$first = $row[ 'first_name' ];
-					$last  = $row[ 'last_name' ];
+				// Feedback for end user
+				$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
+			}
+			break;
+		case SQLITE:
+			global $sqlite_db_connection;
 
-					// Feedback for end user (output encoded to prevent reflected XSS)
-					$html .= "<pre>ID: " . htmlspecialchars( $id ) . "<br />First name: " . htmlspecialchars( $first ) . "<br />Surname: " . htmlspecialchars( $last ) . "</pre>";
+			try {
+				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
+				$stmt->bindValue( ':id', (int)$id, SQLITE3_INTEGER );
+				$results = $stmt->execute();
+			} catch (Exception $e) {
+				echo 'Caught exception: ' . $e->getMessage();
+				exit();
+			}
+
+			if ($results) {
+				while ($row = $results->fetchArray()) {
+					// Get values
+					$first = $row["first_name"];
+					$last  = $row["last_name"];
+
+					// Feedback for end user
+					$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 				}
-				break;
-			case SQLITE:
-				global $sqlite_db_connection;
-
-				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;' );
-				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
-				try {
-					$result = $stmt->execute();
-				} catch (Exception $e) {
-					echo 'Caught exception: ' . $e->getMessage();
-					exit();
-				}
-
-				if ($result !== false) {
-					$row = $result->fetchArray();
-					if ($row) {
-						// Get values
-						$first = $row["first_name"];
-						$last  = $row["last_name"];
-
-						// Feedback for end user (output encoded to prevent reflected XSS)
-						$html .= "<pre>ID: " . htmlspecialchars( $id ) . "<br />First name: " . htmlspecialchars( $first ) . "<br />Surname: " . htmlspecialchars( $last ) . "</pre>";
-					}
-				} else {
-					echo "Error in fetch ".$sqlite_db->lastErrorMsg();
-				}
-				break;
-		}
+			} else {
+				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
+			}
+			break;
 	}
 }
-
-generateSessionToken();
 
 // This is used later on in the index.php page
 // Setting it here so we can close the database connection in here like in the rest of the source scripts

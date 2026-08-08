@@ -43,7 +43,7 @@ $page[ 'body' ] .= "
 				<input type=\"submit\" value=\"Submit\">
 			</p>\n";
 
-if( true )
+if( $vulnerabilityFile == 'impossible.php' )
 	$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "

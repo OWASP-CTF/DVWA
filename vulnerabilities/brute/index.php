@@ -12,7 +12,9 @@ $page[ 'help_button' ]   = 'brute';
 $page[ 'source_button' ] = 'brute';
 dvwaDatabaseConnect();
 
-$method            = 'GET';
+// Credentials are only ever submitted in a request body, never in a URL, so
+// they cannot leak through browser history, proxy logs or the Referer header.
+$method            = 'POST';
 $vulnerabilityFile = '';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
@@ -26,7 +28,6 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 	default:
 		$vulnerabilityFile = 'impossible.php';
-		$method = 'POST';
 		break;
 }
 
@@ -47,12 +48,9 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Login\" name=\"Login\">\n";
 
-// Render the Anti-CSRF token at every level: requiring a fresh, session-bound
-// token per attempt forces an automated guesser to hold a session and fetch a
-// new token for each try, which is what makes the per-session throttle below
-// actually bind. It costs the legitimate form nothing.
-if( true )
-	$page[ 'body' ] .= "			" . tokenField();
+// Every level carries the Anti-CSRF token, so a login cannot be replayed or
+// driven from a page the user did not fill in themselves.
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>

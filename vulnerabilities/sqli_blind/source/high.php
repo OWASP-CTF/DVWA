@@ -5,38 +5,33 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 	$id = $_COOKIE[ 'id' ];
 	$exists = false;
 
-	// Only allow a numeric user_id through. This removes any possibility of
-	// attacker-controlled SQL syntax reaching the query (boolean- and
-	// time-based blind injection alike), while still accepting every
-	// legitimate id (the column is an INT).
+	// Only ever look up a whole number, so nothing else can reach the query.
 	if( is_numeric( $id ) ) {
 		$id = intval( $id );
 
 		switch ($_DVWA['SQLI_DB']) {
 			case MYSQL:
-				global $db;
-
-				// Check database
+				// Check database, using a prepared statement so the input can
+				// never be parsed as SQL.
 				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
 				$data->bindParam( ':id', $id, PDO::PARAM_INT );
 				$data->execute();
 
-				$exists = ( $data->rowCount() > 0 );
+				$exists = ( $data->rowCount() == 1 );
+
+				((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 				break;
 			case SQLITE:
 				global $sqlite_db_connection;
 
-				try {
-					$stmt = $sqlite_db_connection->prepare( 'SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = :id LIMIT 1;' );
-					$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
-					$result = $stmt->execute();
-					if ( $result !== false ) {
-						$row    = $result->fetchArray();
-						$exists = ( isset( $row[ 'numrows' ] ) && $row[ 'numrows' ] > 0 );
-					}
-				} catch ( Exception $e ) {
-					$exists = false;
+				$stmt = $sqlite_db_connection->prepare( 'SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = :id LIMIT 1;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$result = $stmt->execute();
+				if( $result !== false ) {
+					$row = $result->fetchArray();
+					$exists = ( $row[ 'numrows' ] == 1 );
 				}
+
 				break;
 		}
 	}
@@ -46,8 +41,10 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 		$html .= '<pre>User ID exists in the database.</pre>';
 	}
 	else {
-		// User wasn't found, so the page wasn't!
-		header( $_SERVER[ 'SERVER_PROTOCOL' ] . ' 404 Not Found' );
+		// Might sleep a random amount
+		if( rand( 0, 5 ) == 3 ) {
+			sleep( rand( 2, 4 ) );
+		}
 
 		// Feedback for end user
 		$html .= '<pre>User ID is MISSING from the database.</pre>';
