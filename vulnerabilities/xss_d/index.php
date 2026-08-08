@@ -54,9 +54,25 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
+					// Never trust the browser to have left this inert. The
+					// query string sits in a URL fragment, which some
+					// navigation paths (e.g. an attacker script assigning
+					// location.href directly, rather than a typed address)
+					// never percent-encode. Encode it here, explicitly, for
+					// the HTML context it is about to be written into.
+					function xssdEscapeForHtml(value) {
+						return String(value)
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#39;");
+					}
+
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
+						var label = $decodeURI(lang);
+						document.write("<option value='" + xssdEscapeForHtml(lang) + "'>" + xssdEscapeForHtml(label) + "</option>");
 						document.write("<option value='' disabled='disabled'>----</option>");
 					}
 					    
