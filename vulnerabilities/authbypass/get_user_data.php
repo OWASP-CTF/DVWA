@@ -3,6 +3,7 @@ define( 'DVWA_WEB_PAGE_TO_ROOT', '../../' );
 require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 
 dvwaDatabaseConnect();
+header ("Content-Type: application/json; charset=UTF-8");
 
 /*
 Only the admin is allowed to retrieve the data. The check is made on every
@@ -10,6 +11,7 @@ request, at every security level, and is based on the user held in the server
 side session rather than on anything supplied by the caller.
 */
 if (dvwaCurrentUser() != "admin") {
+	http_response_code (403);
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }

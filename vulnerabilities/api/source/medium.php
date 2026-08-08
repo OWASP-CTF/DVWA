@@ -1,9 +1,9 @@
 <?php
 
 $request_url = $_SERVER['REQUEST_URI'];
-// The request URI is attacker controlled and is written into a JavaScript
-// string below, so encode it before it is used.
-$stripped_url = htmlspecialchars (str_replace ("/vulnerabilities/api/", "", $request_url), ENT_QUOTES, 'UTF-8');
+// Serialize attacker-influenced URLs as JSON before embedding them in script.
+$stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+$user_url = json_encode ($stripped_url . "/vulnerabilities/api/v2/user/2", JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
 $html .= "
 	<script>
@@ -13,7 +13,7 @@ $html .= "
 			var name_input = document.getElementById ('name');
 
 			if (user_json.name == '') {
-				user_info.innerHTML = 'User details: unknown user';
+				user_info.textContent = 'User details: unknown user';
 				name_input.value = 'unknown';
 			} else {
 				var level = 'unknown';
@@ -24,13 +24,13 @@ $html .= "
 				} else {
 					level = 'user';
 				}
-				user_info.innerHTML = 'User details: ' + user_json.name + ' (' + level + ')';
+				user_info.textContent = 'User details: ' + user_json.name + ' (' + level + ')';
 				name_input.value = user_json.name;
 			}
 		}
 
 		function get_user() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $user_url . ";
 			 
 			fetch(url, { 
 					method: 'GET',
@@ -50,7 +50,7 @@ $html .= "
 		}
 
 		function update_name() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $user_url . ";
 			const name = document.getElementById ('name').value;
 			const data = JSON.stringify({name: name});
 			 

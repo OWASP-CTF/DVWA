@@ -3,6 +3,7 @@ define( 'DVWA_WEB_PAGE_TO_ROOT', '../../' );
 require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 
 dvwaDatabaseConnect();
+header ("Content-Type: application/json; charset=UTF-8");
 
 /*
 Only the admin is allowed to update the data. State changing calls need the
@@ -11,11 +12,13 @@ request, at every security level, based on the server side session.
 */
 
 if (dvwaCurrentUser() != "admin") {
+	http_response_code (403);
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] != "POST") {
+	http_response_code (405);
 	$result = array (
 						"result" => "fail",
 						"error" => "Only POST requests are accepted"
@@ -24,10 +27,23 @@ if ($_SERVER['REQUEST_METHOD'] != "POST") {
 	exit;
 }
 
+// Requiring JSON prevents a cross-origin HTML form (or another CORS-simple
+// request) from driving this state-changing endpoint with an administrator's
+// ambient session. Browsers must preflight application/json requests.
+$content_type = isset ($_SERVER['CONTENT_TYPE']) && is_string ($_SERVER['CONTENT_TYPE'])
+	? strtolower (trim (explode (';', $_SERVER['CONTENT_TYPE'], 2)[0]))
+	: '';
+if ($content_type !== 'application/json') {
+	http_response_code (415);
+	print json_encode (array ("result" => "fail", "error" => "Content type must be application/json"));
+	exit;
+}
+
 try {
 	$json = file_get_contents('php://input');
 	$data = json_decode($json);
 	if (is_null ($data) || !is_object ($data) || !isset ($data->id) || !isset ($data->first_name) || !isset ($data->surname) || !is_scalar ($data->first_name) || !is_scalar ($data->surname) || !is_numeric ($data->id)) {
+		http_response_code (422);
 		$result = array (
 							"result" => "fail",
 							"error" => 'Invalid format, expecting "{id: {user ID}, first_name: "{first name}", surname: "{surname}"}'
@@ -37,6 +53,7 @@ try {
 		exit;
 	}
 } catch (Exception $e) {
+	http_response_code (422);
 	$result = array (
 						"result" => "fail",
 						"error" => 'Invalid format, expecting \"{id: {user ID}, first_name: "{first name}", surname: "{surname}\"}'

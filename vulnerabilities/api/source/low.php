@@ -7,9 +7,11 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 }
 
 $request_url = $_SERVER['REQUEST_URI'];
-// The request URI is attacker controlled and is written into a JavaScript
-// string below, so encode it before it is used.
-$stripped_url = htmlspecialchars (str_replace ("/vulnerabilities/api/", "", $request_url), ENT_QUOTES, 'UTF-8');
+// The request URI is attacker controlled and is written into JavaScript.
+// Serialize the complete URL as JSON so quotes, backslashes and line
+// terminators cannot break out of the string literal.
+$stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+$users_url = json_encode ($stripped_url . "/vulnerabilities/api/v2/user/", JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
 $html .= "
 <p>
@@ -25,7 +27,7 @@ $html .= "
 		var name_input = document.getElementById ('name');
 
 		if (user_json.name == '') {
-			user_info.innerHTML = 'User details: unknown user';
+			user_info.textContent = 'User details: unknown user';
 			name_input.value = 'unknown';
 		} else {
 			if (user_json.level == 0) {
@@ -33,7 +35,7 @@ $html .= "
 			} else {
 				level = 'user';
 			}
-			user_info.innerHTML = 'User details: ' + user_json.name + ' (' + level + ')';
+			user_info.textContent = 'User details: ' + user_json.name + ' (' + level + ')';
 			name_input.value = user_json.name;
 		}
 
@@ -46,7 +48,7 @@ $html .= "
 	}
 
 	function get_users() {
-		const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/';
+		const url = " . $users_url . ";
 		 
 		fetch(url, { 
 				method: 'GET',
@@ -80,7 +82,7 @@ $html .= "
 		item = items[0];
 		Object.keys(item).forEach(function(k){
 			let cell = row.insert_th_Cell(-1);
-			cell.innerHTML = k;
+			cell.textContent = k;
 			if (k == 'password') {
 				successDiv = document.getElementById ('message');
 				successDiv.style.display = 'block';
@@ -93,7 +95,7 @@ $html .= "
 			let row = tableBody.insertRow();
 			for (const [key, value] of Object.entries(item)) {
 				let cell = row.insertCell(-1);
-				cell.innerHTML = value;
+				cell.textContent = value;
 			}
 		});
 	}
