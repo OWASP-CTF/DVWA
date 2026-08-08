@@ -12,7 +12,11 @@ $page[ 'help_button' ]   = 'brute';
 $page[ 'source_button' ] = 'brute';
 dvwaDatabaseConnect();
 
-$method            = 'GET';
+// Credentials never belong in a URL: a GET login puts the password in the
+// address bar, the browser history, the referrer and every proxy log, and
+// makes the endpoint trivial to drive from a list of links. Every level now
+// posts, as the impossible level always did.
+$method            = 'POST';
 $vulnerabilityFile = '';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
@@ -47,8 +51,10 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Login\" name=\"Login\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
-	$page[ 'body' ] .= "			" . tokenField();
+// Every level now validates the Anti-CSRF token, so every level's form has
+// to carry one. A one-shot token also stops a login form being replayed
+// off-line by an automated password guesser.
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>

@@ -2,36 +2,31 @@
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
 	// Get input
-	$target = trim($_REQUEST[ 'ip' ]);
+	$target = trim( stripslashes( $_REQUEST[ 'ip' ] ) );
 
-	// Set blacklist
-	$substitutions = array(
-		'||' => '',
-		'&'  => '',
-		';'  => '',
-		'| ' => '',
-		'-'  => '',
-		'$'  => '',
-		'('  => '',
-		')'  => '',
-		'`'  => '',
-	);
+	// The old blacklist missed "|" without a trailing space, newlines and
+	// more. Validate the whole value against an allowlist instead.
+	if( filter_var( $target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) !== false ) {
+		// Belt and braces: the argument is also quoted for the shell.
+		$safe_target = escapeshellarg( $target );
 
-	// Remove any of the characters in the array (blacklist).
-	$target = str_replace( array_keys( $substitutions ), $substitutions, $target );
+		// Determine OS and execute the ping command.
+		if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
+			// Windows
+			$cmd = shell_exec( 'ping  ' . $safe_target );
+		}
+		else {
+			// *nix
+			$cmd = shell_exec( 'ping  -c 4 ' . $safe_target );
+		}
 
-	// Determine OS and execute the ping command.
-	if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
-		// Windows
-		$cmd = shell_exec( 'ping  ' . $target );
+		// Feedback for the end user
+		$html .= "<pre>" . htmlspecialchars( $cmd, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 	}
 	else {
-		// *nix
-		$cmd = shell_exec( 'ping  -c 4 ' . $target );
+		// Let the user know they made a mistake
+		$html .= '<pre>ERROR: You have entered an invalid IP.</pre>';
 	}
-
-	// Feedback for the end user
-	$html .= "<pre>{$cmd}</pre>";
 }
 
 ?>

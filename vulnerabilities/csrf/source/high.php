@@ -35,13 +35,17 @@ if ($change) {
 	// Do the passwords match?
 	if( $pass_new == $pass_conf ) {
 		// They do!
-		$pass_new = mysqli_real_escape_string ($GLOBALS["___mysqli_ston"], $pass_new);
-		$pass_new = md5( $pass_new );
+		$pass_new = md5( stripslashes( $pass_new ) );
 
-		// Update the database
+		// Update the database via a prepared statement
 		$current_user = dvwaCurrentUser();
-		$insert = "UPDATE `users` SET password = '" . $pass_new . "' WHERE user = '" . $current_user . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert );
+		$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], "UPDATE `users` SET password = ? WHERE user = ?;" );
+
+		if( $stmt ) {
+			mysqli_stmt_bind_param( $stmt, "ss", $pass_new, $current_user );
+			mysqli_stmt_execute( $stmt );
+			mysqli_stmt_close( $stmt );
+		}
 
 		// Feedback for the user
 		$return_message = "Password Changed.";

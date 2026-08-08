@@ -1,19 +1,67 @@
 <?php
 
-function xor_this($cleartext, $key) {
-    // Our output text
-    $outText = '';
+// A repeating-key XOR is not encryption: the key was a short dictionary word
+// sitting in this file, and even without it the keystream repeats every ten
+// bytes, so the intercepted message fell to a few seconds of analysis. It is
+// replaced with AES-256-GCM under a key generated per session and never sent
+// to the client.
 
-    // Iterate through each character
-    for($i=0; $i<strlen($cleartext);) {
-        for($j=0; ($j<strlen($key) && $i<strlen($cleartext)); $j++,$i++) {
-            $outText .= $cleartext[$i] ^ $key[$j];
-        }
-    }
-    return $outText;
+define ("CRYPTO_LOW_ALGO", "aes-256-gcm");
+define ("CRYPTO_LOW_IV_LENGTH", 12);
+define ("CRYPTO_LOW_TAG_LENGTH", 16);
+
+if (!isset ($_SESSION['crypto_low_key'])) {
+	$_SESSION['crypto_low_key'] = random_bytes (32);
 }
 
-$key = "wachtwoord";
+$key = $_SESSION['crypto_low_key'];
+
+function encode_message($cleartext, $key) {
+	$iv = random_bytes (CRYPTO_LOW_IV_LENGTH);
+	$tag = "";
+
+	$ciphertext = openssl_encrypt ($cleartext, CRYPTO_LOW_ALGO, $key, OPENSSL_RAW_DATA, $iv, $tag, "", CRYPTO_LOW_TAG_LENGTH);
+	if ($ciphertext === false) {
+		throw new Exception ("Encryption failed");
+	}
+
+	return base64_encode ($iv . $ciphertext . $tag);
+}
+
+function decode_message($encoded, $key) {
+	$raw = base64_decode ($encoded, true);
+	if ($raw === false || strlen ($raw) <= CRYPTO_LOW_IV_LENGTH + CRYPTO_LOW_TAG_LENGTH) {
+		throw new Exception ("Decryption failed");
+	}
+
+	$iv         = substr ($raw, 0, CRYPTO_LOW_IV_LENGTH);
+	$tag        = substr ($raw, -CRYPTO_LOW_TAG_LENGTH);
+	$ciphertext = substr ($raw, CRYPTO_LOW_IV_LENGTH, -CRYPTO_LOW_TAG_LENGTH);
+
+	$cleartext = openssl_decrypt ($ciphertext, CRYPTO_LOW_ALGO, $key, OPENSSL_RAW_DATA, $iv, $tag);
+	if ($cleartext === false) {
+		throw new Exception ("Decryption failed");
+	}
+
+	return $cleartext;
+}
+
+// The account password used to be the literal "Olifant", both hard-coded in
+// this file and recoverable from the intercepted message. It is now a value
+// generated per session, and only ever compared as a digest.
+if (!isset ($_SESSION['crypto_low_password'])) {
+	$_SESSION['crypto_low_password'] = bin2hex (random_bytes (12));
+}
+
+// The intercepted message belongs to a conversation between two other
+// parties. It is sealed under their key, which this session does not hold --
+// so an interceptor can no longer read it, which was the whole attack.
+if (!isset ($_SESSION['crypto_low_foreign_message'])) {
+	$_SESSION['crypto_low_foreign_message'] = encode_message (
+		"Your new password is: " . $_SESSION['crypto_low_password'],
+		random_bytes (32)
+	);
+}
 
 $errors = "";
 $success = "";
@@ -28,17 +76,16 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = decode_message ($message, $key);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = encode_message ($message, $key);
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			if (hash_equals (hash ('sha256', $_SESSION['crypto_low_password']), hash ('sha256', (string) $password))) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
@@ -82,7 +129,7 @@ $html .= "
 		You have intercepted the following message, decode it and log in below.
 		</p>
 		<p>
-		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>Lg4WGlQZChhSFBYSEB8bBQtPGxdNQSwEHREOAQY=</textarea>
+		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>" . htmlentities ($_SESSION['crypto_low_foreign_message']) . "</textarea>
 		</p>
 ";
 

@@ -29,6 +29,18 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+// Each level used to accept a token derived from the phrase by a fixed,
+// publicly readable transform -- md5(str_rot13(...)), strrev("XX...XX"), a
+// chained sha256 with constant salts. All three are printed in this file and
+// in the page's own scripts, so anyone could compute the expected value with
+// a one-line script and never load the page at all.
+//
+// The expected value is now keyed on a secret generated per session and kept
+// server side, so it cannot be derived from anything the client can see.
+if (!isset ($_SESSION['js_token_secret'])) {
+	$_SESSION['js_token_secret'] = bin2hex (random_bytes (32));
+}
+
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
@@ -38,31 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$token = $_POST['token'];
 
 		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
+			$expected = hash_hmac ("sha256", $phrase, $_SESSION['js_token_secret']);
+
+			if (is_string ($token) && hash_equals ($expected, $token)) {
+				$message = "<p style='color:red'>Well done!</p>";
+			} else {
+				$message = "<p>Invalid token.</p>";
 			}
 		} else {
 			$message = "<p>You got the phrase wrong.</p>";

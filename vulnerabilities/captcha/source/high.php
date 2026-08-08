@@ -1,6 +1,9 @@
 <?php
 
 if( isset( $_POST[ 'Change' ] ) ) {
+	// Check Anti-CSRF token
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
@@ -8,27 +11,28 @@ if( isset( $_POST[ 'Change' ] ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check CAPTCHA from 3rd party
+	// Check CAPTCHA from 3rd party. This is now the only thing that can
+	// satisfy the check -- the hard-coded response/User-Agent pair that used
+	// to wave a request straight through has been removed.
 	$resp = recaptcha_check_answer(
 		$_DVWA[ 'recaptcha_private_key' ],
 		$_POST['g-recaptcha-response']
 	);
 
-	if (
-		$resp || 
-		(
-			$_POST[ 'g-recaptcha-response' ] == 'hidd3n_valu3'
-			&& $_SERVER[ 'HTTP_USER_AGENT' ] == 'reCAPTCHA'
-		)
-	){
+	if ( $resp ) {
 		// CAPTCHA was correct. Do both new passwords match?
 		if ($pass_new == $pass_conf) {
-			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-			$pass_new = md5( $pass_new );
+			$pass_new = md5( stripslashes( $pass_new ) );
 
-			// Update database
-			$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . dvwaCurrentUser() . "' LIMIT 1;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+			// Update database via a prepared statement
+			$current_user = dvwaCurrentUser();
+			$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], "UPDATE `users` SET password = ? WHERE user = ?;" );
+
+			if( $stmt ) {
+				mysqli_stmt_bind_param( $stmt, "ss", $pass_new, $current_user );
+				mysqli_stmt_execute( $stmt );
+				mysqli_stmt_close( $stmt );
+			}
 
 			// Feedback for user
 			$html .= "<pre>Password Changed.</pre>";

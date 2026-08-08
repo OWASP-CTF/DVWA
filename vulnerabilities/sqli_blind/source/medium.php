@@ -1,45 +1,50 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
+	// Check Anti-CSRF token
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Get input
 	$id = $_POST[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			$id = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $id ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	// The drop-down only ever offers numeric record ids; validate rather than
+	// relying on string escaping.
+	if( is_numeric( $id ) ) {
+		$id = intval( $id );
 
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
-			} catch (Exception $e) {
-				print "There was an error.";
-				exit;
-			}
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				// Check database with a prepared statement
+				$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], "SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = ? LIMIT 1;" );
 
-			$exists = false;
-			if ($result !== false) {
+				if( $stmt ) {
+					mysqli_stmt_bind_param( $stmt, "i", $id );
+					mysqli_stmt_execute( $stmt );
+					$result = mysqli_stmt_get_result( $stmt );
+
+					if( $result && ( $row = mysqli_fetch_assoc( $result ) ) ) {
+						$exists = ( $row[ 'numrows' ] > 0 );
+					}
+
+					mysqli_stmt_close( $stmt );
+				}
+
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
 				try {
-					$exists = (mysqli_num_rows( $result ) > 0); // The '@' character suppresses errors
+					$stmt = $sqlite_db_connection->prepare( 'SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = :id LIMIT 1;' );
+					$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+					$results = $stmt->execute();
+					$row = $results->fetchArray();
+					$exists = ( $row !== false && $row[ 'numrows' ] > 0 );
 				} catch(Exception $e) {
 					$exists = false;
 				}
-			}
-			
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
-			
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			try {
-				$results = $sqlite_db_connection->query($query);
-				$row = $results->fetchArray();
-				$exists = $row !== false;
-			} catch(Exception $e) {
-				$exists = false;
-			}
-			break;
+				break;
+		}
 	}
 
 	if ($exists) {
@@ -50,5 +55,8 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 		$html .= '<pre>User ID is MISSING from the database.</pre>';
 	}
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
