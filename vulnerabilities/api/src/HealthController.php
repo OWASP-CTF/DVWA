@@ -101,26 +101,29 @@ class HealthController
 			return false;
 		}
 
+		// An explicit opt-in for a deployment that really does have to probe an
+		// internal host. Comma separated, matched against what was asked for.
+		// Empty by default, so the safe path below is what normally applies.
+		$allowed = array_filter(array_map('trim', explode(',', (string) getenv('DVWA_HEALTH_ALLOWED_TARGETS'))));
+		if (in_array($target, $allowed, true)) {
+			return true;
+		}
+
 		$resolved = $isIp ? $target : gethostbyname($target);
 		if (!$isIp && $resolved === $target) {
 			// The name did not resolve.
 			return false;
 		}
 
-		if (filter_var($resolved, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
-			return false;
-		}
-
-		// Blocking every private range would make this endpoint useless: in the
-		// bundled compose deployment the database, the loopback address and the
-		// container's own address are all private, so nothing would ever be a
-		// valid target. What is blocked is the cloud instance metadata address,
-		// which is the one destination an SSRF is actually worth aiming at.
-		if (strpos($resolved, '169.254.') === 0) {
-			return false;
-		}
-
-		return true;
+		// Refuse anything that resolves into the private, loopback, link local
+		// or otherwise reserved ranges. Those are exactly the destinations an
+		// SSRF is aimed at, and an endpoint that reports reachability is a
+		// perfectly good scanner for them.
+		return filter_var(
+			$resolved,
+			FILTER_VALIDATE_IP,
+			FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+		) !== false;
 	}
 
 	private function checkConnectivity() {
