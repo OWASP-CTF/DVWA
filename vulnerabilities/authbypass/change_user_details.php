@@ -5,10 +5,10 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On impossible only the admin is allowed to retrieve the data.
+On medium and impossible, only the admin is allowed to update the data.
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+if ((dvwaSecurityLevelGet() == "medium" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
