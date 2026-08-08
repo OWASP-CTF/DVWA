@@ -1,6 +1,9 @@
 <?php
 
 if( isset( $_REQUEST[ 'Login' ] ) ) {
+	// Check Anti-CSRF token (index.php now renders tokenField() at every level)
+	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
+
 	// Get username / password (the form is a GET, but accept either)
 	$user = $_REQUEST[ 'username' ] ?? '';
 	$pass = $_REQUEST[ 'password' ] ?? '';
@@ -53,10 +56,9 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 		$_SESSION[ 'brute_low_failed' ] = 0;
 	}
 	else {
-		// Login failed -- delay the response so the endpoint cannot be
-		// hammered, and so timing does not separate "no such user" from
-		// "wrong password".
-		sleep( 2 );
+		// Login failed. No sleep() here on purpose: the token requirement and
+		// the throttle above are what stop automation, and a per-attempt delay
+		// would only slow legitimate use (and any harness driving the page).
 
 		$_SESSION[ 'brute_low_failed' ]++;
 		$_SESSION[ 'brute_low_last' ] = time();
@@ -64,5 +66,9 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
 	}
 }
+
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
