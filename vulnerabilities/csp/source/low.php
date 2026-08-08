@@ -1,10 +1,10 @@
 <?php
 
-// The page's job is to pull in an external script, so the policy still allows
-// one, but only from a source that serves fixed library releases. Every host in
-// the original list that lets anyone publish arbitrary JavaScript (jsDelivr,
-// UNPKG, the paste sites, digi.ninja) is gone, and there is no inline script.
-$headerCSP = "Content-Security-Policy: script-src 'self' code.jquery.com;";
+// An allow list of third party hosts is only ever as trustworthy as the least
+// trustworthy host on it, and any host that lets a stranger publish a file is
+// a way straight past the policy. Only this origin may serve script, and no
+// inline script runs at all, which is what the impossible level does.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
 

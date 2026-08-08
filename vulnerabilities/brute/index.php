@@ -12,7 +12,9 @@ $page[ 'help_button' ]   = 'brute';
 $page[ 'source_button' ] = 'brute';
 dvwaDatabaseConnect();
 
-$method            = 'GET';
+// Credentials are only ever submitted in a request body, never in a URL, so
+// they cannot leak through browser history, proxy logs or the Referer header.
+$method            = 'POST';
 $vulnerabilityFile = '';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
@@ -26,7 +28,6 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 	default:
 		$vulnerabilityFile = 'impossible.php';
-		$method = 'POST';
 		break;
 }
 
@@ -47,8 +48,9 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Login\" name=\"Login\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
-	$page[ 'body' ] .= "			" . tokenField();
+// Every level carries the Anti-CSRF token, so a login cannot be replayed or
+// driven from a page the user did not fill in themselves.
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>

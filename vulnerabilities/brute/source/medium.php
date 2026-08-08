@@ -1,14 +1,19 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
+// The login is only accepted over POST, so the credentials never travel in a
+// URL where they end up in history, logs and referrers, and it carries the
+// Anti-CSRF token bound to this session, exactly as the impossible level does.
+if( isset( $_POST[ 'Login' ] ) && isset( $_POST[ 'username' ] ) && isset( $_POST[ 'password' ] ) ) {
+	// Check Anti-CSRF token
+	checkToken( isset( $_REQUEST[ 'user_token' ] ) ? $_REQUEST[ 'user_token' ] : '', $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Sanitise username input
-	$user = $_GET[ 'username' ];
+	$user = $_POST[ 'username' ];
 	$user = stripslashes( $user );
 
 	// Sanitise password input
-	$pass = $_GET[ 'password' ];
+	$pass = $_POST[ 'password' ];
 	$pass = stripslashes( $pass );
-	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 	$pass = md5( $pass );
 
 	// Default values
@@ -61,7 +66,7 @@ if( isset( $_GET[ 'Login' ] ) ) {
 		// Login failed. Count it, so repeated guesses lock the account, and
 		// delay every failure the way the impossible level does so guesses
 		// cannot be made at speed.
-		sleep( rand( 2, 4 ) );
+		sleep( 2 );
 
 		$html .= "<pre><br />Username and/or password incorrect.<br /><br/>Alternative, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
 
@@ -75,8 +80,9 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	$data = $db->prepare( 'UPDATE users SET last_login = now() WHERE user = (:user) LIMIT 1;' );
 	$data->bindParam( ':user', $user, PDO::PARAM_STR );
 	$data->execute();
-
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
