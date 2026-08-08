@@ -31,6 +31,34 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 	    && ( time() - $_SESSION[ 'brute_high_last' ] ) < $lockout_time ) {
 		$account_locked = true;
 	}
+
+	// The session counter above is defeated by a guesser that simply starts a
+	// new session (and fetches a new token) for each attempt. So the high level
+	// also rate-limits by *velocity* per username, in a short sliding window
+	// shared across sessions. This targets what separates automation from a
+	// person -- attempts per second -- rather than locking the account, so it
+	// decays within seconds and never leaves a legitimate user shut out the way
+	// a persistent failed_login flag in the users table would.
+	$window   = 10; // seconds
+	$max_fail = 5;  // failures per window, all sessions
+	$bucket   = sys_get_temp_dir() . '/dvwa_brute_' . md5( 'high|' . strtolower( $user ) ) . '.json';
+	$attempts = array();
+
+	if( is_readable( $bucket ) ) {
+		$decoded = json_decode( (string) @file_get_contents( $bucket ), true );
+		if( is_array( $decoded ) ) {
+			// Drop anything that has aged out of the window.
+			foreach( $decoded as $when ) {
+				if( is_numeric( $when ) && ( time() - $when ) < $window ) {
+					$attempts[] = (int) $when;
+				}
+			}
+		}
+	}
+
+	if( count( $attempts ) >= $max_fail ) {
+		$account_locked = true;
+	}
 	elseif( $_SESSION[ 'brute_high_failed' ] >= $total_failed_login ) {
 		// Cooldown elapsed -- start a fresh window.
 		$_SESSION[ 'brute_high_failed' ] = 0;
@@ -54,6 +82,7 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 
 		// A good login clears the throttle for this session.
 		$_SESSION[ 'brute_high_failed' ] = 0;
+		@unlink( $bucket );
 	}
 	else {
 		// Login failed. No sleep() here on purpose: the token requirement and
@@ -62,6 +91,10 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 
 		$_SESSION[ 'brute_high_failed' ]++;
 		$_SESSION[ 'brute_high_last' ] = time();
+
+		// Record this failure in the shared velocity window.
+		$attempts[] = time();
+		@file_put_contents( $bucket, json_encode( $attempts ), LOCK_EX );
 
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
 	}
