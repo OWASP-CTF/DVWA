@@ -655,7 +655,8 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	}
 	// uniqid() is time based and predictable; hashing it does not add entropy.
 	// Use a CSPRNG so an attacker cannot guess a valid anti-CSRF token.
-	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
+	// Preserve DVWA's 32-character token contract while providing 128 bits of entropy.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
