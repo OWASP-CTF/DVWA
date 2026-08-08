@@ -1,35 +1,55 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
-	// Sanitise username input
+if( isset( $_GET[ 'Login' ] ) && isset( $_GET[ 'username' ] ) && isset( $_GET[ 'password' ] ) ) {
 	$user = $_GET[ 'username' ];
-	$user = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $user ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	$pass = md5( $_GET[ 'password' ] );
 
-	// Sanitise password input
-	$pass = $_GET[ 'password' ];
-	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-	$pass = md5( $pass );
+	$total_failed_login = 3;
+	$lockout_time       = 15 * 60;
+	$account_locked     = false;
 
-	// Check the database
-	$query  = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
-	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+	// Keep failed-attempt accounting with the account so a new session cannot
+	// bypass the lockout.
+	$data = $db->prepare( 'SELECT failed_login, last_login FROM users WHERE user = (:user) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->execute();
+	$account = $data->fetch();
 
-	if( $result && mysqli_num_rows( $result ) == 1 ) {
-		// Get users details
-		$row    = mysqli_fetch_assoc( $result );
-		$avatar = $row["avatar"];
+	if( $account && $account[ 'failed_login' ] >= $total_failed_login ) {
+		$last_attempt = strtotime( $account[ 'last_login' ] );
+		$account_locked = ( $last_attempt + $lockout_time ) > time();
+	}
+
+	$data = $db->prepare( 'SELECT user, avatar FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->bindParam( ':password', $pass, PDO::PARAM_STR );
+	$data->execute();
+	$row = $data->fetch();
+
+	if( $row && !$account_locked ) {
+		$avatar = $row[ 'avatar' ];
 
 		// Login successful
 		$html .= "<p>Welcome to the password protected area {$user}</p>";
 		$html .= "<img src=\"{$avatar}\" />";
+
+		$data = $db->prepare( 'UPDATE users SET failed_login = 0 WHERE user = (:user) LIMIT 1;' );
+		$data->bindParam( ':user', $user, PDO::PARAM_STR );
+		$data->execute();
 	}
 	else {
+		// Do not extend an active lockout on every request. For an existing,
+		// unlocked account, record this failure and begin a new lockout window.
+		if( $account && !$account_locked ) {
+			$data = $db->prepare( 'UPDATE users SET failed_login = failed_login + 1, last_login = NOW() WHERE user = (:user) LIMIT 1;' );
+			$data->bindParam( ':user', $user, PDO::PARAM_STR );
+			$data->execute();
+		}
+
 		// Login failed
 		sleep( 2 );
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
 	}
-
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
 
 ?>
