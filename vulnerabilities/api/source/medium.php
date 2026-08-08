@@ -1,7 +1,9 @@
 <?php
 
-$request_url = $_SERVER['REQUEST_URI'];
+$request_url = parse_url ($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+// The URL ends up inside a JavaScript string literal, so encode it as one.
+$user_url = json_encode ($stripped_url . "/vulnerabilities/api/v2/user/2", JSON_UNESCAPED_SLASHES);
 
 $html .= "
 	<script>
@@ -28,7 +30,7 @@ $html .= "
 		}
 
 		function get_user() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $user_url . ";
 			 
 			fetch(url, { 
 					method: 'GET',
@@ -48,7 +50,7 @@ $html .= "
 		}
 
 		function update_name() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $user_url . ";
 			const name = document.getElementById ('name').value;
 			const data = JSON.stringify({name: name});
 			 
@@ -80,7 +82,7 @@ $html .= "
 			Look at the call used to update your name and exploit it to elevate your user to admin (level 0).
 		</p>
 		<p id='user_info'></p>
-		<form method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form method='post' action=\"" . htmlspecialchars ($_SERVER['PHP_SELF'], ENT_QUOTES, 'UTF-8') . "\">
 			<p>
 				<label for='name'>Name</label>
 				<input type='text' value='' name='name' id='name'>

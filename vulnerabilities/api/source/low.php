@@ -6,8 +6,10 @@ $messages = "";
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 }
 
-$request_url = $_SERVER['REQUEST_URI'];
+$request_url = parse_url ($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+// The URL ends up inside a JavaScript string literal, so encode it as one.
+$users_url = json_encode ($stripped_url . "/vulnerabilities/api/v2/user/", JSON_UNESCAPED_SLASHES);
 
 $html .= "
 <p>
@@ -44,7 +46,7 @@ $html .= "
 	}
 
 	function get_users() {
-		const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/';
+		const url = " . $users_url . ";
 		 
 		fetch(url, { 
 				method: 'GET',
