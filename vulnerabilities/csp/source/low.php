@@ -1,18 +1,18 @@
 <?php
 
-// An allow list of third party hosts is only ever as trustworthy as the least
-// trustworthy host on it, and any host that lets a stranger publish a file is
-// a way straight past the policy. Only this origin may serve script, and no
-// inline script runs at all, which is what the impossible level does.
-$headerCSP = "Content-Security-Policy: script-src 'self';";
+$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
 
 header($headerCSP);
+
+# These might work if you can't create your own for some reason
+# https://cdn.jsdelivr.net/gh/digininja/csp_bypass/alert.js
+# https://unpkg.com/@digininja/csp_bypass@1.0.0/index.js
 
 ?>
 <?php
 if (isset ($_POST['include'])) {
 $page[ 'body' ] .= "
-	<script src='" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "'></script>
+	<script src='" . $_POST['include'] . "'></script>
 ";
 }
 $page[ 'body' ] .= '
