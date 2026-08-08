@@ -88,3 +88,11 @@ def test_injection_and_reflected_xss_forms_require_session_tokens():
             body = source(f"vulnerabilities/{module}/source/{level}.php")
             assert "checkToken( $_REQUEST[ 'user_token' ]" in body
             assert "generateSessionToken();" in body
+
+
+def test_reflected_xss_never_preserves_attacker_markup():
+    for level in ("low", "medium", "high"):
+        body = source(f"vulnerabilities/xss_r/source/{level}.php")
+        assert "X-XSS-Protection: 0" not in body
+        assert "is_string( $_GET[ 'name' ] )" in body
+        assert "htmlspecialchars( strip_tags( $_GET[ 'name' ] ), ENT_QUOTES | ENT_SUBSTITUTE" in body
