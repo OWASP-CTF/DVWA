@@ -647,7 +647,9 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 		destroySessionToken();
 	}
 	// md5( uniqid() ) is derived from the clock and is therefore guessable.
-	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
+	// 16 CSPRNG bytes keep the familiar 32-character hex shape while being
+	// genuinely unpredictable.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
