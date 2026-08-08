@@ -749,6 +749,28 @@ else {
 	$DBMS = "No DBMS selected.";
 }
 
+/*
+ * Central handler for database failures.
+ *
+ * The raw driver error must never reach the client: it leaks the schema, the
+ * query fragment and often the filesystem path (CWE-209, A10:2025 Mishandling
+ * of Exceptional Conditions). Log the detail server side and show the user a
+ * generic message instead.
+ */
+function dvwaDatabaseError( $pContext = '', $pUserMessage = 'An error occurred while processing your request.' ) {
+	$detail = 'unknown error';
+	if( isset( $GLOBALS[ "___mysqli_ston" ] ) && is_object( $GLOBALS[ "___mysqli_ston" ] ) ) {
+		$detail = mysqli_error( $GLOBALS[ "___mysqli_ston" ] );
+	}
+	elseif( mysqli_connect_error() ) {
+		$detail = mysqli_connect_error();
+	}
+
+	error_log( 'DVWA database error' . ( $pContext !== '' ? " [{$pContext}]" : '' ) . ': ' . $detail );
+
+	die( '<pre>' . htmlspecialchars( $pUserMessage, ENT_QUOTES, 'UTF-8' ) . '</pre>' );
+}
+
 function dvwaDatabaseConnect() {
 	global $_DVWA;
 	global $DBMS;
@@ -760,8 +782,12 @@ function dvwaDatabaseConnect() {
 		if( !@($GLOBALS["___mysqli_ston"] = mysqli_connect( $_DVWA[ 'db_server' ],  $_DVWA[ 'db_user' ],  $_DVWA[ 'db_password' ], "", $_DVWA[ 'db_port' ] ))
 		|| !@((bool)mysqli_query($GLOBALS["___mysqli_ston"], "USE " . $_DVWA[ 'db_database' ])) ) {
 			//die( $DBMS_connError );
+			// When the connect itself failed the handle is false, and
+			// mysqli_error(false) is a TypeError on PHP 8. Ask the connection
+			// level function instead, and keep the driver text out of the page.
+			error_log( 'dvwa: database connection failed: ' . ( mysqli_connect_error() ?: 'unknown error' ) );
 			dvwaLogout();
-			dvwaMessagePush( 'Unable to connect to the database.<br />' . mysqli_error($GLOBALS["___mysqli_ston"]));
+			dvwaMessagePush( 'Unable to connect to the database.' );
 			dvwaRedirect( DVWA_WEB_PAGE_TO_ROOT . 'setup.php' );
 		}
 		// MySQL PDO Prepared Statements (for impossible levels)
