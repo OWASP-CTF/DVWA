@@ -14,5 +14,7 @@ tests/__pycache__/
 
 # Don't include any uploaded images
 hackable/uploads/*
+# ...but the execution guard itself has to be tracked.
+!hackable/uploads/.htaccess
 .DS_Store
 .DS_Store

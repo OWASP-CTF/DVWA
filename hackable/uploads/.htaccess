@@ -1,0 +1,17 @@
+# Defence in depth for the File Upload module.
+#
+# Nothing should ever be able to place a PHP file here: the stored name is
+# generated server side and the extension is restricted to jpg/jpeg/png. If that
+# ever fails, this makes the result inert rather than executable.
+<IfModule mod_php.c>
+	php_flag engine off
+</IfModule>
+
+<FilesMatch "\.(?i:php|php3|php4|php5|php7|phps|phtml|pht|shtml|cgi|pl)$">
+	Require all denied
+</FilesMatch>
+
+# Never let the browser sniff an upload into markup or script.
+<IfModule mod_headers.c>
+	Header always set X-Content-Type-Options "nosniff"
+</IfModule>
