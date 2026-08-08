@@ -3,6 +3,7 @@
 if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
+	unset( $_SESSION[ 'captcha_pass_new' ], $_SESSION[ 'captcha_pass_conf' ] );
 
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];
@@ -24,14 +25,15 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// Record successful CAPTCHA verification on the server for the next stage
+			$_SESSION[ 'captcha_pass_new' ]  = $pass_new;
+			$_SESSION[ 'captcha_pass_conf' ] = $pass_conf;
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
 				<form action=\"#\" method=\"POST\">
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
-					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
-					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
-					<input type=\"hidden\" name=\"passed_captcha\" value=\"true\" />
 					<input type=\"submit\" name=\"Change\" value=\"Change\" />
 				</form>";
 		}
@@ -47,16 +49,16 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
-	// Get input
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
-
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if they completed stage 1, then consume its server-side state
+	if( !isset( $_SESSION[ 'captcha_pass_new' ], $_SESSION[ 'captcha_pass_conf' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+
+	$pass_new  = $_SESSION[ 'captcha_pass_new' ];
+	$pass_conf = $_SESSION[ 'captcha_pass_conf' ];
+	unset( $_SESSION[ 'captcha_pass_new' ], $_SESSION[ 'captcha_pass_conf' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
