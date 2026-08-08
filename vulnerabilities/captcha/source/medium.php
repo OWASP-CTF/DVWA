@@ -4,6 +4,9 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
+	// Any earlier clearance is void as soon as stage one is re-entered.
+	unset( $_SESSION[ 'captcha_cleared_for' ] );
+
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
@@ -24,14 +27,19 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// Record the clearance server side, bound to the password that
+			// was actually vouched for, so stage two cannot be forged.
+			$_SESSION[ 'captcha_cleared_for' ] = hash( 'sha256', $pass_new );
+
 			// Show next stage for the user
+			$safe_new  = htmlspecialchars( $pass_new, ENT_QUOTES, 'UTF-8' );
+			$safe_conf = htmlspecialchars( $pass_conf, ENT_QUOTES, 'UTF-8' );
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
 				<form action=\"#\" method=\"POST\">
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
-					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
-					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
-					<input type=\"hidden\" name=\"passed_captcha\" value=\"true\" />
+					<input type=\"hidden\" name=\"password_new\" value=\"{$safe_new}\" />
+					<input type=\"hidden\" name=\"password_conf\" value=\"{$safe_conf}\" />
 					<input type=\"submit\" name=\"Change\" value=\"Change\" />
 				</form>";
 		}
@@ -51,8 +59,15 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// The old "passed_captcha" flag was just another request field, so the
+	// client could assert its own clearance. Consult the server-side record.
+	$cleared = isset( $_SESSION[ 'captcha_cleared_for' ] )
+		&& hash_equals( $_SESSION[ 'captcha_cleared_for' ], hash( 'sha256', $pass_new ) );
+
+	// The clearance is single use whatever happens next.
+	unset( $_SESSION[ 'captcha_cleared_for' ] );
+
+	if( !$cleared ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
@@ -61,12 +76,17 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
 		// They do!
-		$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-		$pass_new = md5( $pass_new );
+		$pass_new = md5( stripslashes( $pass_new ) );
 
-		// Update database
-		$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . dvwaCurrentUser() . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+		// Update database via a prepared statement
+		$current_user = dvwaCurrentUser();
+		$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], "UPDATE `users` SET password = ? WHERE user = ?;" );
+
+		if( $stmt ) {
+			mysqli_stmt_bind_param( $stmt, "ss", $pass_new, $current_user );
+			mysqli_stmt_execute( $stmt );
+			mysqli_stmt_close( $stmt );
+		}
 
 		// Feedback for the end user
 		$html .= "<pre>Password Changed.</pre>";
