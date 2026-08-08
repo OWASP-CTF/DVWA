@@ -1,24 +1,32 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+$headerCSP = "Content-Security-Policy: script-src 'self';"; // self only: no third-party origins are attacker-usable
 
 header($headerCSP);
-
-# These might work if you can't create your own for some reason
-# https://cdn.jsdelivr.net/gh/digininja/csp_bypass/alert.js
-# https://unpkg.com/@digininja/csp_bypass@1.0.0/index.js
 
 ?>
 <?php
 if (isset ($_POST['include'])) {
-$page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
+	// Do not emit a script element for an arbitrary URL and rely on the browser
+	// to enforce CSP after the dangerous sink already exists. This page only
+	// needs one repository-owned demonstration script, so resolve it through a
+	// fixed identifier and reject every other target before rendering markup.
+	$allowedScripts = array(
+		'sum' => 'source/high.js',
+	);
+	$scriptId = is_string($_POST['include']) ? $_POST['include'] : '';
+	if (array_key_exists($scriptId, $allowedScripts)) {
+		$page[ 'body' ] .= "
+	<script src='" . htmlspecialchars($allowedScripts[$scriptId], ENT_QUOTES, 'UTF-8') . "'></script>
 ";
+	}
 }
 $page[ 'body' ] .= '
 <form name="csp" method="POST">
 	<p>You can include scripts from external sources, examine the Content Security Policy and enter a URL to include here:</p>
-	<input size="50" type="text" name="include" value="" id="include" />
+	<select name="include" id="include">
+		<option value="sum">Local sum demonstration</option>
+	</select>
 	<input type="submit" value="Include" />
 </form>
 <p>

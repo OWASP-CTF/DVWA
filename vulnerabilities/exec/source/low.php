@@ -1,21 +1,32 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
+	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
 	// Get input
-	$target = $_REQUEST[ 'ip' ];
+	$target = trim( $_REQUEST[ 'ip' ] );
 
-	// Determine OS and execute the ping command.
-	if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
-		// Windows
-		$cmd = shell_exec( 'ping  ' . $target );
+	// Only accept a well-formed IPv4 address. Anything else (shell metacharacters,
+	// hostnames, extra arguments, ...) is rejected outright before it ever reaches a shell.
+	if( filter_var( $target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) !== false ) {
+		// Determine OS and execute the ping command.
+		if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
+			// Windows
+			$cmd = shell_exec( 'ping  ' . escapeshellarg( $target ) );
+		}
+		else {
+			// *nix
+			$cmd = shell_exec( 'ping  -c 4 ' . escapeshellarg( $target ) );
+		}
+
+		// Feedback for the end user
+		$html .= "<pre>{$cmd}</pre>";
 	}
 	else {
-		// *nix
-		$cmd = shell_exec( 'ping  -c 4 ' . $target );
+		// Ops. Let the user name theres a mistake
+		$html .= '<pre>ERROR: You have entered an invalid IP.</pre>';
 	}
-
-	// Feedback for the end user
-	$html .= "<pre>{$cmd}</pre>";
 }
+
+generateSessionToken();
 
 ?>

@@ -47,7 +47,11 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Login\" name=\"Login\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
+// Render the Anti-CSRF token at every level: requiring a fresh, session-bound
+// token per attempt forces an automated guesser to hold a session and fetch a
+// new token for each try, which is what makes the per-session throttle below
+// actually bind. It costs the legitimate form nothing.
+if( true )
 	$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "

@@ -1,43 +1,70 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
-	// Check Anti-CSRF token
-	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+if( isset( $_REQUEST[ 'Login' ] ) ) {
+	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
 
-	// Sanitise username input
-	$user = $_GET[ 'username' ];
-	$user = stripslashes( $user );
-	$user = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $user ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-
-	// Sanitise password input
-	$pass = $_GET[ 'password' ];
-	$pass = stripslashes( $pass );
-	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	$user = is_string( $_REQUEST[ 'username' ] ?? null ) ? $_REQUEST[ 'username' ] : '';
+	$pass = is_string( $_REQUEST[ 'password' ] ?? null ) ? $_REQUEST[ 'password' ] : '';
 	$pass = md5( $pass );
 
-	// Check database
-	$query  = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
-	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+	$total_failed_login = 3;
+	$lockout_time       = 60; // seconds
+	$account_locked     = false;
 
-	if( $result && mysqli_num_rows( $result ) == 1 ) {
-		// Get users details
-		$row    = mysqli_fetch_assoc( $result );
-		$avatar = $row["avatar"];
+	// Serialize the complete read/check/update decision on the account row.
+	// Without the row lock, parallel requests can all observe the same stale
+	// counter before any increment is visible and exceed the failure threshold.
+	$db->beginTransaction();
+	$state = $db->prepare( 'SELECT * FROM users WHERE user = (:user) LIMIT 1 FOR UPDATE;' );
+	$state->bindParam( ':user', $user, PDO::PARAM_STR );
+	$state->execute();
+	$login_state = $state->fetch();
+	$account_exists = is_array( $login_state );
 
-		// Login successful
-		$html .= "<p>Welcome to the password protected area {$user}</p>";
+	if( $account_exists && (int) $login_state[ 'failed_login' ] >= $total_failed_login ) {
+		$last_attempt = strtotime( $login_state[ 'last_login' ] );
+		if( $last_attempt !== false && time() < $last_attempt + $lockout_time ) {
+			$account_locked = true;
+		}
+		else {
+			$login_state[ 'failed_login' ] = 0;
+		}
+	}
+
+	$password_matches = $account_exists
+		&& hash_equals( (string) $login_state[ 'password' ], $pass );
+
+	if( $password_matches && !$account_locked ) {
+		$avatar = htmlspecialchars( (string) $login_state[ 'avatar' ], ENT_QUOTES, 'UTF-8' );
+		$safe_user = htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' );
+		$html .= "<p>Welcome to the password protected area {$safe_user}</p>";
 		$html .= "<img src=\"{$avatar}\" />";
+
+		$reset = $db->prepare( 'UPDATE users SET failed_login = 0, last_login = NOW() WHERE user = (:user) LIMIT 1;' );
+		$reset->bindParam( ':user', $user, PDO::PARAM_STR );
+		$reset->execute();
 	}
 	else {
-		// Login failed
-		sleep( rand( 0, 3 ) );
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
+
+		// Do not extend an active lockout on rejected attempts: an attacker must
+		// not be able to keep a victim locked out indefinitely. Unknown users get
+		// the same response and delay but have no database row to mutate.
+		if( $account_exists && !$account_locked ) {
+			$failure = $db->prepare( 'UPDATE users SET failed_login = failed_login + 1, last_login = NOW() WHERE user = (:user) LIMIT 1;' );
+			$failure->bindParam( ':user', $user, PDO::PARAM_STR );
+			$failure->execute();
+		}
 	}
 
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+	$db->commit();
+
+	if( !$password_matches || $account_locked ) {
+		// Equal deterministic work avoids username/status timing distinctions.
+		sleep( 2 );
+	}
 }
 
-// Generate Anti-CSRF token
 generateSessionToken();
 
 ?>

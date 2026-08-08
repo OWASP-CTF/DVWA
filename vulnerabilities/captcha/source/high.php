@@ -14,13 +14,12 @@ if( isset( $_POST[ 'Change' ] ) ) {
 		$_POST['g-recaptcha-response']
 	);
 
-	if (
-		$resp || 
-		(
-			$_POST[ 'g-recaptcha-response' ] == 'hidd3n_valu3'
-			&& $_SERVER[ 'HTTP_USER_AGENT' ] == 'reCAPTCHA'
-		)
-	){
+	// Only a genuine, server-verified CAPTCHA response is trusted. The old
+	// developer backdoor (a fixed 'g-recaptcha-response' value combined with
+	// a specific User-Agent) accepted client-supplied values directly and is
+	// removed - both of those come straight from the request and are freely
+	// forgeable by an attacker.
+	if ( $resp ) {
 		// CAPTCHA was correct. Do both new passwords match?
 		if ($pass_new == $pass_conf) {
 			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
