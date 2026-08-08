@@ -12,7 +12,7 @@ if( isset( $_GET[ 'Login' ] ) ) {
 
 	// Default values
 	$total_failed_login = 3;
-	$lockout_time       = 15;
+	$lockout_time       = 1;
 	$attempt_interval   = 3;
 	$account_locked     = false;
 
