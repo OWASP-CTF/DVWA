@@ -8,13 +8,13 @@ $query = "SELECT user_id FROM users WHERE user = '" . dvwaCurrentUser() . "';";
 $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
 $current_user_id = ($result && mysqli_num_rows($result) > 0) ? mysqli_fetch_assoc($result)['user_id'] : 0;
 
-// Basic attempt at access control (but easily bypassed)
+// Enforce profile ownership using the authenticated user's server-side identity
 $html = "";
 if (isset($_GET['action']) && isset($_GET['user_id'])) {
     if (!preg_match('/^\d+$/', $_GET['user_id'])) {
         $html .= "<p>Invalid user ID format. Please enter a number.</p>";
     } else {
-        $id = $_GET['user_id'];
+        $id = intval($_GET['user_id']);
         $user_exists = false;
         
         // Check if user exists first
@@ -22,8 +22,7 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         $check_result = mysqli_query($GLOBALS["___mysqli_ston"], $check_query);
         $user_exists = ($check_result && mysqli_num_rows($check_result) > 0);
         
-        // "Secure" check that's easily bypassed
-        if (isset($_GET['token']) && $_GET['token'] == 'user_token') {
+        if ($id === intval($current_user_id)) {
             if ($user_exists) {
                 $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = '$id';";
                 $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
@@ -36,14 +35,13 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                             <p>User ID: {$row['user_id']}</p>
                             <p>Name: {$row['first_name']} {$row['last_name']}</p>
                             <p>Avatar: {$row['avatar']}</p>
-                            <!-- Hint: This token check isn't very secure... -->
                         </div>";
                 }
             } else {
                 $html .= "<p>No user found with ID: {$id}</p>";
             }
         } else {
-            $html .= "<p>Access denied. Valid token required. <!-- Try using token=user_token --></p>";
+            $html .= "<p>Access denied. You can only view your own profile.</p>";
         }
         
         // Log access attempts
