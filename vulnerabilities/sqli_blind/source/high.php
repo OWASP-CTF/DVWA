@@ -8,9 +8,12 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ? LIMIT 1;";
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], $query );
+				mysqli_stmt_bind_param( $stmt, 's', $id );
+				mysqli_stmt_execute( $stmt );
+				$result = mysqli_stmt_get_result( $stmt ); // parameterised to prevent blind SQLi
 			} catch (Exception $e) {
 				$result = false;
 			}
@@ -30,9 +33,11 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare($query);
+				$stmt->bindValue(':id', $id, SQLITE3_TEXT);
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {
