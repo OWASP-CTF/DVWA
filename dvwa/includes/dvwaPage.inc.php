@@ -43,10 +43,18 @@ if( !isset( $_COOKIE[ 'security' ] ) || !in_array( $_COOKIE[ 'security' ], $secu
  * flags and the new id (or the same one if we wish to keep it).
 */
 function dvwa_start_session() {
-	// The session cookie is hardened the same way at every security level: it is
-	// not readable from JavaScript and it is not sent on cross site requests.
-	$httponly = true;
-	$samesite = "Strict";
+	// This will setup the session cookie based on
+	// the security level.
+
+	$security_level = dvwaSecurityLevelGet();
+	if ($security_level == 'impossible') {
+		$httponly = true;
+		$samesite = "Strict";
+	}
+	else {
+		$httponly = false;
+		$samesite = "";
+	}
 
 	$maxlifetime = 86400;
 	$secure = false;
@@ -76,13 +84,25 @@ function dvwa_start_session() {
 	 * session_start() might not generate a Set-Cookie header if a cookie already
 	 * exists.
 	 *
-	 * At every security level we regenerate the session id, PHP will generate a
-	 * new random id. This is good security practice because it prevents the
-	 * reuse of a previous unauthenticated id that an attacker might have
-	 * knowledge of (aka session fixation attack).
+	 * For impossible security level, we regenerate the session id, PHP will
+	 * generate a new random id. This is good security practice because it
+	 * prevents the reuse of a previous unauthenticated id that an attacker
+	 * might have knowledge of (aka session fixation attack).
+   *
+	 * For lower levels, we want to allow session fixation attacks, so if an id
+	 * already exists, we don't want it to change after authentication. We thus
+	 * set the id to its previous value using session_id(), which will force
+	 * the Set-Cookie header.
 	*/
-	session_start();
-	session_regenerate_id(); // force a new id to be generated
+	if ($security_level == 'impossible') {
+		session_start();
+		session_regenerate_id(); // force a new id to be generated
+	}
+	else {
+		if (isset($_COOKIE[session_name()])) // if a session id already exists
+			session_id($_COOKIE[session_name()]); // we keep the same id
+		session_start(); // otherwise a new one will be generated here
+	}
 }
 
 if (array_key_exists ("Login", $_POST) && $_POST['Login'] == "Login") {
@@ -596,8 +616,8 @@ function dvwaGuestbook() {
 	while( $row = mysqli_fetch_row( $result ) ) {
 		// Always encode stored content for the HTML context it is written into,
 		// regardless of the security level, so it can never be parsed as markup.
-		$name    = htmlspecialchars( $row[0], ENT_QUOTES, 'UTF-8' );
-		$comment = htmlspecialchars( $row[1], ENT_QUOTES, 'UTF-8' );
+		$name    = htmlspecialchars( $row[0] );
+		$comment = htmlspecialchars( $row[1] );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}
