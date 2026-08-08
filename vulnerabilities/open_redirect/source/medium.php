@@ -7,7 +7,7 @@ if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
 		<p>Absolute URLs not allowed.</p>
 		<?php
 		exit;
-	} else if (preg_match ('/^info\.php\?id=\d+$/', $_GET['redirect'])) {
+	} else if (!preg_match ('#^[a-z][a-z0-9+.-]*:|^//#i', $_GET['redirect']) && preg_match ('/^info\.php\?id=\d+$/', $_GET['redirect'])) {
 		header ("location: " . $_GET['redirect']);
 		exit;
 	} else {
