@@ -44,8 +44,11 @@ try {
 	exit;
 }
 
-$query = "UPDATE users SET first_name = '" . $data->first_name . "', last_name = '" .  $data->surname . "' where user_id = " . $data->id . "";
-$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+$query = "UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?";
+$stmt  = mysqli_prepare( $GLOBALS["___mysqli_ston"], $query ) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+$id    = (int) $data->id;
+mysqli_stmt_bind_param( $stmt, 'ssi', $data->first_name, $data->surname, $id );
+mysqli_stmt_execute( $stmt );
 
 print json_encode (array ("result" => "ok"));
 exit;
