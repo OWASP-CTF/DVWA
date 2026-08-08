@@ -1,59 +1,72 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ] ) ) {
+	// Check Anti-CSRF token
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Get input
 	$id = $_POST[ 'id' ];
 
-	$id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);
+	// Escaping was useless here because the value was interpolated without
+	// quotes, so a payload never needed a quote to break out. Validate the
+	// type and bind the value instead.
+	if( !is_numeric( $id ) ) {
+		$html .= '<pre>ID must be a number.</pre>';
+	}
+	else {
+		$id = intval( $id );
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
+				$data->bindParam( ':id', $id, PDO::PARAM_INT );
+				$data->execute();
+				$row = $data->fetch();
 
-			// Get results
-			while( $row = mysqli_fetch_assoc( $result ) ) {
-				// Display values
-				$first = $row["first_name"];
-				$last  = $row["last_name"];
-
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
-			}
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
-
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			#print $query;
-			try {
-				$results = $sqlite_db_connection->query($query);
-			} catch (Exception $e) {
-				echo 'Caught exception: ' . $e->getMessage();
-				exit();
-			}
-
-			if ($results) {
-				while ($row = $results->fetchArray()) {
-					// Get values
-					$first = $row["first_name"];
-					$last  = $row["last_name"];
+				if( $row ) {
+					// Display values
+					$first = htmlspecialchars( $row[ 'first_name' ], ENT_QUOTES, 'UTF-8' );
+					$last  = htmlspecialchars( $row[ 'last_name' ], ENT_QUOTES, 'UTF-8' );
 
 					// Feedback for end user
 					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 				}
-			} else {
-				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
-			}
-			break;
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$results = $stmt->execute();
+
+				if( $results !== false ) {
+					$row = $results->fetchArray();
+					if( $row ) {
+						// Get values
+						$first = htmlspecialchars( $row[ 'first_name' ], ENT_QUOTES, 'UTF-8' );
+						$last  = htmlspecialchars( $row[ 'last_name' ], ENT_QUOTES, 'UTF-8' );
+
+						// Feedback for end user
+						$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					}
+				}
+				break;
+		}
 	}
 }
 
-// This is used later on in the index.php page
-// Setting it here so we can close the database connection in here like in the rest of the source scripts
-$query  = "SELECT COUNT(*) FROM users;";
-$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
-$number_of_rows = mysqli_fetch_row( $result )[0];
+// This is used later on in the index.php page to build the dropdown. The
+// handle raises on error, so a database problem here would otherwise be a
+// blank 500 rather than a page.
+try {
+	$number_of_rows = (int) $db->query( 'SELECT COUNT(*) FROM users;' )->fetchColumn();
+}
+catch ( PDOException $e ) {
+	error_log( 'sqli/medium: could not count the users: ' . $e->getMessage() );
+	$number_of_rows = 0;
+}
 
-mysqli_close($GLOBALS["___mysqli_ston"]);
+// Generate Anti-CSRF token
+generateSessionToken();
+
 ?>
