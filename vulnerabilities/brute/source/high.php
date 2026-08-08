@@ -61,12 +61,10 @@ if( isset( $_GET[ 'Login' ] ) ) {
 		$data->execute();
 	}
 	else {
-		// Login failed. Count it, so repeated guesses lock the account. A
-		// short delay is added while the account is still unlocked; once it is
-		// locked there is nothing to slow down.
-		if( !$account_locked ) {
-			sleep( 1 );
-		}
+		// Login failed. Count it, so repeated guesses lock the account, and
+		// delay every failure the way the impossible level does so guesses
+		// cannot be made at speed.
+		sleep( rand( 2, 4 ) );
 
 		$html .= "<pre><br />Username and/or password incorrect.<br /><br/>Alternative, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
 
