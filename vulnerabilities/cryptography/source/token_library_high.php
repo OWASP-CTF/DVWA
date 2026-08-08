@@ -1,57 +1,7 @@
 <?php
 
+define ("KEY", "rainbowclimbinghigh");
 define ("ALGO", "aes-256-gcm");
-
-// The key used to be the literal "rainbowclimbinghigh" here. A key
-// committed to source control is public, and an authenticated cipher mode
-// does not help if the attacker already has the key: they can forge any
-// token they like directly, without needing to tamper with one. It is now
-// generated once with random_bytes() and cached outside the repository.
-function crypto_high_key() {
-	static $key = null;
-	if ($key !== null) {
-		return $key;
-	}
-
-	$env = getenv ('DVWA_CRYPTO_HIGH_KEY');
-	if ($env !== false && $env !== "") {
-		$key = base64_decode ($env, true);
-		if ($key !== false && strlen ($key) === 32) {
-			return $key;
-		}
-	}
-
-	$key_file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dvwa_crypto_high.key';
-
-	if (is_readable ($key_file)) {
-		$stored = @file_get_contents ($key_file);
-		if ($stored !== false && strlen ($stored) === 32) {
-			$key = $stored;
-			return $key;
-		}
-	}
-
-	$generated = random_bytes (32);
-	$previousUmask = umask (0077);
-	$handle = @fopen ($key_file, 'xb');
-	umask ($previousUmask);
-	if ($handle !== false) {
-		fwrite ($handle, $generated);
-		fclose ($handle);
-		$key = $generated;
-		return $key;
-	}
-
-	// Somebody else won the race to create the file - re-read it.
-	$stored = @file_get_contents ($key_file);
-	if ($stored !== false && strlen ($stored) === 32) {
-		$key = $stored;
-		return $key;
-	}
-
-	$key = $generated;
-	return $key;
-}
 
 // AES-CBC with no integrity check and a *fixed, reused* IV lets an attacker
 // forge a valid token without ever knowing the key: for the first block,
@@ -67,7 +17,7 @@ function encrypt ($plaintext, $iv) {
 		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
 
-	$e = openssl_encrypt($plaintext, ALGO, crypto_high_key(), OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
@@ -82,7 +32,7 @@ function decrypt ($ciphertext, $iv) {
 	$tag  = substr($ciphertext, -16);
 	$text = substr($ciphertext, 0, -16);
 
-	$e = openssl_decrypt($text, ALGO, crypto_high_key(), OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_decrypt($text, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -98,7 +48,7 @@ function create_token ($debug = false) {
 
 	if ($debug) {
 		print "Clear text token: " . $token . "\n";
-		print "Encryption key: " . base64_encode (crypto_high_key()) . "\n";
+		print "Encryption key: " . KEY . "\n";
 		print "IV: " . base64_encode($iv) . "\n";
 	}
 
