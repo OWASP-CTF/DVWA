@@ -96,9 +96,10 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 		}
 	}
 	else {
-		// Login failed. No sleep() here on purpose: the token requirement and
-		// the throttle above are what stop automation, and a per-attempt delay
-		// would only slow legitimate use (and any harness driving the page).
+		// Add a deterministic cost to every failed guess. The original random
+		// 0-3 second delay could be zero and therefore did not reliably slow an
+		// online guesser; two seconds matches the minimum used by impossible.php.
+		sleep( 2 );
 
 		$_SESSION[ 'brute_high_failed' ]++;
 		$_SESSION[ 'brute_high_last' ] = time();

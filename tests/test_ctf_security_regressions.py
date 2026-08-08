@@ -11,6 +11,7 @@ def source(relative_path: str) -> str:
 def test_high_weak_id_cookie_is_host_only_and_script_inaccessible():
     body = source("vulnerabilities/weak_id/source/high.php")
     assert "$_SERVER['HTTP_HOST']" not in body
+    assert "'secure'   => true" in body
     assert "'httponly' => true" in body
     assert "'samesite' => 'Strict'" in body
     assert "random_bytes(20)" in body
@@ -21,6 +22,9 @@ def test_high_sqli_state_setters_reject_non_numeric_ids():
     cookie_input = source("vulnerabilities/sqli_blind/cookie-input.php")
 
     for body in (session_input, cookie_input):
+        assert "checkToken( $_REQUEST[ 'user_token' ]" in body
+        assert "generateSessionToken();" in body
+        assert '" . tokenField() . "' in body
         assert "is_string( $id )" in body
         assert "preg_match( '/^\\d+$/D', $id )" in body
         assert "http_response_code( 422 )" in body
@@ -38,6 +42,7 @@ def test_blind_sqli_high_has_no_artificial_timing_branch():
 def test_brute_high_enforces_one_atomic_three_failure_window():
     body = source("vulnerabilities/brute/source/high.php")
     assert "$max_fail = $total_failed_login" in body
+    assert "sleep( 2 );" in body
     assert "flock( $bucket_handle, LOCK_EX )" in body
     assert "flock( $bucket_handle, LOCK_UN )" in body
     assert "@file_put_contents" not in body

@@ -9,6 +9,8 @@ $page = dvwaPageNewGrab();
 $page[ 'title' ] = 'SQL Injection Session Input' . $page[ 'title_separator' ].$page[ 'title' ];
 
 if( isset( $_POST[ 'id' ] ) ) {
+	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'session-input.php' );
+
 	$id = $_POST[ 'id' ];
 	if( is_string( $id ) && preg_match( '/^\d+$/D', $id ) ) {
 		$_SESSION[ 'id' ] = (int) $id;
@@ -21,10 +23,13 @@ if( isset( $_POST[ 'id' ] ) ) {
 	}
 }
 
+generateSessionToken();
+
 $page[ 'body' ] .= "
 <form action=\"#\" method=\"POST\">
 	<input type=\"text\" size=\"15\" name=\"id\">
 	<input type=\"submit\" name=\"Submit\" value=\"Submit\">
+	" . tokenField() . "
 </form>
 <hr />
 <br />
