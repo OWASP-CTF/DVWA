@@ -31,37 +31,61 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
-
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
 	<h1>Vulnerability: DOM Based Cross Site Scripting (XSS)</h1>
 
 	<div class="vulnerable_code_area">
- 
+
  		<p>Please choose a language:</p>
 
 		<form name="XSS" method="GET">
-			<select name="default">
-				<script>
-					if (document.location.href.indexOf("default=") >= 0) {
-						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
-						document.write("<option value='' disabled='disabled'>----</option>");
-					}
-					    
-					document.write("<option value='English'>English</option>");
-					document.write("<option value='French'>French</option>");
-					document.write("<option value='Spanish'>Spanish</option>");
-					document.write("<option value='German'>German</option>");
-				</script>
-			</select>
+			<select name="default" id="default"></select>
 			<input type="submit" value="Select" />
 		</form>
+		<script>
+			(function () {
+				// The option list is built through the DOM instead of
+				// document.write(). textContent and the value property never
+				// parse their input as markup, so a payload in the query
+				// string or in the fragment cannot become an element.
+				var allowed = ["English", "French", "Spanish", "German"];
+				var select  = document.getElementById("default");
+
+				function addOption(value, label, disabled) {
+					var option = document.createElement("option");
+					option.value = value;
+					option.textContent = label;
+					if (disabled) {
+						option.disabled = true;
+					}
+					select.appendChild(option);
+				}
+
+				// Read the selection from the query string, and only accept it
+				// when it is one of the known languages.
+				// decodeURIComponent throws on a malformed escape such as "%",
+				// which would abort this function and leave an empty dropdown.
+				var match   = /[?&]default=([^&#]*)/.exec(document.location.search);
+				var current = "";
+				if (match) {
+					try {
+						current = decodeURIComponent(match[1].replace(/\+/g, " "));
+					} catch (e) {
+						current = "";
+					}
+				}
+
+				if (allowed.indexOf(current) !== -1) {
+					addOption(current, current, false);
+					addOption("", "----", true);
+				}
+
+				for (var i = 0; i < allowed.length; i++) {
+					addOption(allowed[i], allowed[i], false);
+				}
+			})();
+		</script>
 	</div>
 EOF;
 
