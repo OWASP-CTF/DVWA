@@ -30,6 +30,13 @@ switch( dvwaSecurityLevelGet() ) {
 }
 
 $message = "";
+$formToken = "";
+if ( dvwaSecurityLevelGet() == "low" ) {
+	if ( !isset( $_SESSION[ 'javascript_low_token' ] ) ) {
+		$_SESSION[ 'javascript_low_token' ] = bin2hex( random_bytes( 32 ) );
+	}
+	$formToken = $_SESSION[ 'javascript_low_token' ];
+}
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
@@ -40,11 +47,13 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if ($phrase == "success") {
 			switch( dvwaSecurityLevelGet() ) {
 				case 'low':
-					if ($token == md5(str_rot13("success"))) {
+					if ( is_string( $token ) && hash_equals( $_SESSION[ 'javascript_low_token' ], $token ) ) {
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";
 					}
+					$_SESSION[ 'javascript_low_token' ] = bin2hex( random_bytes( 32 ) );
+					$formToken = $_SESSION[ 'javascript_low_token' ];
 					break;
 				case 'medium':
 					if ($token == strrev("XXsuccessXX")) {
@@ -95,7 +104,7 @@ $page[ 'body' ] = <<<EOF
 	$message
 
 	<form name="low_js" method="post">
-		<input type="hidden" name="token" value="" id="token" />
+		<input type="hidden" name="token" value="$formToken" id="token" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>
