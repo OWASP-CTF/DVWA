@@ -3,12 +3,14 @@
 $html = "";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if (!isset ($_SESSION['last_session_id_high'])) {
-		$_SESSION['last_session_id_high'] = 0;
-	}
-	$_SESSION['last_session_id_high']++;
-	$cookie_value = md5($_SESSION['last_session_id_high']);
-	setcookie("dvwaSession", $cookie_value, time()+3600, "/vulnerabilities/weak_id/", $_SERVER['HTTP_HOST'], false, false);
+	// Session identifiers must be unpredictable: 160 bits from a CSPRNG.
+	// HttpOnly stops script access and SameSite blocks cross site replay.
+	$cookie_value = bin2hex(random_bytes(20));
+	setcookie("dvwaSession", $cookie_value, [
+		"expires"  => time() + 3600,
+		"path"     => "/vulnerabilities/weak_id/",
+		"httponly" => true,
+		"samesite" => "Strict",
+	]);
 }
-
 ?>
