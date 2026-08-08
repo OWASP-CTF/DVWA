@@ -13,7 +13,7 @@ $page[ 'source_button' ] = 'sqli_blind';
 
 dvwaDatabaseConnect();
 
-$method            = 'GET';
+$method            = 'POST';
 $vulnerabilityFile = '';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
@@ -21,7 +21,6 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 	case 'medium':
 		$vulnerabilityFile = 'medium.php';
-		$method = 'POST';
 		break;
 	case 'high':
 		$vulnerabilityFile = 'high.php';
