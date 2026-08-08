@@ -14,7 +14,7 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT first_name, last_name FROM users WHERE user_id = ?;");
 			try {
 				$result = false;
-				if ($stmt !== false && true) {
+				if ($stmt !== false) {
 					mysqli_stmt_bind_param($stmt, "i", $id);
 					mysqli_stmt_execute($stmt);
 					$result = mysqli_stmt_get_result($stmt);

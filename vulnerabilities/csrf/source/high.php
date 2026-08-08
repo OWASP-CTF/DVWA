@@ -68,4 +68,7 @@ if ($change) {
 // Generate Anti-CSRF token
 generateSessionToken();
 
+// The stock generator hashes uniqid(), which is derived from the clock
+$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
+
 ?>
