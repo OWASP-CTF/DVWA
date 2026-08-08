@@ -14,7 +14,6 @@ $page[ 'source_button' ] = 'csrf';
 dvwaDatabaseConnect();
 
 $vulnerabilityFile = '';
-$method = 'GET';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
 		$vulnerabilityFile = 'low.php';
@@ -24,7 +23,6 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 	case 'high':
 		$vulnerabilityFile = 'high.php';
-		$method = 'POST';
 		break;
 	default:
 		$vulnerabilityFile = 'impossible.php';
@@ -53,7 +51,7 @@ $page[ 'body' ] .= "
 		<div id=\"test_credentials\">
 			".$testCredentials ."
 		</div><br />
-		<form action=\"#\" method=\"{$method}\">";
+		<form action=\"#\" method=\"GET\">";
 
 if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' ) {
 	$page[ 'body' ] .= "

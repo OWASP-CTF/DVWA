@@ -71,9 +71,6 @@ def test_csrf_high_requires_current_password_reauthentication():
     assert 'array_key_exists("password_current", $_REQUEST)' in body
     assert "SELECT password FROM users WHERE user = (:user) AND password = (:password)" in body
     assert "$current->rowCount() == 1" in body
-    assert 'elseif ($_SERVER[\'REQUEST_METHOD\'] == "POST")' in body
-    assert "http_response_code(405)" in body
-    assert "$method = 'POST'" in index
     assert "$vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php'" in index
 
 

@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 		$pass_conf = $data["password_conf"];
 		$change = true;
 	}
-} elseif ($_SERVER['REQUEST_METHOD'] == "POST") {
+} else {
 	if (array_key_exists("user_token", $_REQUEST) &&
 		array_key_exists("password_current", $_REQUEST) &&
 		array_key_exists("password_new", $_REQUEST) &&
@@ -30,11 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 		$pass_conf = $_REQUEST["password_conf"];
 		$change = true;
 	}
-}
-
-if ($_SERVER['REQUEST_METHOD'] != "POST" && isset($_REQUEST['Change'])) {
-	http_response_code(405);
-	$return_message = "Method not supported.";
 }
 
 if ($change) {
