@@ -14,36 +14,34 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
     if (!preg_match('/^\d+$/', $_GET['user_id'])) {
         $html .= "<p>Invalid user ID format. Please enter a number.</p>";
     } else {
-        $id = $_GET['user_id'];
+        $id = intval($_GET['user_id']);
         $user_exists = false;
-        
+
         // Check if user exists first
-        $check_query = "SELECT user_id FROM users WHERE user_id = '$id'";
+        $check_query = "SELECT user_id FROM users WHERE user_id = $id";
         $check_result = mysqli_query($GLOBALS["___mysqli_ston"], $check_query);
         $user_exists = ($check_result && mysqli_num_rows($check_result) > 0);
-        
-        // "Secure" check that's easily bypassed
-        if (isset($_GET['token']) && $_GET['token'] == 'user_token') {
-            if ($user_exists) {
-                $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = '$id';";
-                $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
-                
-                if ($result && mysqli_num_rows($result) > 0) {
-                    $row = mysqli_fetch_assoc($result);
-                    $html .= "
-                        <div class=\"profile-info\">
-                            <h3>User Profile</h3>
-                            <p>User ID: {$row['user_id']}</p>
-                            <p>Name: {$row['first_name']} {$row['last_name']}</p>
-                            <p>Avatar: {$row['avatar']}</p>
-                            <!-- Hint: This token check isn't very secure... -->
-                        </div>";
-                }
-            } else {
-                $html .= "<p>No user found with ID: {$id}</p>";
+
+        if (!$user_exists) {
+            $html .= "<p>No user found with ID: {$id}</p>";
+        } else if ($id == $current_user_id) {
+            // Authorisation is decided from the server-derived $current_user_id,
+            // never from a client-supplied value such as a query-string token.
+            $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = $id;";
+            $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
+
+            if ($result && mysqli_num_rows($result) > 0) {
+                $row = mysqli_fetch_assoc($result);
+                $html .= "
+                    <div class=\"profile-info\">
+                        <h3>User Profile</h3>
+                        <p>User ID: " . htmlspecialchars($row['user_id']) . "</p>
+                        <p>Name: " . htmlspecialchars($row['first_name']) . " " . htmlspecialchars($row['last_name']) . "</p>
+                        <p>Avatar: " . htmlspecialchars($row['avatar']) . "</p>
+                    </div>";
             }
         } else {
-            $html .= "<p>Access denied. Valid token required. <!-- Try using token=user_token --></p>";
+            $html .= "<p>Access denied. You can only view your own profile.</p>";
         }
         
         // Log access attempts
