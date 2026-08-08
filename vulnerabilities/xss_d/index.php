@@ -31,9 +31,9 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
+# For the patched low and impossible levels, don't decode the querystring
 $decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
+if ($vulnerabilityFile == 'low.php' || $vulnerabilityFile == 'impossible.php') {
 	$decodeURI = "";
 }
 
