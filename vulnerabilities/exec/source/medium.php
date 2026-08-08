@@ -2,29 +2,29 @@
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
 	// Get input
-	$target = trim( $_REQUEST[ 'ip' ] );
+	$target = $_REQUEST[ 'ip' ];
 
-	// Only accept a well-formed IPv4 address. A blacklist of individual characters
-	// (the old '&&'/';' substitution) is trivially bypassed, so validate the whole
-	// value instead of trying to strip "bad" characters out of it.
-	if( filter_var( $target, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) !== false ) {
-		// Determine OS and execute the ping command.
-		if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
-			// Windows
-			$cmd = shell_exec( 'ping  ' . escapeshellarg( $target ) );
-		}
-		else {
-			// *nix
-			$cmd = shell_exec( 'ping  -c 4 ' . escapeshellarg( $target ) );
-		}
+	// Set blacklist
+	$substitutions = array(
+		'&&' => '',
+		';'  => '',
+	);
 
-		// Feedback for the end user
-		$html .= "<pre>{$cmd}</pre>";
+	// Remove any of the characters in the array (blacklist).
+	$target = str_replace( array_keys( $substitutions ), $substitutions, $target );
+
+	// Determine OS and execute the ping command.
+	if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
+		// Windows
+		$cmd = shell_exec( 'ping  ' . $target );
 	}
 	else {
-		// Ops. Let the user name theres a mistake
-		$html .= '<pre>ERROR: You have entered an invalid IP.</pre>';
+		// *nix
+		$cmd = shell_exec( 'ping  -c 4 ' . $target );
 	}
+
+	// Feedback for the end user
+	$html .= "<pre>{$cmd}</pre>";
 }
 
 ?>

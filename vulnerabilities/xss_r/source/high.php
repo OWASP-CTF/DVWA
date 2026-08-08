@@ -5,13 +5,7 @@ header ("X-XSS-Protection: 0");
 // Is there any input?
 if( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {
 	// Get input
-	// NOTE: a regex blacklist for the substring "script" only stops one of the
-	// countless XSS vectors, and still misses non-<script> payloads such as
-	// <img src=x onerror=...>, <svg onload=...>, bare event handlers
-	// (onmouseover=...), and javascript: URIs. The only reliable fix is to
-	// encode the output for the HTML context it is placed in, exactly as
-	// impossible.php does.
-	$name = htmlspecialchars( $_GET[ 'name' ], ENT_QUOTES, 'UTF-8' );
+	$name = preg_replace( '/<(.*)s(.*)c(.*)r(.*)i(.*)p(.*)t/i', '', $_GET[ 'name' ] );
 
 	// Feedback for end user
 	$html .= "<pre>Hello {$name}</pre>";

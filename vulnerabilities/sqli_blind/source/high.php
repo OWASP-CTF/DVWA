@@ -5,40 +5,41 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 	$id = $_COOKIE[ 'id' ];
 	$exists = false;
 
-	// Only allow a numeric user_id through. This removes any possibility of
-	// attacker-controlled SQL syntax reaching the query (boolean- and
-	// time-based blind injection alike), while still accepting every
-	// legitimate id (the column is an INT).
-	if( is_numeric( $id ) ) {
-		$id = intval( $id );
+	switch ($_DVWA['SQLI_DB']) {
+		case MYSQL:
+			// Check database
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			try {
+				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+			} catch (Exception $e) {
+				$result = false;
+			}
 
-		switch ($_DVWA['SQLI_DB']) {
-			case MYSQL:
-				global $db;
-
-				// Check database
-				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
-				$data->bindParam( ':id', $id, PDO::PARAM_INT );
-				$data->execute();
-
-				$exists = ( $data->rowCount() > 0 );
-				break;
-			case SQLITE:
-				global $sqlite_db_connection;
-
+			$exists = false;
+			if ($result !== false) {
+				// Get results
 				try {
-					$stmt = $sqlite_db_connection->prepare( 'SELECT COUNT(first_name) AS numrows FROM users WHERE user_id = :id LIMIT 1;' );
-					$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
-					$result = $stmt->execute();
-					if ( $result !== false ) {
-						$row    = $result->fetchArray();
-						$exists = ( isset( $row[ 'numrows' ] ) && $row[ 'numrows' ] > 0 );
-					}
-				} catch ( Exception $e ) {
+					$exists = (mysqli_num_rows( $result ) > 0); // The '@' character suppresses errors
+				} catch(Exception $e) {
 					$exists = false;
 				}
-				break;
-		}
+			}
+
+			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+			break;
+		case SQLITE:
+			global $sqlite_db_connection;
+
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			try {
+				$results = $sqlite_db_connection->query($query);
+				$row = $results->fetchArray();
+				$exists = $row !== false;
+			} catch(Exception $e) {
+				$exists = false;
+			}
+
+			break;
 	}
 
 	if ($exists) {
