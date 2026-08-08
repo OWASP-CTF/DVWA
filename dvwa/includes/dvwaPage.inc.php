@@ -614,7 +614,7 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
+		if( in_array( dvwaSecurityLevelGet(), array( 'high', 'impossible' ), true ) ) {
 			$name    = htmlspecialchars( $row[0] );
 			$comment = htmlspecialchars( $row[1] );
 		}
