@@ -48,9 +48,10 @@ if( isset( $_GET[ 'Login' ] ) ) {
 		$row    = mysqli_fetch_assoc( $result );
 		$avatar = $row["avatar"];
 
-		// Login successful
-		$html .= "<p>Welcome to the password protected area {$user}</p>";
-		$html .= "<img src=\"{$avatar}\" />";
+		// Login successful. Encode before echoing - the username came
+		// straight from the request and must not be trusted as HTML.
+		$html .= "<p>Welcome to the password protected area " . htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' ) . "</p>";
+		$html .= "<img src=\"" . htmlspecialchars( $avatar, ENT_QUOTES, 'UTF-8' ) . "\" />";
 
 		// Reset bad login count
 		$reset_stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "UPDATE users SET failed_login = 0 WHERE user = ? LIMIT 1;");
