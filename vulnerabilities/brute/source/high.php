@@ -1,74 +1,40 @@
 <?php
 
-if( isset( $_REQUEST[ 'Login' ] ) ) {
-	// Check Anti-CSRF token (the high-level form renders a user_token field)
+if( isset( $_GET[ 'Login' ] ) ) {
+	// Check Anti-CSRF token
 	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
-	// Get username / password (accept GET or POST, per the level's form)
-	$user = $_REQUEST[ 'username' ] ?? '';
-	$pass = $_REQUEST[ 'password' ] ?? '';
+	// Sanitise username input
+	$user = $_GET[ 'username' ];
+	$user = stripslashes( $user );
+	$user = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $user ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+
+	// Sanitise password input
+	$pass = $_GET[ 'password' ];
+	$pass = stripslashes( $pass );
+	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 	$pass = md5( $pass );
 
-	// Brute-force protection settings (mirrors impossible.php)
-	$total_failed_login = 3;
-	$lockout_time        = 15; // minutes
-	$account_locked       = false;
+	// Check database
+	$query  = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
+	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
 
-	// Check whether this account is currently locked out
-	$data = $db->prepare( 'SELECT failed_login, last_login FROM users WHERE user = (:user) LIMIT 1;' );
-	$data->bindParam( ':user', $user, PDO::PARAM_STR );
-	$data->execute();
-	$row = $data->fetch();
-
-	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
-		// Work out whether enough time has passed since the last attempt
-		$last_login = strtotime( $row[ 'last_login' ] );
-		$timeout    = $last_login + ( $lockout_time * 60 );
-		$timenow    = time();
-
-		if( $timenow < $timeout ) {
-			$account_locked = true;
-		}
-	}
-
-	// Check the database using a parameterised query
-	$data = $db->prepare( 'SELECT * FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
-	$data->bindParam( ':user', $user, PDO::PARAM_STR );
-	$data->bindParam( ':password', $pass, PDO::PARAM_STR );
-	$data->execute();
-	$row = $data->fetch();
-
-	// Constant delay applied on every outcome (success, failure or lockout),
-	// so response timing can't be used to enumerate accounts or guess credentials.
-	sleep( 2 );
-
-	if( ( $data->rowCount() == 1 ) && ( $account_locked == false ) ) {
+	if( $result && mysqli_num_rows( $result ) == 1 ) {
 		// Get users details
-		$avatar = $row[ 'avatar' ];
+		$row    = mysqli_fetch_assoc( $result );
+		$avatar = $row["avatar"];
 
 		// Login successful
 		$html .= "<p>Welcome to the password protected area {$user}</p>";
 		$html .= "<img src=\"{$avatar}\" />";
-
-		// Reset the failed-login counter on a successful login
-		$data = $db->prepare( 'UPDATE users SET failed_login = 0 WHERE user = (:user) LIMIT 1;' );
-		$data->bindParam( ':user', $user, PDO::PARAM_STR );
-		$data->execute();
 	}
 	else {
 		// Login failed
+		sleep( rand( 0, 3 ) );
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
-
-		// Track the failed attempt against this account
-		$data = $db->prepare( 'UPDATE users SET failed_login = (failed_login + 1) WHERE user = (:user) LIMIT 1;' );
-		$data->bindParam( ':user', $user, PDO::PARAM_STR );
-		$data->execute();
 	}
 
-	// Record the time of this attempt
-	$data = $db->prepare( 'UPDATE users SET last_login = now() WHERE user = (:user) LIMIT 1;' );
-	$data->bindParam( ':user', $user, PDO::PARAM_STR );
-	$data->execute();
+	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
 
 // Generate Anti-CSRF token
