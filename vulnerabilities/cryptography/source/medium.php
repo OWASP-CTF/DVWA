@@ -1,6 +1,24 @@
 <?php
-function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+
+define ("CRYPTO_MEDIUM_ALGO", "aes-256-gcm");
+
+// ECB leaks structure and lets whole blocks be swapped between tokens, which is
+// how a user token gets turned into an admin one. Tokens use authenticated
+// encryption instead, carrying their own IV and authentication tag.
+
+function crypto_key ($key) {
+	return hash ("sha256", $key, true);
+}
+
+function decrypt ($raw, $key) {
+	if (strlen ($raw) < 29) {
+		throw new Exception ("Token is in wrong format");
+	}
+	$iv = substr ($raw, 0, 12);
+	$tag = substr ($raw, -16);
+	$ciphertext = substr ($raw, 12, -16);
+
+	$e = openssl_decrypt($ciphertext, CRYPTO_MEDIUM_ALGO, crypto_key ($key), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -18,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (!array_key_exists ('token', $_POST)) {
 			throw new Exception ("No token passed");
 		} else {
-			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
+			$token = trim ($_POST['token']);
+			if (strlen($token) % 2 != 0 || !ctype_xdigit($token)) {
 				throw new Exception ("Token is in wrong format");
 			} else {
 				$decrypted = decrypt(hex2bin ($token), $key);
