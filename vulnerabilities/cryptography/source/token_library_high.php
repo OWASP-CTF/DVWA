@@ -1,29 +1,46 @@
 <?php
 
-define ("KEY", "rainbowclimbinghigh");
-define ("ALGO", "aes-128-cbc");
-define ("IV", "1234567812345678");
+require_once __DIR__ . '/crypto_key.php';
+
+define ("ALGO", "aes-256-gcm");
+
+// Authenticated encryption with a random 12-byte nonce per token and a
+// per-install random key, replacing AES-128-CBC with a single
+// hard-coded key AND a single hard-coded IV shared by every token.
+// That combination let an attacker flip bits in the ciphertext/IV and
+// use the server's own error response (526 "Unable to decrypt token"
+// for bad PKCS#7 padding vs. any other status for good padding) as a
+// padding oracle to decrypt, and then forge, tokens without ever
+// knowing the key. GCM ties decryption to a single authentication tag
+// covering the whole ciphertext, so any tampering - however small -
+// fails the same way every time: decrypt() throws, check_token()
+// always returns the same 526 status. There is no separate "padding
+// looked fine but content didn't" state left for an attacker to detect.
 
 function encrypt ($plaintext, $iv) {
-	# Default padding is PKCS#7 which is interchangeable with PKCS#5
-	# https://en.wikipedia.org/wiki/Padding_%28cryptography%29#PKCS#5_and_PKCS#7
-
-	if (strlen ($iv) != 16) {
-		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 12) {
+		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
 	$tag = "";
-	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_encrypt($plaintext, ALGO, dvwa_crypto_get_key ('high', 32), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
-	return $e;
+	return $e . $tag;
 }
 
 function decrypt ($ciphertext, $iv) {
-	if (strlen ($iv) != 16) {
-		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 12) {
+		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
-	$e = openssl_decrypt($ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
+	if (strlen ($ciphertext) < 16) {
+		throw new Exception ("Decryption failed");
+	}
+
+	$tag = substr($ciphertext, -16);
+	$text = substr($ciphertext, 0, -16);
+
+	$e = openssl_decrypt($text, ALGO, dvwa_crypto_get_key ('high', 32), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -35,17 +52,17 @@ function decrypt ($ciphertext, $iv) {
 
 function create_token ($debug = false) {
 	$token = "userid:2";
+	$iv = random_bytes (12);
 
 	if ($debug) {
 		print "Clear text token: " . $token . "\n";
-		print "Encryption key: " . KEY . "\n";
-		print "IV: " . (IV) . "\n";
+		print "IV: " . bin2hex ($iv) . "\n";
 	}
 
-	$e = encrypt ($token, IV);
+	$e = encrypt ($token, $iv);
 	$data = array (
 					"token" => base64_encode ($e),
-					"iv" => base64_encode (IV)
+					"iv" => base64_encode ($iv)
 				);
 	return json_encode($data);
 }
@@ -88,7 +105,7 @@ function check_token ($data) {
 						);
 			return json_encode ($ret);
 		}
-			
+
 		$ciphertext = base64_decode ($data_array['token']);
 		$iv = base64_decode ($data_array['iv']);
 
@@ -98,7 +115,7 @@ function check_token ($data) {
 						"message" => "Unknown error"
 					);
 		try {
-			$d = decrypt ($ciphertext, $iv); 
+			$d = decrypt ($ciphertext, $iv);
 			if (preg_match ("/^userid:(\d+)$/", $d, $matches)) {
 				$id = $matches[1];
 				if (array_key_exists ($id, $users)) {

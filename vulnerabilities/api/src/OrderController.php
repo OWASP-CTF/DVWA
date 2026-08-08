@@ -9,25 +9,38 @@ class OrderController
 	private $data = array ();
 	private $orderId = null;
 	private $requestMethod = "GET";
+	private $version = null;
 
 	public function __construct($requestMethod, $version, $orderId) {
+		// These pre-existing orders belong to fixed, fictional
+		// customers who never log in through this API - "owner" values
+		// that deliberately never match a real authenticated subject,
+		// so no bearer token can read/modify someone else's order
+		// (OWASP API1 - BOLA). A caller only ever gets access to
+		// orders they create themselves, via addOrder().
 		$this->data = array (
-			1 => new Order (1, "Tony", "BBC Television Centre, London W3 6XZ", "5 * brushes", 0),
-			2 => new Order (2, "Morph", "Wooden Box, Corner of the table, The Studio", "plasticine", 0),
-			3 => new Order (3, "Nailbrush", "BBC Television Centre, London W3 6XZ", "Spare bristles", 1),
+			1 => new Order (1, "Tony", "BBC Television Centre, London W3 6XZ", "5 * brushes", 0, "tony"),
+			2 => new Order (2, "Morph", "Wooden Box, Corner of the table, The Studio", "plasticine", 0, "morph"),
+			3 => new Order (3, "Nailbrush", "BBC Television Centre, London W3 6XZ", "Spare bristles", 1, "nailbrush"),
 		);
 		$this->requestMethod = $requestMethod;
 		$this->orderId = $orderId;
 		$this->version = $version;
 	}
 
+	// Returns the authenticated subject (e.g. "mrbennett") for a valid
+	// bearer token, or false if there is none/it is invalid. This is
+	// used both as an authentication gate (false => 401) and as the
+	// identity object ownership is checked against (OWASP API1 - BOLA):
+	// a valid token only ever proves *who* you are, not that you may
+	// see every order in the system.
 	private function checkToken() {
 		if (array_key_exists ("HTTP_AUTHORIZATION", $_SERVER)) {
 			$header = $_SERVER['HTTP_AUTHORIZATION'];
 			$bits = explode (" ", $header);
 			if (count ($bits) == 2) {
 				if (strtolower($bits[0]) == "bearer") {
-					return (Login::check_access_token($bits[1]));
+					return Login::get_access_token_subject($bits[1]);
 				}
 			}
 		}
@@ -95,13 +108,17 @@ class OrderController
 	
 	private function getOrder($id)
 	{
-		if (!$this->checkToken()) {
+		$subject = $this->checkToken();
+		if ($subject === false) {
 			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
 			return $response;
 		}
 
-		if (!array_key_exists ($id, $this->data)) {
+		// Treat "exists but belongs to someone else" the same as "does
+		// not exist" - a 403 here would confirm to an unrelated caller
+		// that order IDs they're probing are valid (OWASP API1 - BOLA).
+		if (!array_key_exists ($id, $this->data) || $this->data[$id]->owner !== $subject) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
 			exit();
@@ -109,7 +126,7 @@ class OrderController
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;
-	}	
+	}
 
     #[OAT\Get(
 		tags: ["order"],
@@ -130,7 +147,8 @@ class OrderController
     ]  
 
 	private function getAllOrders() {
-		if (!$this->checkToken()) {
+		$subject = $this->checkToken();
+		if ($subject === false) {
 			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
 			return $response;
@@ -139,7 +157,10 @@ class OrderController
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$all = array();
 		foreach ($this->data as $order) {
-			$all[] = $order->toArray($this->version);
+			// Only ever return the caller's own orders (OWASP API1 - BOLA).
+			if ($order->owner === $subject) {
+				$all[] = $order->toArray($this->version);
+			}
 		}
 		$response['body'] = json_encode($all);
 		return $response;
@@ -176,7 +197,8 @@ class OrderController
 
 	private function addOrder()
 	{
-		if (!$this->checkToken()) {
+		$subject = $this->checkToken();
+		if ($subject === false) {
 			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
 			return $response;
@@ -188,7 +210,8 @@ class OrderController
 			$gc->processRequest();
 			exit();
 		}
-		$order = new Order(null, $input['name'], $input['address'], $input['items'], 0);
+		// The order is owned by whoever authenticated to create it.
+		$order = new Order(null, $input['name'], $input['address'], $input['items'], 0, $subject);
 		$this->data[] = $order;
 		$response['status_code_header'] = 'HTTP/1.1 201 Created';
 		$response['body'] = json_encode($order->toArray($this->version));
@@ -231,13 +254,14 @@ class OrderController
 	
 	private function updateOrder($id)
 	{
-		if (!$this->checkToken()) {
+		$subject = $this->checkToken();
+		if ($subject === false) {
 			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
 			return $response;
 		}
 
-		if (!array_key_exists ($id, $this->data)) {
+		if (!array_key_exists ($id, $this->data) || $this->data[$id]->owner !== $subject) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
 			exit();
@@ -284,13 +308,14 @@ class OrderController
     ]  
 	
 	private function deleteOrder($id) {
-		if (!$this->checkToken()) {
+		$subject = $this->checkToken();
+		if ($subject === false) {
 			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
 			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
 			return $response;
 		}
 
-		if (!array_key_exists ($id, $this->data)) {
+		if (!array_key_exists ($id, $this->data) || $this->data[$id]->owner !== $subject) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
 			exit();

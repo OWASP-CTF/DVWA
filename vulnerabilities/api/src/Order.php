@@ -29,7 +29,13 @@ final class Order
     #[OAT\Property(type: 'integer', example: 1)]
     public int $status;
 
-	function __construct ($id, $name, $address, $items, $status) {
+	// Not part of the public schema (no OAT\Property, never serialized by
+	// toArray()) - this is the object-level authorisation check for
+	// OWASP API1 (BOLA). It records which authenticated token subject
+	// this order belongs to; only that subject may read/update/delete it.
+	public ?string $owner = null;
+
+	function __construct ($id, $name, $address, $items, $status, $owner = null) {
 		if (is_null ($id)) {
 			$id = mt_rand(50,100);
 		}
@@ -38,6 +44,7 @@ final class Order
 		$this->address = $address;
 		$this->items = $items;
 		$this->status = $status;
+		$this->owner = $owner;
 	}
 
 	public function toArray($version) {
