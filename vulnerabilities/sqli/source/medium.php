@@ -24,8 +24,10 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 				$first = $row["first_name"];
 				$last  = $row["last_name"];
 
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+				// Feedback for end user. $id is already forced to (int) above, but
+				// encode everything written into the page regardless - the values
+				// still originate from user input / the database.
+				$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 			}
 			mysqli_stmt_close($stmt);
 			break;
@@ -49,8 +51,8 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 					$first = $row["first_name"];
 					$last  = $row["last_name"];
 
-					// Feedback for end user
-					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					// Feedback for end user (encoded - see the MySQL branch above)
+					$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 				}
 			} else {
 				echo "Error in fetch ".$sqlite_db->lastErrorMsg();

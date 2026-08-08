@@ -22,8 +22,11 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 				$first = $row["first_name"];
 				$last  = $row["last_name"];
 
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+				// Feedback for end user. session-input.php already restricts
+				// $_SESSION['id'] to digits only, but encode it anyway - it is
+				// still attacker-influenced state and bound as a query parameter
+				// only protects the SQL, not the HTML, context.
+				$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 			}
 
 			mysqli_stmt_close($stmt);
@@ -49,8 +52,8 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 					$first = $row["first_name"];
 					$last  = $row["last_name"];
 
-					// Feedback for end user
-					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					// Feedback for end user (encoded - see the MySQL branch above)
+					$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 				}
 			} else {
 				echo "Error in fetch ".$sqlite_db->lastErrorMsg();

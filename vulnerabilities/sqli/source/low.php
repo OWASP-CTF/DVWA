@@ -22,8 +22,12 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 				$first = $row["first_name"];
 				$last  = $row["last_name"];
 
-				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+				// Feedback for end user. $id is encoded even though it is bound
+				// as a query parameter (so it can never be parsed as SQL) -
+				// MySQL's loose numeric coercion can still match a row like
+				// user_id = 1 against a string such as "1<script>...", and
+				// that raw string would otherwise be reflected unescaped.
+				$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 			}
 
 			mysqli_stmt_close($stmt);
@@ -52,8 +56,10 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 					$first = $row["first_name"];
 					$last  = $row["last_name"];
 
-					// Feedback for end user
-					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+					// Feedback for end user (encoded - see the MySQL branch above
+					// for why $id itself needs this even though it's bound as a
+					// query parameter).
+					$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
 				}
 			} else {
 				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
