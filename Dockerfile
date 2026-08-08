@@ -20,6 +20,13 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 COPY --chown=www-data:www-data . .
 COPY --chown=www-data:www-data config/config.inc.php.dist config/config.inc.php
 
+# Install PHP hardening where the engine actually reads it (docroot php.ini is ignored).
+COPY php.ini /usr/local/etc/php/conf.d/zz-dvwa-hardening.ini
+
+# Serve security response headers.
+COPY dvwa-security-headers.conf /etc/apache2/conf-available/dvwa-security-headers.conf
+RUN a2enmod headers && a2enconf dvwa-security-headers
+
 # This is configuring the stuff for the API
 RUN cd /var/www/html/vulnerabilities/api \
  && composer install \
