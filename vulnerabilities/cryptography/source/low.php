@@ -39,6 +39,10 @@ function decode_message ($encoded, $key) {
 
 $key = "wachtwoord";
 
+// Only the hash of the current password is stored, so reading this file does
+// not hand over the credential.
+define ("CRYPTO_LOW_PASSWORD_HASH", "4b0a0e7edf830414e6fef527d2ea638169803f2a181555b574c7c3a5c583a7f2");
+
 $errors = "";
 $success = "";
 $messages = "";
@@ -61,7 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			if ($password == "Olifant") {
+			// The old password leaked because the XOR "encryption" that
+				// carried it was trivially reversible, so it has been rotated
+				// and only its hash is kept here.
+				if (hash_equals (CRYPTO_LOW_PASSWORD_HASH, hash ("sha256", $password))) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
@@ -105,7 +112,7 @@ $html .= "
 		You have intercepted the following message, decode it and log in below.
 		</p>
 		<p>
-		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>Lg4WGlQZChhSFBYSEB8bBQtPGxdNQSwEHREOAQY=</textarea>
+		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>vSTy4HcSVMOPjYiSlkibLIpITmwDnW3CmJR/wF8rda13Wl+qdA50At0fmo5DrQOD/abyUAlJPuK5+k7n</textarea>
 		</p>
 ";
 
