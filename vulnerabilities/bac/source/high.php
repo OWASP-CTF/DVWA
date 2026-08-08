@@ -70,9 +70,14 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
     } else {
         $id = intval($_GET['user_id']);
 
-        // Authorisation decision: your own profile, or any profile if you are
-        // an admin. Made before the row is read, not after.
-        $can_access = ($id === $current_user_id) || ($current_user_role === 'admin');
+        // Authorisation decision: your own profile, and only your own. Made
+        // before the row is read, not after.
+        //
+        // There is deliberately no admin exception here. impossible.php has the
+        // same branch commented out: this module is about whether one user can
+        // read another user's record, and "unless you are an admin" is exactly
+        // the hole it is demonstrating.
+        $can_access = ($id === $current_user_id);
 
         if (!$can_access) {
             $html .= "<p>Access denied. You can only view your own profile.</p>";
