@@ -8,17 +8,22 @@ if( isset( $_POST[ 'btnSign' ] ) ) {
 	$message = trim( $_POST[ 'mtxMessage' ] );
 	$name    = trim( $_POST[ 'txtName' ] );
 
-	// Sanitize message input
-	$message = stripslashes( $message );
-	$message = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $message ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-	$message = htmlspecialchars( $message );
+	// The maxlength attributes on the form are a client side hint only, so the
+	// lengths are enforced again here. mb_substr, because a byte-wise cut can
+	// leave half a multi-byte character behind and the encoder would then drop
+	// the whole field.
+	$message = mb_substr( stripslashes( $message ), 0, 50, 'UTF-8' );
+	$name    = mb_substr( stripslashes( $name ), 0, 10, 'UTF-8' );
 
-	// Sanitize name input
-	$name = stripslashes( $name );
-	$name = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $name ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-	$name = htmlspecialchars( $name );
+	// Reference implementation: an Anti-CSRF token, bound parameters and
+	// encoding on output.
+	//
+	// Encoding happens on output, in dvwaGuestbook(), which covers every level
+	// and also neutralises rows written before that fix. Encoding here as well
+	// would store "&amp;" for a literal "&".
 
-	// Update database
+	// Update database with a prepared statement, so the values are never
+	// parsed as SQL either.
 	$data = $db->prepare( 'INSERT INTO guestbook ( comment, name ) VALUES ( :message, :name );' );
 	$data->bindParam( ':message', $message, PDO::PARAM_STR );
 	$data->bindParam( ':name', $name, PDO::PARAM_STR );
