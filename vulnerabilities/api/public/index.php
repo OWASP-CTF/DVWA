@@ -8,11 +8,44 @@ use Src\OrderController;
 use Src\LoginController;
 use Src\Helpers;
 
-header("Access-Control-Allow-Origin: *");
+// Same origin only. Combining a wildcard origin with an allowed Authorization
+// header let any site on the internet issue authenticated calls against this
+// API from a visitor's browser.
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
 header("Access-Control-Max-Age: 3600");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
+/*
+ * Require a caller we recognise.
+ *
+ * The user and health controllers had no authentication at all, so the whole
+ * user list and the connectivity probe were reachable by anyone who could
+ * reach the host. The login controller stays open, otherwise a token could
+ * never be obtained.
+ *
+ * Either credential is accepted: the browser session, which is what the module
+ * pages use, or a bearer token from /login, which is what the OpenAPI document
+ * tells you to use from Swagger, Postman or curl. Requiring the session alone
+ * would have made the token mechanism useless for these endpoints.
+ */
+function api_require_caller() {
+	if (session_status() !== PHP_SESSION_ACTIVE) {
+		session_start();
+	}
+	if (isset($_SESSION['dvwa']['username'])) {
+		return;
+	}
+
+	$token = Helpers::bearerToken();
+	if ($token !== null && \Src\Login::check_access_token($token)) {
+		return;
+	}
+
+	header("HTTP/1.1 401 Unauthorized");
+	echo json_encode(array("error" => "Authentication required"));
+	exit();
+}
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $uri = explode( '/', $uri );
@@ -61,6 +94,8 @@ switch ($controller) {
 		$controller->processRequest();
 		break;
 	case "user":
+		api_require_caller();
+
 		// the user id is, of course, optional and must be a number:
 		$userId = null;
 		if (isset($local_uri[2])) {
@@ -72,6 +107,8 @@ switch ($controller) {
 		$controller->processRequest();
 		break;
 	case "health":
+		api_require_caller();
+
 		if (!isset($local_uri[2])) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
