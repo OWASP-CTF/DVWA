@@ -1,3 +1,3 @@
 <?php
-$page[ 'body' ] .= '<script src="' . DVWA_WEB_PAGE_TO_ROOT . 'vulnerabilities/javascript/source/high.js"></script>';
+// High-level validation is performed server-side with a session-bound token.
 ?>

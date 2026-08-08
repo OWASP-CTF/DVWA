@@ -30,6 +30,13 @@ switch( dvwaSecurityLevelGet() ) {
 }
 
 $message = "";
+$high_token = "";
+if (dvwaSecurityLevelGet() == "high") {
+	if (!isset($_SESSION['javascript_high_token'])) {
+		$_SESSION['javascript_high_token'] = bin2hex(random_bytes(32));
+	}
+	$high_token = $_SESSION['javascript_high_token'];
+}
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
@@ -54,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 					}
 					break;
 				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
+					if (is_string($token) && hash_equals($high_token, $token)) {
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";
@@ -70,7 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	} else {
 		$message = "<p>Missing phrase or token.</p>";
 	}
+
+	if (dvwaSecurityLevelGet() == "high") {
+		$_SESSION['javascript_high_token'] = bin2hex(random_bytes(32));
+		$high_token = $_SESSION['javascript_high_token'];
+	}
 }
+
+$high_token = htmlspecialchars($high_token, ENT_QUOTES, 'UTF-8');
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
 $page[ 'body' ] = <<<EOF
@@ -95,7 +109,7 @@ $page[ 'body' ] = <<<EOF
 	$message
 
 	<form name="low_js" method="post">
-		<input type="hidden" name="token" value="" id="token" />
+		<input type="hidden" name="token" value="{$high_token}" id="token" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>
