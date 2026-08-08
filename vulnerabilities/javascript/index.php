@@ -29,12 +29,31 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
-// Key used to derive the expected token. It is generated per session and
-// never sent to the client, so it can never be read out of the page and
-// the token cannot be computed without it.
-if (!array_key_exists ('js_secret', $_SESSION)) {
-	$_SESSION['js_secret'] = bin2hex (random_bytes (32));
+// The old checks derived the expected token from the submitted phrase alone,
+// using a fixed transform each level's own (obfuscated, but readable)
+// JavaScript carried out - a reimplementable rule, not a secret, so an
+// attacker never needed a browser to produce a valid token. Instead, mint an
+// unguessable token per level here on the server, hand it to the page ready
+// filled in, and require the exact same value back. Nothing about the
+// phrase's content ever factors into what token is expected, so there is no
+// transform left to reverse-engineer.
+function dvwaJsChallengeToken( $level ) {
+	if ( !isset( $_SESSION[ 'dvwa_js_tokens' ] ) || !is_array( $_SESSION[ 'dvwa_js_tokens' ] ) ) {
+		$_SESSION[ 'dvwa_js_tokens' ] = array();
+	}
+	if ( empty( $_SESSION[ 'dvwa_js_tokens' ][ $level ] ) ) {
+		$_SESSION[ 'dvwa_js_tokens' ][ $level ] = bin2hex( random_bytes( 32 ) );
+	}
+	return $_SESSION[ 'dvwa_js_tokens' ][ $level ];
 }
+
+function dvwaJsChallengeTokenRotate( $level ) {
+	$_SESSION[ 'dvwa_js_tokens' ][ $level ] = bin2hex( random_bytes( 32 ) );
+	return $_SESSION[ 'dvwa_js_tokens' ][ $level ];
+}
+
+$level = dvwaSecurityLevelGet();
+$pageToken = ( $level == 'impossible' ) ? '' : dvwaJsChallengeToken( $level );
 
 $message = "";
 // Check what was sent in to see if it was what was expected
@@ -45,24 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$token = $_POST['token'];
 
 		if ($phrase == "success") {
-			if ( dvwaSecurityLevelGet() == "impossible" ) {
+			if ( $level == "impossible" ) {
 				$vulnerabilityFile = 'impossible.php';
 			} else {
-				// The old checks derived the expected token from the phrase
-				// alone using a fixed, publicly-known transform (rot13+md5,
-				// a reversed string, chained sha256 with fixed salts) -
-				// exactly the kind of thing an attacker can read out of this
-				// page's own JavaScript and replay without ever running it.
-				// Binding the token to a per-session secret means it can't
-				// be produced without one, regardless of which level's
-				// obfuscation it's wrapped in.
-				$expected = hash_hmac( "sha256", $phrase, $_SESSION[ 'js_secret' ] );
-
-				if (is_string ($token) && hash_equals ($expected, $token)) {
+				if (is_string ($token) && hash_equals ($pageToken, $token)) {
 					$message = "<p style='color:red'>Well done!</p>";
 				} else {
 					$message = "<p>Invalid token.</p>";
 				}
+				// One-shot: whether the attempt succeeded or not, the value
+				// just checked is never valid again.
+				$pageToken = dvwaJsChallengeTokenRotate( $level );
 			}
 		} else {
 			$message = "<p>You got the phrase wrong.</p>";
@@ -71,6 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$message = "<p>Missing phrase or token.</p>";
 	}
 }
+
+$pageToken = htmlspecialchars( $pageToken, ENT_QUOTES, 'UTF-8' );
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
 $page[ 'body' ] = <<<EOF
@@ -95,7 +109,7 @@ $page[ 'body' ] = <<<EOF
 	$message
 
 	<form name="low_js" method="post">
-		<input type="hidden" name="token" value="" id="token" />
+		<input type="hidden" name="token" value="{$pageToken}" id="token" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>
