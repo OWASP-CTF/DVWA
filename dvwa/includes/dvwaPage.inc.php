@@ -78,18 +78,19 @@ function dvwa_start_session() {
 	]);
 
 	/*
-	 * We need to force a new Set-Cookie header with the updated flags by updating
-	 * the session id, either regenerating it or setting it to a value, because
-	 * session_start() might not generate a Set-Cookie header if a cookie already
-	 * exists.
+	 * Just open the session. The id is deliberately NOT rotated here.
 	 *
-	 * The id is always regenerated, at every security level. Reusing a
-	 * pre-authentication id that an attacker may already know is a session
-	 * fixation vulnerability, so the previous behaviour of keeping the old id
-	 * on the low/medium/high levels has been removed.
+	 * The cookie flags are now identical at every security level, so there is
+	 * nothing to re-issue the cookie for. Rotating here as well as in
+	 * dvwaLogin() put two different Set-Cookie: PHPSESSID headers on the login
+	 * response, the first of them already destroyed; a client that keeps the
+	 * first value for a repeated cookie name was then holding a dead session
+	 * and could never appear logged in.
+	 *
+	 * Session fixation is prevented where it matters, at the privilege change:
+	 * see session_regenerate_id() in dvwaLogin() and dvwaLogout().
 	*/
 	session_start();
-	session_regenerate_id( true ); // force a new id, and drop the old session file
 }
 
 // Password functions --
