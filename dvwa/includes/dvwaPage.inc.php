@@ -92,6 +92,130 @@ function dvwa_start_session() {
 	session_regenerate_id( true ); // force a new id, and drop the old session file
 }
 
+// Password functions --
+
+/*
+ * Hash a password for storage (A04:2025 Cryptographic Failures).
+ *
+ * The application used to store bare md5($password). MD5 is fast and unsalted
+ * here, so two users with the same password got the same row and the whole
+ * table fell to a rainbow table. password_hash() salts every value and uses a
+ * deliberately slow algorithm.
+ */
+function dvwaPasswordHash( $pPlain ) {
+	return password_hash( $pPlain, PASSWORD_DEFAULT );
+}
+
+/*
+ * Verify a password against whatever is stored.
+ *
+ * Accepts the new bcrypt format, and still accepts a 32 character MD5 row so a
+ * database created before this change keeps working. The MD5 comparison uses
+ * hash_equals() so it does not leak through timing.
+ */
+function dvwaPasswordVerify( $pPlain, $pStored ) {
+	if( !is_string( $pStored ) || $pStored === '' ) {
+		return false;
+	}
+
+	// Legacy row: 32 hex characters is an MD5 digest.
+	if( preg_match( '/^[0-9a-f]{32}$/i', $pStored ) ) {
+		return hash_equals( strtolower( $pStored ), md5( $pPlain ) );
+	}
+
+	return password_verify( $pPlain, $pStored );
+}
+
+/*
+ * True when the stored value should be written back in the current format.
+ */
+function dvwaPasswordNeedsRehash( $pStored ) {
+	if( !is_string( $pStored ) || $pStored === '' ) {
+		return true;
+	}
+	if( preg_match( '/^[0-9a-f]{32}$/i', $pStored ) ) {
+		return true;
+	}
+	return password_needs_rehash( $pStored, PASSWORD_DEFAULT );
+}
+
+/*
+ * Can users.password hold a bcrypt hash?
+ *
+ * The original schema sized the column for an MD5 digest, varchar(32). A
+ * bcrypt hash is 60 characters, so on a database created before this change
+ * the write either raises (strict mode) or truncates into something that
+ * matches neither format and locks the account out. Checked once per request.
+ */
+function dvwaPasswordColumnFitsHash() {
+	global $db;
+	static $fits = null;
+
+	if( $fits !== null ) {
+		return $fits;
+	}
+
+	try {
+		$data = $db->query(
+			"SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS
+			 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'password'"
+		);
+		$fits = ( (int) $data->fetchColumn() ) >= 255;
+	}
+	catch( PDOException $e ) {
+		error_log( 'dvwa: could not inspect the password column: ' . $e->getMessage() );
+		$fits = false;
+	}
+
+	return $fits;
+}
+
+/*
+ * Replace the stored hash for a user. Returns false when nothing was written.
+ *
+ * Every caller uses this opportunistically, on a login that has already
+ * succeeded, so a failure here must never surface as an error to the user: the
+ * old hash still verifies and the next attempt will simply try again.
+ */
+function dvwaPasswordStore( $pUser, $pPlain ) {
+	global $db;
+
+	if( !dvwaPasswordColumnFitsHash() ) {
+		error_log( 'dvwa: users.password is too narrow for a bcrypt hash, skipping the upgrade. Re-run setup.php.' );
+		return false;
+	}
+
+	try {
+		$hash = dvwaPasswordHash( $pPlain );
+		$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user);' );
+		$data->bindParam( ':password', $hash, PDO::PARAM_STR );
+		$data->bindParam( ':user', $pUser, PDO::PARAM_STR );
+		$data->execute();
+	}
+	catch( PDOException $e ) {
+		error_log( 'dvwa: could not store a password hash: ' . $e->getMessage() );
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * A hash to verify against when the account does not exist.
+ *
+ * Without this the bcrypt round only runs for real users, so the response time
+ * says whether an account exists even when the message does not.
+ */
+function dvwaDummyPasswordHash() {
+	static $hash = null;
+	if( $hash === null ) {
+		$hash = password_hash( 'dvwa-no-such-account', PASSWORD_DEFAULT );
+	}
+	return $hash;
+}
+
+// -- END (Password functions)
+
 /*
  * Returns true when the current request reached us over TLS, either directly
  * or through a reverse proxy that terminated it.
