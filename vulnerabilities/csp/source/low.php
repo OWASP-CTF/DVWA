@@ -1,18 +1,14 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+$headerCSP = "Content-Security-Policy: script-src 'self';"; // only js hosted on this server may run
 
 header($headerCSP);
 
-# These might work if you can't create your own for some reason
-# https://cdn.jsdelivr.net/gh/digininja/csp_bypass/alert.js
-# https://unpkg.com/@digininja/csp_bypass@1.0.0/index.js
-
 ?>
 <?php
-if (isset ($_POST['include'])) {
+if (isset ($_POST['include']) && is_string ($_POST['include'])) {
 $page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
+	" . htmlspecialchars( $_POST['include'], ENT_QUOTES, 'UTF-8' ) . "
 ";
 }
 $page[ 'body' ] .= '
