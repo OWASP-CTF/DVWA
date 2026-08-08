@@ -27,19 +27,6 @@ if (!isset($_SESSION['xor_oracle_key'])) {
 }
 $oracle_key = $_SESSION['xor_oracle_key'];
 
-// The password guarding the intercepted message used to be the fixed
-// literal "Olifant" - the same value in every installation, forever. Once
-// that leaks into a walkthrough (which it inevitably does), the lesson
-// stops requiring anyone to actually break the cipher; they just type the
-// known answer. Generate a fresh password per session instead, and encode
-// it with the same weak fixed-key cipher this lesson demonstrates, so the
-// intercepted textarea below still requires doing the exercise to recover.
-if (!isset($_SESSION['crypto_low_password'])) {
-	$_SESSION['crypto_low_password'] = bin2hex(random_bytes(6));
-}
-$login_password = $_SESSION['crypto_low_password'];
-$intercepted_message = base64_encode(xor_this($login_password, $key));
-
 $errors = "";
 $success = "";
 $messages = "";
@@ -62,9 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			// Compare against this session's freshly generated password,
-			// never a fixed literal, and do it in constant time.
-			if (hash_equals ($login_password, $password)) {
+			$decoded = xor_this (base64_decode ($password), $key);
+			if ($password == "Olifant") {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
@@ -108,7 +94,7 @@ $html .= "
 		You have intercepted the following message, decode it and log in below.
 		</p>
 		<p>
-		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>{$intercepted_message}</textarea>
+		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>Lg4WGlQZChhSFBYSEB8bBQtPGxdNQSwEHREOAQY=</textarea>
 		</p>
 ";
 
