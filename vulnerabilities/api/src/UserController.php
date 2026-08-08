@@ -218,11 +218,11 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
+		// Only the fields the UserUpdate schema declares may be bound from the
+		// request body. Privilege carrying fields such as the level are not
+		// assignable by the caller.
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
-		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
 		}
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
