@@ -1,6 +1,10 @@
 <?php
 
 if( isset( $_GET[ 'Login' ] ) ) {
+	// A single-use token has to be fetched from the form before each attempt,
+	// which is what stops an automated guesser replaying the login endpoint.
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Get username
 	$user = isset( $_GET[ 'username' ] ) ? stripslashes( $_GET[ 'username' ] ) : '';
 
@@ -86,5 +90,8 @@ if( isset( $_GET[ 'Login' ] ) ) {
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
