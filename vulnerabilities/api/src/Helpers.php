@@ -30,12 +30,16 @@ class Helpers {
 		}
 
 		// 'xb' fails when the file already exists, so two requests racing here
-		// cannot both believe they created it.
+		// cannot both believe they created it. The umask is narrowed around the
+		// create rather than chmod'ing afterwards: between an 0644 create and a
+		// later chmod there is a window in which another process can open the
+		// file and keep reading through its own descriptor.
 		$generated = bin2hex(random_bytes(32));
+		$previousUmask = umask(0077);
 		$handle = @fopen($path, 'xb');
+		umask($previousUmask);
 
 		if ($handle !== false) {
-			@chmod($path, 0600);
 			fwrite($handle, $generated);
 			fclose($handle);
 			return $generated;
