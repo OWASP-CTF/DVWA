@@ -16,6 +16,9 @@ services:
     pull_policy: build
     environment:
       - DB_SERVER=db
+      # Passed explicitly rather than relying on the fallback baked into
+      # config.inc.php.dist, so the credential lives in one place.
+      - DB_PASSWORD=p@ssw0rd
     depends_on:
       - db
     # Uncomment the next 2 lines to serve local source

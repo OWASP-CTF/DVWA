@@ -18,6 +18,11 @@ $_DVWA = array();
 $_DVWA[ 'db_server' ]   = getenv('DB_SERVER') ?: '127.0.0.1';
 $_DVWA[ 'db_database' ] = getenv('DB_DATABASE') ?: 'dvwa';
 $_DVWA[ 'db_user' ]     = getenv('DB_USER') ?: 'dvwa';
+# Set DB_PASSWORD in the environment. The literal below is only the throwaway
+# credential for the bundled compose.yml database, which is not reachable from
+# outside the compose network; it is not a secret and must not be reused.
+# compose.yml passes DB_PASSWORD explicitly so the environment path is the one
+# that actually gets exercised.
 $_DVWA[ 'db_password' ] = getenv('DB_PASSWORD') ?: 'p@ssw0rd';
 $_DVWA[ 'db_port']      = getenv('DB_PORT') ?: '3306';
 
