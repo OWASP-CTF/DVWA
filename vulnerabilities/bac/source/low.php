@@ -26,11 +26,9 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         if (!$user_exists) {
             $html .= "<p>No user found with ID: {$id}</p>";
         } else {
-            // "Secure" check that's still vulnerable
-            if (isset($_COOKIE['user_id'])) {
-                $cookie_id = intval($_COOKIE['user_id']);
-                
-                if ($id == $cookie_id) {
+            // Authorize against the authenticated server-side identity
+            if ($current_user_id > 0) {
+                if ($id === $current_user_id) {
                     // Access granted
                     $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = $id;";
                     $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
@@ -50,7 +48,7 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                     $html .= "<p>Access denied. You can only view your own profile.</p>";
                 }
             } else {
-                $html .= "<p>Access denied. No user_id cookie found.</p>";
+                $html .= "<p>Access denied. Unable to identify the current user.</p>";
             }
         }
         
@@ -85,12 +83,6 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
     }
 }
 
-// Show current user's role for context
-$role = isset($_COOKIE['user_role']) ? $_COOKIE['user_role'] : 'regular_user';
+// Show the authenticated user's role for context
 $html .= "<div class='info-banner'>Current Role: {$role}</div>";
-
-// Set initial role cookie if not exists
-if (!isset($_COOKIE['user_role'])) {
-    setcookie('user_role', 'regular_user', time() + 3600, '/');
-}
 ?>
