@@ -1,8 +1,5 @@
 <?php
 
-// The page we wish to display
-$file = $_GET[ 'page' ];
-
 // Input validation
 // fnmatch("file*", $file) is bypassable - e.g. "file:///etc/passwd" also
 // starts with "file", letting the file:// wrapper through. Whitelist the
@@ -14,10 +11,18 @@ $configFileNames = [
     'file3.php',
 ];
 
-if( !in_array($file, $configFileNames) ) {
-	// This isn't the page we want!
-	echo "ERROR: File not found!";
-	exit;
+// Leave $file unset when no page was requested at all, so index.php's own
+// "no page yet" fallback (redirecting to the default page) still runs -
+// only validate against the whitelist once a page was actually asked for.
+if( isset( $_GET[ 'page' ] ) ) {
+	// The page we wish to display
+	$file = $_GET[ 'page' ];
+
+	if( !in_array( $file, $configFileNames, true ) ) {
+		// This isn't the page we want!
+		echo "ERROR: File not found!";
+		exit;
+	}
 }
 
 ?>
