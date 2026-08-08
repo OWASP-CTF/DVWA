@@ -1,8 +1,13 @@
 <?php
 
 if( isset( $_GET[ 'Change' ] ) ) {
+	// Check Anti-CSRF token. A Referer check alone is bypassable (missing
+	// referrer, no-referrer policies, etc), so require a real per-session
+	// token as well.
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Checks to see where the request came from
-	if( stripos( $_SERVER[ 'HTTP_REFERER' ] ,$_SERVER[ 'SERVER_NAME' ]) !== false ) {
+	if( isset( $_SERVER[ 'HTTP_REFERER' ] ) && stripos( $_SERVER[ 'HTTP_REFERER' ] ,$_SERVER[ 'SERVER_NAME' ]) !== false ) {
 		// Get input
 		$pass_new  = $_GET[ 'password_new' ];
 		$pass_conf = $_GET[ 'password_conf' ];
@@ -33,5 +38,8 @@ if( isset( $_GET[ 'Change' ] ) ) {
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>

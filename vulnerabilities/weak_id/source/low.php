@@ -3,11 +3,10 @@
 $html = "";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if (!isset ($_SESSION['last_session_id'])) {
-		$_SESSION['last_session_id'] = 0;
-	}
-	$_SESSION['last_session_id']++;
-	$cookie_value = $_SESSION['last_session_id'];
+	// A simple incrementing counter is trivially predictable - anyone who
+	// has ever seen one valid session ID can guess every other one. Use a
+	// cryptographically secure random value instead.
+	$cookie_value = bin2hex(random_bytes(20));
 	setcookie("dvwaSession", $cookie_value);
 }
 ?>

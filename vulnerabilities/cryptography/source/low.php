@@ -13,7 +13,19 @@ function xor_this($cleartext, $key) {
     return $outText;
 }
 
+// The "intercepted" message below is protected with its own secret key.
+// The encode/decode form used to be an oracle for that *same* key, so an
+// attacker could just paste the intercepted ciphertext into "decode" and
+// let the app reveal it for them. The form still works exactly the same
+// for round-tripping your own messages, but it now uses a key that is
+// unique per session, so it can no longer be used to decrypt the
+// intercepted message, which stays protected by its own, separate key.
 $key = "wachtwoord";
+
+if (!isset($_SESSION['xor_oracle_key'])) {
+	$_SESSION['xor_oracle_key'] = bin2hex(random_bytes(16));
+}
+$oracle_key = $_SESSION['xor_oracle_key'];
 
 $errors = "";
 $success = "";
@@ -28,11 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = xor_this (base64_decode ($message), $oracle_key);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = base64_encode(xor_this ($message, $oracle_key));
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {

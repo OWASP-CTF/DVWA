@@ -1,6 +1,15 @@
 <?php
+// ECB mode encrypts each 16-byte block independently, so identical
+// plaintext blocks always produce identical ciphertext blocks. That lets an
+// attacker cut-and-paste blocks between different captured tokens (e.g.
+// combining the "admin" block from one token with the "sweep" block from
+// another) to forge a new, validly-decryptable token without ever knowing
+// the key. Chaining each block off the previous ciphertext block (CBC)
+// removes that property - a spliced block now decrypts to garbage because
+// it no longer follows the ciphertext it was actually chained after.
 function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+	$iv = substr(str_pad($key, 16, $key), 0, 16);
+	$e = openssl_decrypt($ciphertext, 'aes-128-cbc', $key, OPENSSL_RAW_DATA, $iv);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}

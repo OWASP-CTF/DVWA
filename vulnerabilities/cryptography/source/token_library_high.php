@@ -1,29 +1,38 @@
 <?php
 
 define ("KEY", "rainbowclimbinghigh");
-define ("ALGO", "aes-128-cbc");
-define ("IV", "1234567812345678");
+define ("ALGO", "aes-256-gcm");
+
+// AES-CBC with no integrity check and a *fixed, reused* IV lets an attacker
+// forge a valid token without ever knowing the key: for the first block,
+// plaintext = decrypt(ciphertext) XOR IV, so flipping bits in the IV flips
+// the exact same bits in the recovered plaintext ("userid:2" -> "userid:1"),
+// and there's no MAC to detect the tampering. Use an authenticated mode
+// (AES-GCM) with a fresh random IV per token instead, matching the
+// impossible level - any tampering with the ciphertext, IV or tag now makes
+// decryption fail outright.
 
 function encrypt ($plaintext, $iv) {
-	# Default padding is PKCS#7 which is interchangeable with PKCS#5
-	# https://en.wikipedia.org/wiki/Padding_%28cryptography%29#PKCS#5_and_PKCS#7
-
-	if (strlen ($iv) != 16) {
-		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 12) {
+		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
-	$tag = "";
+
 	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
-	return $e;
+	return $e . $tag;
 }
 
 function decrypt ($ciphertext, $iv) {
-	if (strlen ($iv) != 16) {
-		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 12) {
+		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
-	$e = openssl_decrypt($ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
+
+	$tag  = substr($ciphertext, -16);
+	$text = substr($ciphertext, 0, -16);
+
+	$e = openssl_decrypt($text, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -35,17 +44,18 @@ function decrypt ($ciphertext, $iv) {
 
 function create_token ($debug = false) {
 	$token = "userid:2";
+	$iv = openssl_random_pseudo_bytes(12);
 
 	if ($debug) {
 		print "Clear text token: " . $token . "\n";
 		print "Encryption key: " . KEY . "\n";
-		print "IV: " . (IV) . "\n";
+		print "IV: " . base64_encode($iv) . "\n";
 	}
 
-	$e = encrypt ($token, IV);
+	$e = encrypt ($token, $iv);
 	$data = array (
 					"token" => base64_encode ($e),
-					"iv" => base64_encode (IV)
+					"iv" => base64_encode ($iv)
 				);
 	return json_encode($data);
 }

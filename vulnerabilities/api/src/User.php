@@ -36,26 +36,15 @@ final class User
 	}
 
 	public function toArray($version) {
-		switch ($version) {
-			case 1:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-					"password" => $this->password,
-				);
-				break;
-			default:
-			case 2:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-				);
-				break;
-		}
-
-		return $a;
+		// The password hash must never be exposed by this API, no matter
+		// which (possibly older/deprecated) version is requested. Serving
+		// extra sensitive fields on old API versions "for compatibility"
+		// is exactly what let this leak in the first place.
+		return array (
+			"id" => $this->id,
+			"name" => $this->name,
+			"level" => $this->level,
+		);
 	}
 }
 
