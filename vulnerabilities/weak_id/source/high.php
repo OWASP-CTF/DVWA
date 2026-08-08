@@ -11,6 +11,10 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	// marked HttpOnly so script cannot read it, and marked Secure whenever the
 	// request arrived over TLS.
 	$cookie_value = bin2hex(random_bytes(20));
-	setcookie("dvwaSession", $cookie_value, time()+3600, "/vulnerabilities/weak_id/", "", dvwaIsHttps(), true);
+	// Secure is set unconditionally, matching impossible.php. This cookie is
+	// only ever issued, never read back, so flagging it Secure costs nothing
+	// on a plain HTTP deployment and keeps every level consistent with the
+	// reference implementation.
+	setcookie("dvwaSession", $cookie_value, time()+3600, "/vulnerabilities/weak_id/", "", true, true);
 }
 ?>
