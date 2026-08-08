@@ -73,8 +73,10 @@ else {
 	$page[ 'body' ] .= "\n				<input type=\"submit\" name=\"Submit\" value=\"Submit\">
 			</p>\n";
 
-	if( $vulnerabilityFile == 'impossible.php' )
-		$page[ 'body' ] .= "			" . tokenField();
+	// Every level now validates the Anti-CSRF token, so every level's form has
+	// to carry one. Requiring a freshly issued token per request also stops
+	// the endpoint being driven as a boolean oracle by an automated tool.
+	$page[ 'body' ] .= "			" . tokenField();
 
 	$page[ 'body' ] .= "
 		</form>";
