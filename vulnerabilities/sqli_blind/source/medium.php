@@ -1,6 +1,6 @@
 <?php
 
-if( isset( $_POST[ 'Submit' ]  ) ) {
+if( isset( $_POST[ 'Submit' ]  ) || isset( $_POST[ 'id' ] ) ) {
 	// Get input
 	$id = $_POST[ 'id' ];
 	$exists = false;
