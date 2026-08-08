@@ -7,7 +7,10 @@ if( isset( $_REQUEST[ 'Login' ] ) ) {
 	$pass = is_string( $_REQUEST[ 'password' ] ?? null ) ? $_REQUEST[ 'password' ] : '';
 	$pass = md5( $pass );
 
-	$total_failed_login = 3;
+	// A short credential list can contain the known demo password within three
+	// guesses, so a three-failure threshold still lets the scripted attack
+	// complete. Permit one failed guess per cooldown at the high level.
+	$total_failed_login = 1;
 	$lockout_time       = 60; // seconds
 	$account_locked     = false;
 
