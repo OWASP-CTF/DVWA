@@ -4,73 +4,60 @@ if( isset( $_POST[ 'Login' ] ) && isset ($_POST['username']) && isset ($_POST['p
 	// Check Anti-CSRF token
 	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
-	// Sanitise username input
-	$user = $_POST[ 'username' ];
-	$user = stripslashes( $user );
-	$user = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $user ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	// Reference implementation: bound parameters, an Anti-CSRF token, a real
+	// lockout, and verification through password_hash().
 
-	// Sanitise password input
-	$pass = $_POST[ 'password' ];
-	$pass = stripslashes( $pass );
-	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-	$pass = md5( $pass );
+	// Get input
+	$user       = stripslashes( $_POST[ 'username' ] );
+	$plain_pass = stripslashes( $_POST[ 'password' ] );
 
-	// Default values
+	// Lockout policy
 	$total_failed_login = 3;
 	$lockout_time       = 15;
 	$account_locked     = false;
 
-	// Check the database (Check user information)
+	// Has this account been locked out?
 	$data = $db->prepare( 'SELECT failed_login, last_login FROM users WHERE user = (:user) LIMIT 1;' );
 	$data->bindParam( ':user', $user, PDO::PARAM_STR );
 	$data->execute();
 	$row = $data->fetch();
 
-	// Check to see if the user has been locked out.
 	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] >= $total_failed_login ) )  {
-		// User locked out.  Note, using this method would allow for user enumeration!
-		//$html .= "<pre><br />This account has been locked due to too many incorrect logins.</pre>";
-
-		// Calculate when the user would be allowed to login again
 		$last_login = strtotime( $row[ 'last_login' ] );
 		$timeout    = $last_login + ($lockout_time * 60);
-		$timenow    = time();
 
-		/*
-		print "The last login was: " . date ("h:i:s", $last_login) . "<br />";
-		print "The timenow is: " . date ("h:i:s", $timenow) . "<br />";
-		print "The timeout is: " . date ("h:i:s", $timeout) . "<br />";
-		*/
-
-		// Check to see if enough time has passed, if it hasn't locked the account
-		if( $timenow < $timeout ) {
+		if( time() < $timeout ) {
 			$account_locked = true;
-			// print "The account is locked<br />";
 		}
 	}
 
-	// Check the database (if username matches the password)
-	$data = $db->prepare( 'SELECT * FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+	// Check the credentials. The row is found by name and the password is
+	// verified in PHP, so the stored format can be a salted hash.
+	$data = $db->prepare( 'SELECT * FROM users WHERE user = (:user) LIMIT 1;' );
 	$data->bindParam( ':user', $user, PDO::PARAM_STR);
-	$data->bindParam( ':password', $pass, PDO::PARAM_STR );
 	$data->execute();
 	$row = $data->fetch();
 
-	// If its a valid login...
-	if( ( $data->rowCount() == 1 ) && ( $account_locked == false ) ) {
-		// Get users details
-		$avatar       = $row[ 'avatar' ];
-		$failed_login = $row[ 'failed_login' ];
-		$last_login   = $row[ 'last_login' ];
+	// Verify against a dummy hash for an unknown account, so the work done is
+	// the same either way and the response time does not say whether the
+	// account exists.
+	$stored         = ( $row !== false ) ? $row[ 'password' ] : dvwaDummyPasswordHash();
+	$credentials_ok = dvwaPasswordVerify( $plain_pass, $stored ) && ( $row !== false );
 
+	if( $credentials_ok && ( $account_locked == false ) ) {
 		// Login successful
-		$html .= "<p>Welcome to the password protected area <em>{$user}</em></p>";
-		$html .= "<img src=\"{$avatar}\" />";
+		$avatar    = $row[ 'avatar' ];
+		$safe_user = htmlspecialchars( $user, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 
-		// Had the account been locked out since last login?
-		if( $failed_login >= $total_failed_login ) {
-			$html .= "<p><em>Warning</em>: Someone might of been brute forcing your account.</p>";
-			$html .= "<p>Number of login attempts: <em>{$failed_login}</em>.<br />Last login attempt was at: <em>{$last_login}</em>.</p>";
+		$html .= "<p>Welcome to the password protected area <em>{$safe_user}</em></p>";
+		$html .= "<img src=\"" . htmlspecialchars( $avatar, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' ) . "\" />";
+
+		// Record the authentication outcome (A09:2025).
+		dvwaSecurityLog( 'brute.login.success', array( 'account' => $user ) );
+
+		// Upgrade a legacy MD5 row while we hold a known good plaintext.
+		if( dvwaPasswordNeedsRehash( $row[ 'password' ] ) ) {
+			dvwaPasswordStore( $user, $plain_pass );
 		}
 
 		// Reset bad login count
@@ -78,11 +65,11 @@ if( isset( $_POST[ 'Login' ] ) && isset ($_POST['username']) && isset ($_POST['p
 		$data->bindParam( ':user', $user, PDO::PARAM_STR );
 		$data->execute();
 	} else {
-		// Login failed
-		sleep( rand( 2, 4 ) );
+		// Login failed. One message covers both "wrong password" and "locked",
+		// so the response cannot be used to enumerate accounts.
+		$html .= "<pre><br />Username and/or password incorrect.<br /><br/>Alternatively the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
 
-		// Give the user some feedback
-		$html .= "<pre><br />Username and/or password incorrect.<br /><br/>Alternative, the account has been locked because of too many failed logins.<br />If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
+		dvwaSecurityLog( 'brute.login.failure', array( 'account' => $user, 'locked' => $account_locked ? 'yes' : 'no' ) );
 
 		// Update bad login count
 		$data = $db->prepare( 'UPDATE users SET failed_login = (failed_login + 1) WHERE user = (:user) LIMIT 1;' );
