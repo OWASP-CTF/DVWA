@@ -81,9 +81,12 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
     }
 }
 
-// Show current user's role for context
+// Show current user's role for context. This is client-supplied display
+// text only - it is never used to make an access-control decision above -
+// but it still needs output encoding, since a raw cookie value is
+// attacker-controlled and would otherwise be a stored/reflected XSS sink.
 $role = isset($_COOKIE['user_role']) ? $_COOKIE['user_role'] : 'regular_user';
-$html .= "<div class='info-banner'>Current Role: {$role}</div>";
+$html .= "<div class='info-banner'>Current Role: " . htmlspecialchars($role, ENT_QUOTES, 'UTF-8') . "</div>";
 
 // Set initial role cookie if not exists
 if (!isset($_COOKIE['user_role'])) {
