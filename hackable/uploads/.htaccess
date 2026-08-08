@@ -1,0 +1,15 @@
+# Defence in depth for the File Upload module.
+#
+# Upload handlers already restrict extensions to jpg/jpeg/png, but if that
+# ever fails this keeps anything under this directory from executing as PHP.
+<IfModule mod_php.c>
+	php_flag engine off
+</IfModule>
+
+<FilesMatch "\.(?i:php|php3|php4|php5|php7|phps|phtml|pht|shtml|cgi|pl)$">
+	Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+	Header always set X-Content-Type-Options "nosniff"
+</IfModule>
