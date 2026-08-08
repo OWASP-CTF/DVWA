@@ -1,6 +1,14 @@
 <?php
 
 if( isset( $_REQUEST[ 'Submit' ] ) ) {
+	// Check Anti-CSRF token
+	if (array_key_exists ("session_token", $_SESSION)) {
+		$session_token = $_SESSION[ 'session_token' ];
+	} else {
+		$session_token = "";
+	}
+	checkToken( $_REQUEST[ 'user_token' ], $session_token, 'index.php' );
+
 	// Get input
 	$id = $_REQUEST[ 'id' ];
 
@@ -61,5 +69,8 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 			break;
 	}
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>

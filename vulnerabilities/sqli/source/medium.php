@@ -1,6 +1,14 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ] ) ) {
+	// Check Anti-CSRF token
+	if (array_key_exists ("session_token", $_SESSION)) {
+		$session_token = $_SESSION[ 'session_token' ];
+	} else {
+		$session_token = "";
+	}
+	checkToken( $_REQUEST[ 'user_token' ], $session_token, 'index.php' );
+
 	// Get input
 	$id = $_POST[ 'id' ];
 
@@ -66,4 +74,7 @@ $result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . (
 $number_of_rows = mysqli_fetch_row( $result )[0];
 
 mysqli_close($GLOBALS["___mysqli_ston"]);
+
+// Generate Anti-CSRF token
+generateSessionToken();
 ?>

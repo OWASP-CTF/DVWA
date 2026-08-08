@@ -1,6 +1,14 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ]  ) ) {
+	// Check Anti-CSRF token
+	if (array_key_exists ("session_token", $_SESSION)) {
+		$session_token = $_SESSION[ 'session_token' ];
+	} else {
+		$session_token = "";
+	}
+	checkToken( $_REQUEST[ 'user_token' ], $session_token, 'index.php' );
+
 	// Get input
 	$target = trim( $_REQUEST[ 'ip' ] );
 
@@ -30,5 +38,8 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 		$html .= '<pre>ERROR: You have entered an invalid IP.</pre>';
 	}
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
