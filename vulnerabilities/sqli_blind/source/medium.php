@@ -5,20 +5,14 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 	$id = $_POST[ 'id' ];
 	$exists = false;
 
-	// The id is a number, so anything trailing it is not part of the lookup
-	$id = intval( $id );
-
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
+			$id = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $id ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+
 			// Check database
-			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT first_name, last_name FROM users WHERE user_id = ?;");
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
 			try {
-				$result = false;
-				if ($stmt !== false && true) {
-					mysqli_stmt_bind_param($stmt, "i", $id);
-					mysqli_stmt_execute($stmt);
-					$result = mysqli_stmt_get_result($stmt);
-				}
+				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
 			} catch (Exception $e) {
 				print "There was an error.";
 				exit;
@@ -37,11 +31,10 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 			
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
 			try {
-				$stmt = $sqlite_db_connection->prepare("SELECT first_name, last_name FROM users WHERE user_id = :id;");
-				$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
-				$results = $stmt->execute();
-				$row = $results === false ? false : $results->fetchArray();
+				$results = $sqlite_db_connection->query($query);
+				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {
 				$exists = false;
