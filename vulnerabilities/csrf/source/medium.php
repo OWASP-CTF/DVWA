@@ -1,52 +1,30 @@
 <?php
 
-if( isset( $_GET[ 'Change' ] ) ) {
-	// Check Anti-CSRF token
-	$user_token    = ( isset( $_REQUEST[ 'user_token' ] ) && is_string( $_REQUEST[ 'user_token' ] ) ) ? $_REQUEST[ 'user_token' ] : '';
-	$session_token = ( isset( $_SESSION[ 'session_token' ] ) && is_string( $_SESSION[ 'session_token' ] ) ) ? $_SESSION[ 'session_token' ] : '';
+if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Change' ] ) ) {
+	$user_token = isset( $_POST[ 'user_token' ] ) && is_string( $_POST[ 'user_token' ] )
+		? $_POST[ 'user_token' ]
+		: '';
+	$session_token = isset( $_SESSION[ 'session_token' ] ) && is_string( $_SESSION[ 'session_token' ] )
+		? $_SESSION[ 'session_token' ]
+		: '';
 
-	// A missing session token can never be matched, and the comparison is constant time
 	if( $session_token === '' || !hash_equals( $session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( 'index.php' );
 	}
-	checkToken( $user_token, $session_token, 'index.php' );
 
-	// Checks to see where the request came from (defence in depth only - the token above is the real control)
-	$referer = ( isset( $_SERVER[ 'HTTP_REFERER' ] ) && is_string( $_SERVER[ 'HTTP_REFERER' ] ) ) ? $_SERVER[ 'HTTP_REFERER' ] : '';
-	if( $referer !== '' && stripos( $referer, $_SERVER[ 'SERVER_NAME' ] ) !== false ) {
-		// Get input
-		$pass_new  = $_GET[ 'password_new' ];
-		$pass_conf = $_GET[ 'password_conf' ];
+	$pass_current = $_POST[ 'password_current' ] ?? null;
+	$pass_new = $_POST[ 'password_new' ] ?? null;
+	$pass_conf = $_POST[ 'password_conf' ] ?? null;
 
-		// Do the passwords match?
-		if( $pass_new == $pass_conf ) {
-			// They do!
-			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-			$pass_new = md5( $pass_new );
-
-			// Update the database
-			$current_user = dvwaCurrentUser();
-			$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . $current_user . "';";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
-
-			// Feedback for the user
-			$html .= "<pre>Password Changed.</pre>";
-		}
-		else {
-			// Issue with passwords matching
-			$html .= "<pre>Passwords did not match.</pre>";
-		}
+	if( csrfChangePassword( $pass_current, $pass_new, $pass_conf ) ) {
+		$html .= "<pre>Password Changed.</pre>";
 	}
 	else {
-		// Didn't come from a trusted source
-		$html .= "<pre>That request didn't look correct.</pre>";
+		$html .= "<pre>Passwords did not match or current password incorrect.</pre>";
 	}
-
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
 
-// Generate Anti-CSRF token
 generateSessionToken();
 
 ?>

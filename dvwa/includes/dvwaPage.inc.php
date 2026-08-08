@@ -653,7 +653,9 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = md5( uniqid() );
+	// uniqid() is time based and predictable; hashing it does not add entropy.
+	// Use a CSPRNG so an attacker cannot guess a valid anti-CSRF token.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'

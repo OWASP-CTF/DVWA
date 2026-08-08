@@ -1,11 +1,12 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
+if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[ 'username' ], $_POST[ 'password' ] ) &&
+	is_string( $_POST[ 'username' ] ) && is_string( $_POST[ 'password' ] ) ) {
 	// Get username
-	$user = $_GET[ 'username' ];
+	$user = $_POST[ 'username' ];
 
 	// Get password
-	$pass = $_GET[ 'password' ];
+	$pass = $_POST[ 'password' ];
 	$pass = md5( $pass );
 
 	// Default values
@@ -44,8 +45,8 @@ if( isset( $_GET[ 'Login' ] ) ) {
 		$avatar = $row[ 'avatar' ];
 
 		// Login successful
-		$html .= "<p>Welcome to the password protected area {$user}</p>";
-		$html .= "<img src=\"{$avatar}\" />";
+		$html .= "<p>Welcome to the password protected area " . htmlspecialchars( $user, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) . "</p>";
+		$html .= "<img src=\"" . htmlspecialchars( $avatar, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) . "\" />";
 
 		// Reset the bad login count
 		$data = $db->prepare( 'UPDATE users SET failed_login = "0" WHERE user = (:user) LIMIT 1;' );

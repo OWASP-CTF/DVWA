@@ -39,13 +39,15 @@ class UserController
 
 	private function validateAdd($input)
 	{
-		if (! isset($input['name'])) {
+		if (array_keys($input) !== array('name', 'level') && array_keys($input) !== array('level', 'name')) {
 			return false;
 		}
-		if (! isset($input['level'])) {
+		if (!is_string($input['name']) || trim($input['name']) === '' || strlen($input['name']) > 100) {
 			return false;
 		}
-		if (!is_numeric ($input['level'])) {
+		// This unauthenticated endpoint may only create ordinary users. Letting
+		// the caller choose level 0 would be a second mass-assignment path.
+		if (!is_numeric ($input['level']) || intval($input['level']) !== 1) {
 			return false;
 		}
 		return true;
@@ -53,7 +55,11 @@ class UserController
 
 	private function validateUpdate($input)
 	{
-		if (! isset($input['name'])) {
+		// Reject, rather than silently ignore, over-posted privilege fields.
+		if (array_keys($input) !== array('name')) {
+			return false;
+		}
+		if (!is_string($input['name']) || trim($input['name']) === '' || strlen($input['name']) > 100) {
 			return false;
 		}
 		return true;
@@ -212,18 +218,19 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
+		$ret = Helpers::check_content_type();
+		if ($ret !== true) {
+			return $ret;
+		}
+
+		$decoded = json_decode(file_get_contents('php://input'), TRUE);
+		$input = is_array($decoded) ? $decoded : array();
 		if (! $this->validateUpdate($input)) {
 			$gc = new GenericController("unprocessable");
 			$gc->processRequest();
 			exit();
 		}
-		# Only the properties defined by the UserUpdate schema may be set by the
-		# caller. Anything else in the request body, such as the privilege
-		# level, is ignored rather than assigned.
-		if (array_key_exists ("name", $input)) {
-			$this->data[$id]->name = $input['name'];
-		}
+		$this->data[$id]->name = trim($input['name']);
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;

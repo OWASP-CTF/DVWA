@@ -23,11 +23,11 @@ final class User
     #[OAT\Property(type: 'integer', example: 1)]
     public int $level;
 
-	public string $password;
+	private string $password;
 
 	function __construct ($id, $name, $level, $password) {
 		if (is_null ($id)) {
-			$id = mt_rand(50,100);
+			$id = random_int(50,100);
 		}
 		$this->id = $id;
 		$this->name = $name;
