@@ -54,9 +54,26 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
+					// Encode a value for the HTML context document.write() places it
+					// in below. Not calling decodeURI() already stops a percent
+					// encoded payload from turning back into markup, but a raw
+					// quote character reaching here (browsers don't necessarily
+					// percent-encode "'" when building location.href) could still
+					// break out of the value='...' attribute on its own - so the
+					// written value is escaped regardless of how it got here.
+					function xssDomEscape(value) {
+						return String(value)
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#39;");
+					}
+
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
+						var label = $decodeURI(lang);
+						document.write("<option value='" + xssDomEscape(lang) + "'>" + xssDomEscape(label) + "</option>");
 						document.write("<option value='' disabled='disabled'>----</option>");
 					}
 					    
