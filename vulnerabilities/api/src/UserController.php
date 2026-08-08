@@ -48,6 +48,14 @@ class UserController
 		if (!is_numeric ($input['level'])) {
 			return false;
 		}
+		// This endpoint has no authentication at all - it is effectively
+		// self-service signup - so it must never be able to mint a
+		// privileged (level 0 / admin) account. Accepting whatever level
+		// the caller asks for would let anyone become admin simply by
+		// including "level": 0 in the request body.
+		if (intval($input['level']) <= 0) {
+			return false;
+		}
 		return true;
 	}
 
