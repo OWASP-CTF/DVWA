@@ -14,11 +14,11 @@ class Login
 	// is now generated with random_bytes() and kept only outside the
 	// repository.
 	private static function accessSecret() {
-		return Helpers::persistentSecret('DVWA_API_ACCESS_SECRET', 'api_access');
+		return Helpers::deploymentSecret('DVWA_API_ACCESS_SECRET', 'api_access');
 	}
 
 	private static function refreshSecret() {
-		return Helpers::persistentSecret('DVWA_API_REFRESH_SECRET', 'api_refresh');
+		return Helpers::deploymentSecret('DVWA_API_REFRESH_SECRET', 'api_refresh');
 	}
 
 	public static function create_token() {

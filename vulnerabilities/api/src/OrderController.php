@@ -22,7 +22,7 @@ class OrderController
 	}
 
 	private function checkToken() {
-		$token = Helpers::bearerToken();
+		$token = Helpers::extractBearerToken();
 		if ($token === null) {
 			return false;
 		}

@@ -4,89 +4,74 @@ namespace Src;
 
 class Helpers {
 	/*
-	 * A secret that survives across requests.
+	 * Returns a secret value that stays the same across every request for
+	 * the lifetime of this deployment, without ever being written into the
+	 * source tree.
 	 *
-	 * Taken from the environment when it is set. Otherwise it is generated
-	 * once with random_bytes() and cached in a key file, so a fresh
-	 * checkout still runs without a hardcoded, source-controlled secret,
-	 * while staying stable across requests for the stateless bearer
-	 * tokens that are signed with it.
+	 * An operator can pin the value explicitly via $envVar. Absent that,
+	 * one is minted the first time it's needed and kept in a private file
+	 * under the system temp directory, guarded with flock() so concurrent
+	 * requests racing to create it converge on a single value instead of
+	 * each generating their own - which would make every previously issued
+	 * token unverifiable the moment a second worker process started.
 	 */
-	public static function persistentSecret($envName, $fileName) {
-		$value = getenv($envName);
-		if ($value !== false && $value !== '') {
-			return $value;
+	public static function deploymentSecret($envVar, $slot) {
+		$fromEnv = getenv($envVar);
+		if ($fromEnv !== false && $fromEnv !== '') {
+			return $fromEnv;
 		}
 
-		$path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dvwa_' . $fileName . '.key';
+		$store = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'dvwa-api-secrets';
+		if (!is_dir($store)) {
+			@mkdir($store, 0700, true);
+		}
 
-		if (self::ownedByUs($path)) {
-			$existing = trim((string) file_get_contents($path));
-			if ($existing !== '') {
-				return $existing;
+		$file = $store . DIRECTORY_SEPARATOR . preg_replace('/[^A-Za-z0-9_-]/', '_', $slot);
+
+		$handle = @fopen($file, 'c+');
+		if ($handle === false) {
+			// No writable place to keep it - hand back a value scoped to
+			// this single request rather than ever falling back to a
+			// fixed, predictable string.
+			return bin2hex(random_bytes(32));
+		}
+
+		$secret = null;
+		if (flock($handle, LOCK_EX)) {
+			$current = stream_get_contents($handle);
+			if ($current !== false && strlen(trim($current)) === 64) {
+				$secret = trim($current);
+			} else {
+				$secret = bin2hex(random_bytes(32));
+				ftruncate($handle, 0);
+				rewind($handle);
+				fwrite($handle, $secret);
+				fflush($handle);
+				chmod($file, 0600);
 			}
+			flock($handle, LOCK_UN);
 		}
+		fclose($handle);
 
-		// 'xb' fails if the file already exists, so two requests racing here
-		// cannot both believe they created it.
-		$generated = bin2hex(random_bytes(32));
-		$previousUmask = umask(0077);
-		$handle = @fopen($path, 'xb');
-		umask($previousUmask);
-
-		if ($handle !== false) {
-			fwrite($handle, $generated);
-			fclose($handle);
-			return $generated;
-		}
-
-		// Somebody else won the race - re-read, but only if we own what is there.
-		if (self::ownedByUs($path)) {
-			$stored = trim((string) file_get_contents($path));
-			if ($stored !== '') {
-				return $stored;
-			}
-		}
-
-		error_log('dvwa api: could not establish a persistent secret at ' . $path);
-		return $generated;
-	}
-
-	private static function ownedByUs($path) {
-		if (!is_file($path)) {
-			return false;
-		}
-		if (!function_exists('posix_geteuid')) {
-			// Cannot prove ownership, so do not assume it.
-			return false;
-		}
-		return fileowner($path) === posix_geteuid();
+		return $secret ?? bin2hex(random_bytes(32));
 	}
 
 	/*
-	 * The bearer token from the Authorization header, or null. Depending on
-	 * the SAPI the header can turn up as HTTP_AUTHORIZATION or, when it
-	 * arrives through a rewrite, as REDIRECT_HTTP_AUTHORIZATION.
+	 * Pulls the bearer token out of the Authorization header, if present.
+	 * PHP under some SAPI/rewrite combinations exposes it as
+	 * REDIRECT_HTTP_AUTHORIZATION rather than HTTP_AUTHORIZATION, so both
+	 * are checked.
 	 */
-	public static function bearerToken() {
-		$header = null;
-		foreach (array('HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION') as $key) {
-			if (array_key_exists($key, $_SERVER) && $_SERVER[$key] !== '') {
-				$header = $_SERVER[$key];
-				break;
-			}
-		}
+	public static function extractBearerToken() {
+		$raw = $_SERVER['HTTP_AUTHORIZATION']
+			?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+			?? null;
 
-		if ($header === null) {
+		if ($raw === null || !preg_match('/^Bearer\s+(\S+)$/i', trim($raw), $m)) {
 			return null;
 		}
 
-		$bits = explode(' ', $header);
-		if (count($bits) != 2 || strtolower($bits[0]) != 'bearer') {
-			return null;
-		}
-
-		return $bits[1];
+		return $m[1];
 	}
 
 	public static function check_content_type() {

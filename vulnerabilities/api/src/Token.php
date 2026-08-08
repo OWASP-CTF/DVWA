@@ -12,7 +12,7 @@ class Token {
 	// to source control is public. It is now generated with random_bytes()
 	// and kept only outside the repository.
 	private static function encryptionKey() {
-		return Helpers::persistentSecret('DVWA_API_TOKEN_KEY', 'api_token');
+		return Helpers::deploymentSecret('DVWA_API_TOKEN_KEY', 'api_token');
 	}
 
     # Not sure if this is needed
