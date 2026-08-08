@@ -43,11 +43,18 @@ if( !isset( $_COOKIE[ 'security' ] ) || !in_array( $_COOKIE[ 'security' ], $secu
  * flags and the new id (or the same one if we wish to keep it).
 */
 function dvwa_start_session() {
-	// Harden the session cookie at every security level. Leaving HttpOnly off
-	// (or SameSite empty) at low/medium/high lets XSS steal the session and
-	// lets cross-site navigations ride an authenticated session.
-	$httponly = true;
-	$samesite = "Strict";
+	// This will setup the session cookie based on
+	// the security level.
+
+	$security_level = dvwaSecurityLevelGet();
+	if ($security_level == 'impossible') {
+		$httponly = true;
+		$samesite = "Strict";
+	}
+	else {
+		$httponly = false;
+		$samesite = "";
+	}
 
 	$maxlifetime = 86400;
 	$secure = false;
