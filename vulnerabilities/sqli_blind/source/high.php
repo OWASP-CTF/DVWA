@@ -7,22 +7,15 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			// Check database, using a prepared statement so the input can never
+			// be parsed as SQL.
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
+				$data->bindParam( ':id', $id, PDO::PARAM_STR );
+				$data->execute();
+				$exists = ( $data->fetch() !== false );
 			} catch (Exception $e) {
-				$result = false;
-			}
-
-			$exists = false;
-			if ($result !== false) {
-				// Get results
-				try {
-					$exists = (mysqli_num_rows( $result ) > 0); // The '@' character suppresses errors
-				} catch(Exception $e) {
-					$exists = false;
-				}
+				$exists = false;
 			}
 
 			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
@@ -30,9 +23,10 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_TEXT );
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {

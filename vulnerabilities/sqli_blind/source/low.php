@@ -7,31 +7,26 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
+			// Check database, using a prepared statement so the input can never
+			// be parsed as SQL.
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
+				$data->bindParam( ':id', $id, PDO::PARAM_STR );
+				$data->execute();
+				$exists = ( $data->fetch() !== false );
 			} catch (Exception $e) {
-				print "There was an error.";
-				exit;
+				$exists = false;
 			}
 
-			$exists = false;
-			if ($result !== false) {
-				try {
-					$exists = (mysqli_num_rows( $result ) > 0);
-				} catch(Exception $e) {
-					$exists = false;
-				}
-			}
 			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
+				$stmt->bindValue( ':id', $id, SQLITE3_TEXT );
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {
