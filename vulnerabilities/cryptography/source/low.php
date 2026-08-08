@@ -1,19 +1,34 @@
 <?php
 
-function xor_this($cleartext, $key) {
-    // Our output text
-    $outText = '';
-
-    // Iterate through each character
-    for($i=0; $i<strlen($cleartext);) {
-        for($j=0; ($j<strlen($key) && $i<strlen($cleartext)); $j++,$i++) {
-            $outText .= $cleartext[$i] ^ $key[$j];
-        }
-    }
-    return $outText;
+function encrypt_this($cleartext, $key) {
+	$iv = openssl_random_pseudo_bytes (12);
+	$e = openssl_encrypt ($cleartext, 'aes-128-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+	if ($e === false) {
+		return "";
+	}
+	return $iv . $tag . $e;
 }
 
-$key = "wachtwoord";
+function decrypt_this($ciphertext, $key) {
+	if (strlen ($ciphertext) < 28) {
+		return "";
+	}
+	$e = openssl_decrypt (substr ($ciphertext, 28), 'aes-128-gcm', $key, OPENSSL_RAW_DATA, substr ($ciphertext, 0, 12), substr ($ciphertext, 12, 16));
+	if ($e === false) {
+		return "";
+	}
+	return $e;
+}
+
+// A key shared with whoever wrote an intercepted message makes this a decryption
+// oracle, so the key is generated per session and never leaves the server.
+if (!isset ($_SESSION['crypto_key'])) {
+	$_SESSION['crypto_key'] = openssl_random_pseudo_bytes (16);
+}
+$key = $_SESSION['crypto_key'];
+
+// The password is held as a bcrypt hash so the source cannot disclose it.
+$password_hash = '$2y$12$ZJ.LDqRmPwS9qZN2Xg0L2e4QhpmO1c7ODesigvJtY7CNg48GhN7Zm';
 
 $errors = "";
 $success = "";
@@ -28,17 +43,16 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = decrypt_this (base64_decode ($message), $key);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = base64_encode(encrypt_this ($message, $key));
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			if (password_verify ($password, $password_hash)) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
