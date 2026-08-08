@@ -13,6 +13,7 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	// Default values
 	$total_failed_login = 3;
 	$lockout_time       = 15;
+	$attempt_interval   = 3;
 	$account_locked     = false;
 
 	// Check the database (Check user information)
@@ -21,13 +22,22 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	$data->execute();
 	$row = $data->fetch();
 
-	// Check to see if the user has been locked out
-	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
-		// Calculate when the user would be allowed to login again
-		$timeout = strtotime( $row[ 'last_login' ] ) + ( $lockout_time * 60 );
+	if( $data->rowCount() == 1 ) {
+		$last_login = $row[ 'last_login' ] ? strtotime( $row[ 'last_login' ] ) : 0;
 
-		// Check to see if enough time has passed, if it hasn't lock the account
-		if( time() < $timeout ) {
+		// Check to see if the user has been locked out
+		if( $row[ 'failed_login' ] >= $total_failed_login ) {
+			// Calculate when the user would be allowed to login again
+			$timeout = $last_login + ( $lockout_time * 60 );
+
+			// Check to see if enough time has passed, if it hasn't lock the account
+			if( time() < $timeout ) {
+				$account_locked = true;
+			}
+		}
+
+		// Guessing at machine speed is refused before the failure count can catch up
+		if( ( time() - $last_login ) < $attempt_interval ) {
 			$account_locked = true;
 		}
 	}
