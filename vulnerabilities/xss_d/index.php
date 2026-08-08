@@ -59,6 +59,8 @@ $page[ 'body' ] = <<<EOF
 						languageSelect.appendChild(option);
 					}
 
+					var allowedLanguages = ["English", "French", "Spanish", "German"];
+
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
 						var label = lang;
@@ -66,8 +68,10 @@ $page[ 'body' ] = <<<EOF
 							label = $decodeURI(lang);
 						} catch (e) {
 						}
-						addLanguageOption(lang, label, false);
-						addLanguageOption("", "----", true);
+						if (allowedLanguages.indexOf(label) >= 0) {
+							addLanguageOption(label, label, false);
+							addLanguageOption("", "----", true);
+						}
 					}
 
 					addLanguageOption("English", "English", false);
