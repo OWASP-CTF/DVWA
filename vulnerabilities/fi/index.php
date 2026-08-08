@@ -32,8 +32,19 @@ switch( dvwaSecurityLevelGet() ) {
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/fi/source/{$vulnerabilityFile}";
 
 // if( count( $_GET ) )
-if( isset( $file ) )
+if( isset( $file ) ) {
+	// Defence in depth: whatever the security level decided, the sink itself only
+	// ever includes one of the fixed, known-good page names for this challenge.
+	$includableFiles = array( 'include.php', 'file1.php', 'file2.php', 'file3.php' );
+
+	if( !is_string( $file ) || !in_array( $file, $includableFiles, true ) ) {
+		// This isn't the page we want!
+		echo "ERROR: File not found!";
+		exit;
+	}
+
 	include( $file );
+}
 else {
 	header( 'Location:?page=include.php' );
 	exit;

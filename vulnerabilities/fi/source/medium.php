@@ -1,10 +1,29 @@
 <?php
 
-// The page we wish to display
-$file = $_GET[ 'page' ];
+// Strict allowlist - the only pages this challenge is ever allowed to include.
+// The key is what the user may ask for, the value is the fixed file name we use.
+$allowed_pages = array(
+	'include.php' => 'include.php',
+	'file1.php'   => 'file1.php',
+	'file2.php'   => 'file2.php',
+	'file3.php'   => 'file3.php',
+);
 
-// Input validation
-$file = str_replace( array( "http://", "https://" ), "", $file );
-$file = str_replace( array( "../", "..\\" ), "", $file );
+if( isset( $_GET[ 'page' ] ) ) {
+	// The page we wish to display
+	$page_requested = is_string( $_GET[ 'page' ] ) ? $_GET[ 'page' ] : '';
+
+	// Input validation: an allowlist, not a blocklist. Stripping "../" or
+	// "http://" is bypassable ("....//", "hthttp://tp://", absolute paths), so
+	// reject null bytes and anything that is not an exact allowlisted page name.
+	if( strpos( $page_requested, "\0" ) !== false || !array_key_exists( $page_requested, $allowed_pages ) ) {
+		// This isn't the page we want!
+		echo "ERROR: File not found!";
+		exit;
+	}
+
+	// Only ever hand a fixed, known-good file name to include() - never user input
+	$file = $allowed_pages[ $page_requested ];
+}
 
 ?>

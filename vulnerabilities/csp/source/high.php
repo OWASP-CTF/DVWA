@@ -1,13 +1,24 @@
 <?php
-$headerCSP = "Content-Security-Policy: script-src 'self';";
+
+/*
+ * script-src 'self' is only as strong as the weakest script this origin will
+ * serve. A JSONP endpoint that echoes back a caller supplied callback name is
+ * an arbitrary script generator sitting on the allowed origin, so the callback
+ * is now restricted to an allow list in source/jsonp.php.
+ */
+
+$headerCSP = "Content-Security-Policy: script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self';";
 
 header($headerCSP);
 
 ?>
 <?php
+
+// Defence in depth, the value never reaches the browser as markup.
 if (isset ($_POST['include'])) {
-$page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	$include = is_string ($_POST['include']) ? $_POST['include'] : "";
+	$page[ 'body' ] .= "
+	" . htmlspecialchars ($include, ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '
@@ -19,4 +30,3 @@ $page[ 'body' ] .= '
 
 <script src="source/high.js"></script>
 ';
-

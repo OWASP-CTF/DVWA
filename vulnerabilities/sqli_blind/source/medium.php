@@ -7,33 +7,40 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			$id = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $id ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-
 			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+			// The user supplied id is bound as a parameter, so it can never be parsed as SQL.
+			// (Escaping is not used here: an escaped value dropped into an unquoted numeric
+			// context is still injectable, e.g. "1 OR 1=1".)
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
 			} catch (Exception $e) {
 				print "There was an error.";
 				exit;
 			}
 
 			$exists = false;
-			if ($result !== false) {
+			if ($stmt !== false) {
 				try {
-					$exists = (mysqli_num_rows( $result ) > 0); // The '@' character suppresses errors
+					mysqli_stmt_bind_param( $stmt, 'i', $id );
+					mysqli_stmt_execute( $stmt );
+					mysqli_stmt_store_result( $stmt );
+					$exists = (mysqli_stmt_num_rows( $stmt ) > 0);
 				} catch(Exception $e) {
 					$exists = false;
 				}
+				mysqli_stmt_close( $stmt );
 			}
-			
+
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
-			
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id;";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare( $query );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {

@@ -1,13 +1,94 @@
 <?php
-function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+
+/*
+ * Key material is never hard coded in the source. It comes from the
+ * environment if it has been configured there, otherwise a random key is
+ * generated once and kept in a file outside of the web root.
+ */
+
+if (!function_exists ('crypto_secret')) {
+	function crypto_secret() {
+		static $secret = null;
+
+		if ($secret !== null) {
+			return $secret;
+		}
+
+		$env = getenv ('DVWA_CRYPTO_KEY');
+		if ($env !== false && $env !== "") {
+			$secret = $env;
+			return $secret;
+		}
+
+		$key_file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dvwa_crypto.key';
+
+		if (is_readable ($key_file)) {
+			$stored = @file_get_contents ($key_file);
+			if ($stored !== false && $stored !== "") {
+				$secret = $stored;
+				return $secret;
+			}
+		}
+
+		$new = base64_encode (random_bytes (32));
+		if (@file_put_contents ($key_file, $new) !== false) {
+			$secret = $new;
+			return $secret;
+		}
+
+		// Nowhere to persist a key. Fall back to something stable for this
+		// installation rather than changing it on every request.
+		$secret = hash ('sha256', php_uname() . '|' . __FILE__ . '|' . @filemtime (__FILE__));
+		return $secret;
+	}
+}
+
+if (!function_exists ('crypto_key')) {
+	// A separate key is derived for each purpose so that one part of the
+	// application can never be used as an oracle for another.
+	function crypto_key ($context) {
+		return hash_hkdf ('sha256', crypto_secret(), 32, $context);
+	}
+}
+
+/*
+ * ECB leaks structure and lets blocks be cut and pasted between messages, and
+ * any unauthenticated mode lets an attacker tamper with the ciphertext. Use an
+ * AEAD mode with a fresh random IV so that every token is both confidential
+ * and tamper evident.
+ */
+
+function encrypt ($cleartext, $context) {
+	$iv = random_bytes (12);
+	$tag = "";
+
+	$e = openssl_encrypt ($cleartext, 'aes-256-gcm', crypto_key ($context), OPENSSL_RAW_DATA, $iv, $tag);
+	if ($e === false) {
+		throw new Exception ("Encryption failed");
+	}
+
+	return $iv . $e . $tag;
+}
+
+function decrypt ($ciphertext, $context) {
+	// 12 byte IV plus a 16 byte authentication tag is the smallest valid token.
+	if (strlen ($ciphertext) < 28) {
+		throw new Exception ("Decryption failed");
+	}
+
+	$iv = substr ($ciphertext, 0, 12);
+	$tag = substr ($ciphertext, -16);
+	$body = substr ($ciphertext, 12, -16);
+
+	$e = openssl_decrypt ($body, 'aes-256-gcm', crypto_key ($context), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
+
 	return $e;
 }
 
-$key = "ik ben een aardbei";
+$key_context = "dvwa/cryptography/medium/tokens";
 
 $errors = "";
 $success = "";
@@ -15,17 +96,17 @@ $messages = "";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	try {
-		if (!array_key_exists ('token', $_POST)) {
+		if (!array_key_exists ('token', $_POST) || !is_string ($_POST['token'])) {
 			throw new Exception ("No token passed");
 		} else {
-			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
+			$token = trim ($_POST['token']);
+			if ($token === "" || strlen ($token) % 2 != 0 || !ctype_xdigit ($token)) {
 				throw new Exception ("Token is in wrong format");
 			} else {
-				$decrypted = decrypt(hex2bin ($token), $key);
+				$decrypted = decrypt (hex2bin ($token), $key_context);
 
 				$user = json_decode ($decrypted);
-				if ($user === null) {
+				if (!is_object ($user) || !isset ($user->user, $user->ex, $user->level)) {
 					throw new Exception ("Could not decode JSON object.");
 				}
 
@@ -41,6 +122,35 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	}
 }
 
+$sooty_plaintext  = '{"user":"sooty",';
+$sooty_plaintext .= '"ex":1723620672,';
+$sooty_plaintext .= '"level":"admin",';
+$sooty_plaintext .= '"bio":"Izzy wizzy let\'s get busy"}';
+
+$sweep_plaintext  = '{"user":"sweep",';
+$sweep_plaintext .= '"ex":1723620672,';
+$sweep_plaintext .= '"level":"user",';
+$sweep_plaintext .= '"bio":"Squeeeeek"}';
+
+$soo_plaintext  = '{"user":"soo",';
+$soo_plaintext .= '"ex":1823620672,';
+$soo_plaintext .= '"level":"user",';
+$soo_plaintext .= '"bio":"I won The Weakest Link"}';
+
+$sooty_token = "";
+$sweep_token = "";
+$soo_token = "";
+
+try {
+	$sooty_token = bin2hex (encrypt ($sooty_plaintext, $key_context));
+	$sweep_token = bin2hex (encrypt ($sweep_plaintext, $key_context));
+	$soo_token = bin2hex (encrypt ($soo_plaintext, $key_context));
+} catch(Exception $e) {
+	if ($errors == "") {
+		$errors = $e->getMessage();
+	}
+}
+
 $html = "
 		<p>
 		You have managed to get hold of three session tokens for an application you think is using poor cryptography to protect its secrets:
@@ -49,19 +159,19 @@ $html = "
 		<strong>Sooty (admin), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>e287af752ed3f9601befd45726785bd9b85bb230876912bf3c66e50758b222d0837d1e6b16bfae07b776feb7afe576305aec34b41499579d3fb6acc8dc92fd5fcea8743c3b2904de83944d6b19733cdb48dd16048ed89967c250ab7f00629dba</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($sooty_token) . "</textarea>
 		</p>
 		<p>
 		<strong>Sweep (user), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>3061837c4f9debaf19d4539bfa0074c1b85bb230876912bf3c66e50758b222d083f2d277d9e5fb9a951e74bee57c77a3caeb574f10f349ed839fbfd223903368873580b2e3e494ace1e9e8035f0e7e07</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($sweep_token) . "</textarea>
 		</p>
 		<p>
 		<strong>Soo (user), session valid</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>5fec0b1c993f46c8bad8a5c8d9bb9698174d4b2659239bbc50646e14a70becef83f2d277d9e5fb9a951e74bee57c77a3c9acb1f268c06c5e760a9d728e081fab65e83b9f97e65cb7c7c4b8427bd44abc16daa00fd8cd0105c97449185be77ef5</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($soo_token) . "</textarea>
 		</p>
 		<p>
 		Based on the documentation, you know the format of the token is:
@@ -76,7 +186,7 @@ $html = "
 You also spot this comment in the docs:
 </p>
 <blockquote><i>
-To ensure your security, we use aes-128-ecb throughout our application.
+To ensure your security, we use authenticated encryption (AES-256-GCM with a random IV per token) throughout our application.
 </i></blockquote>
 
 		<hr>
@@ -85,19 +195,19 @@ To ensure your security, we use aes-128-ecb throughout our application.
 ";
 
 if ($errors != "") {
-	$html .= '<div class="warning">' . $errors . '</div>';
+	$html .= '<div class="warning">' . htmlentities ($errors) . '</div>';
 }
 
 if ($messages != "") {
-	$html .= '<div class="nearly">' . $messages . '</div>';
+	$html .= '<div class="nearly">' . htmlentities ($messages) . '</div>';
 }
 
 if ($success != "") {
-	$html .= '<div class="success">' . $success . '</div>';
+	$html .= '<div class="success">' . htmlentities ($success) . '</div>';
 }
 
 $html .= "
-		<form name=\"ecb\" method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form name=\"ecb\" method='post' action=\"" . htmlspecialchars ($_SERVER['PHP_SELF'], ENT_QUOTES, 'UTF-8') . "\">
 			<p>
 				<label for='token'>Token:</lable><br />
 <textarea style='width: 600px; height: 56px' id='token' name='token'></textarea>

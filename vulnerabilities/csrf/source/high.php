@@ -30,7 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 
 if ($change) {
 	// Check Anti-CSRF token
-	checkToken( $token, $_SESSION[ 'session_token' ], 'index.php' );
+	$user_token    = ( isset( $token ) && is_string( $token ) ) ? $token : '';
+	$session_token = ( isset( $_SESSION[ 'session_token' ] ) && is_string( $_SESSION[ 'session_token' ] ) ) ? $_SESSION[ 'session_token' ] : '';
+
+	// A missing session token can never be matched, and the comparison is constant time
+	if( $session_token === '' || !hash_equals( $session_token, $user_token ) ) {
+		dvwaMessagePush( 'CSRF token is incorrect' );
+		dvwaRedirect( 'index.php' );
+	}
+	checkToken( $user_token, $session_token, 'index.php' );
 
 	// Do the passwords match?
 	if( $pass_new == $pass_conf ) {

@@ -36,13 +36,14 @@ final class User
 	}
 
 	public function toArray($version) {
+		# The password hash is never part of the representation returned to a
+		# caller, whichever version of the API they are talking to.
 		switch ($version) {
 			case 1:
 				$a = array (
 					"id" => $this->id,
 					"name" => $this->name,
 					"level" => $this->level,
-					"password" => $this->password,
 				);
 				break;
 			default:

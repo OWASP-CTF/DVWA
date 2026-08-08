@@ -14,21 +14,21 @@ if( isset( $_POST[ 'Change' ] ) ) {
 		$_POST['g-recaptcha-response']
 	);
 
-	if (
-		$resp || 
-		(
-			$_POST[ 'g-recaptcha-response' ] == 'hidd3n_valu3'
-			&& $_SERVER[ 'HTTP_USER_AGENT' ] == 'reCAPTCHA'
-		)
-	){
+	// The 3rd party verification is the only thing that can pass the CAPTCHA:
+	// no magic response value and no User-Agent short cut. This flow is a
+	// single request, so the CAPTCHA is verified for the request that uses it
+	// and there is no passed state to carry over (or to replay).
+	if( $resp ) {
 		// CAPTCHA was correct. Do both new passwords match?
 		if ($pass_new == $pass_conf) {
 			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 			$pass_new = md5( $pass_new );
 
 			// Update database
-			$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . dvwaCurrentUser() . "' LIMIT 1;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+			$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user) LIMIT 1;' );
+			$data->bindParam( ':password', $pass_new, PDO::PARAM_STR );
+			$data->bindValue( ':user', dvwaCurrentUser(), PDO::PARAM_STR );
+			$data->execute();
 
 			// Feedback for user
 			$html .= "<pre>Password Changed.</pre>";
@@ -45,8 +45,6 @@ if( isset( $_POST[ 'Change' ] ) ) {
 		$hide_form = false;
 		return;
 	}
-
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
 
 // Generate Anti-CSRF token

@@ -8,6 +8,9 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
+	// Starting the flow again voids any CAPTCHA this session passed before
+	unset( $_SESSION[ 'captcha_passed' ] );
+
 	// Check CAPTCHA from 3rd party
 	$resp = recaptcha_check_answer(
 		$_DVWA[ 'recaptcha_private_key' ],
@@ -24,6 +27,10 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// Record - server side only - that this session passed the CAPTCHA.
+			// A hidden form field would be under the attacker's control.
+			$_SESSION[ 'captcha_passed' ] = true;
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
@@ -31,7 +38,6 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
 					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
 					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
-					<input type=\"hidden\" name=\"passed_captcha\" value=\"true\" />
 					<input type=\"submit\" name=\"Change\" value=\"Change\" />
 				</form>";
 		}
@@ -51,12 +57,16 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if they did stage 1 - only the server side session state is
+	// trusted here, never a value that came back with the request.
+	if( !isset( $_SESSION[ 'captcha_passed' ] ) || ( $_SESSION[ 'captcha_passed' ] !== true ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+
+	// A passed CAPTCHA is good for one password change only
+	unset( $_SESSION[ 'captcha_passed' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
@@ -65,8 +75,10 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 		$pass_new = md5( $pass_new );
 
 		// Update database
-		$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . dvwaCurrentUser() . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+		$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user);' );
+		$data->bindParam( ':password', $pass_new, PDO::PARAM_STR );
+		$data->bindValue( ':user', dvwaCurrentUser(), PDO::PARAM_STR );
+		$data->execute();
 
 		// Feedback for the end user
 		$html .= "<pre>Password Changed.</pre>";
@@ -76,8 +88,6 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 		$html .= "<pre>Passwords did not match.</pre>";
 		$hide_form = false;
 	}
-
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
 
 ?>

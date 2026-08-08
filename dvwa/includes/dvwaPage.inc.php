@@ -614,14 +614,19 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
-			$name    = htmlspecialchars( $row[0] );
-			$comment = htmlspecialchars( $row[1] );
-		}
-		else {
-			$name    = $row[0];
-			$comment = $row[1];
-		}
+		// CWE-79: stored guestbook entries are attacker controlled and were emitted raw at
+		// every level below 'impossible', so a payload written straight into the table (or
+		// stored before the input side was hardened) still executed on render. Encode on
+		// output unconditionally -- the output context is the only place that can know the
+		// correct escaping.
+		//
+		// double_encode is deliberately left at its default of true. Disabling it would
+		// preserve pre-existing entities, so a stored payload spelled &#60;script&#62;
+		// would pass through untouched and the browser would decode it straight back into
+		// a live tag. Re-encoding an already-encoded value is merely cosmetic, and is what
+		// the 'impossible' level has always done, since its source encodes on input too.
+		$name    = htmlspecialchars( $row[0], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$comment = htmlspecialchars( $row[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}

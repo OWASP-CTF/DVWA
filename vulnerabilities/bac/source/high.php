@@ -16,7 +16,12 @@ $current_user_id = intval($user_info['user_id']);
 $role = $user_info['role'];
 mysqli_stmt_close($stmt);
 
-// Better access control (but still vulnerable to session fixation)
+// Keep the session copy of the user id in step with the authenticated user so
+// a stale value carried over from an earlier login can never be reused.
+$_SESSION['user_id'] = $current_user_id;
+
+// Access control is decided from the authenticated user, not from a value
+// that could have been fixated in the session before login.
 $html = "";
 if (isset($_GET['action']) && isset($_GET['user_id'])) {
     if (!preg_match('/^\d+$/', $_GET['user_id'])) {
@@ -36,11 +41,12 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         if (!$user_exists) {
             $html .= "<p>No user found with ID: {$id}</p>";
         } else {
-            // "Secure" session-based check (but vulnerable to session fixation)
-            if (isset($_SESSION['user_id'])) {
-                $session_id = intval($_SESSION['user_id']);
+            // Session based check, the id compared against is the one loaded
+            // from the database for the currently authenticated user.
+            if ($current_user_id > 0) {
+                $session_id = $current_user_id;
 
-                if ($id == $session_id) {
+                if ($id === $session_id) {
                     // Access granted - using prepared statement
                     $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = ?";
                     $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
@@ -101,10 +107,5 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
             // Silently fail if logging doesn't work
         }
     }
-}
-
-// Set initial session if not exists
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = $current_user_id;
 }
 ?>

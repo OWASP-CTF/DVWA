@@ -67,8 +67,10 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
-	$page[ 'body' ] .= "			" . tokenField();
+// The Anti-CSRF token is required at every security level, so always render the
+// hidden field. Every source/*.php calls generateSessionToken() before we get
+// here, so $_SESSION[ 'session_token' ] is always populated at this point.
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>

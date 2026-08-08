@@ -31,37 +31,51 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
-
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
 	<h1>Vulnerability: DOM Based Cross Site Scripting (XSS)</h1>
 
 	<div class="vulnerable_code_area">
- 
- 		<p>Please choose a language:</p>
+
+		<p>Please choose a language:</p>
 
 		<form name="XSS" method="GET">
-			<select name="default">
-				<script>
-					if (document.location.href.indexOf("default=") >= 0) {
-						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
-						document.write("<option value='' disabled='disabled'>----</option>");
-					}
-					    
-					document.write("<option value='English'>English</option>");
-					document.write("<option value='French'>French</option>");
-					document.write("<option value='Spanish'>Spanish</option>");
-					document.write("<option value='German'>German</option>");
-				</script>
-			</select>
+			<select name="default"></select>
 			<input type="submit" value="Select" />
 		</form>
+		<script>
+			(function () {
+				// The only values that may ever be rendered into this page.
+				var allowedLanguages = [ "English", "French", "Spanish", "German" ];
+				var langSelect = document.forms["XSS"].elements["default"];
+
+				function addLanguage( value, label, disabled ) {
+					var option = document.createElement( "option" );
+					option.value = value;
+					// textContent (never innerHTML or document.write) means the
+					// value is always inserted as text and can never become markup.
+					option.textContent = label;
+					if ( disabled ) {
+						option.disabled = true;
+					}
+					langSelect.appendChild( option );
+				}
+
+				// Read the language from the query string only. The URL fragment is
+				// deliberately ignored: it is never sent to the server, so it cannot
+				// be validated there and must not be allowed to reach the DOM.
+				var requested = new URLSearchParams( window.location.search ).get( "default" );
+
+				if ( requested !== null && allowedLanguages.indexOf( requested ) !== -1 ) {
+					addLanguage( requested, requested, false );
+					addLanguage( "", "----", true );
+				}
+
+				for ( var i = 0; i < allowedLanguages.length; i++ ) {
+					addLanguage( allowedLanguages[i], allowedLanguages[i], false );
+				}
+			})();
+		</script>
 	</div>
 EOF;
 
