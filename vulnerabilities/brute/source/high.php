@@ -41,8 +41,8 @@ if( isset( $_GET[ 'Login' ] ) ) {
 			}
 		}
 
-		// Guessing at machine speed is refused before the failure count can catch up
-		if( ( time() - $last_login ) < $attempt_interval ) {
+		// Once an attempt has failed, guessing at machine speed is refused too
+		if( ( $row[ 'failed_login' ] > 0 ) && ( ( time() - $last_login ) < $attempt_interval ) ) {
 			$account_locked = true;
 		}
 	}
