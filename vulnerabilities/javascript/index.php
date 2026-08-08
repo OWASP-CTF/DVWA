@@ -29,47 +29,39 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+// The level's source file issues and checks the per-render token, so it has to be loaded
+// before the submission is judged and before the form is built.
+$javascriptSource = '';
+require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/javascript/source/{$vulnerabilityFile}";
+
 $message = "";
-// Check what was sent in to see if it was what was expected
-if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
+$js_token = "";
 
-		$phrase = $_POST['phrase'];
-		$token = $_POST['token'];
+if ( dvwaSecurityLevelGet() != "impossible" ) {
+	// Check what was sent in to see if it was what was expected
+	if ($_SERVER['REQUEST_METHOD'] == "POST") {
+		if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
 
-		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
+			$phrase = $_POST['phrase'];
+			$token = $_POST['token'];
+			$js_token_sent = array_key_exists ("js_token", $_POST) ? $_POST['js_token'] : "";
+
+			if ($phrase == "success") {
+				if (javascriptCheckToken($token, $js_token_sent)) {
+					$message = "<p style='color:red'>Well done!</p>";
+				} else {
+					$message = "<p>Invalid token.</p>";
+				}
+			} else {
+				$message = "<p>You got the phrase wrong.</p>";
 			}
 		} else {
-			$message = "<p>You got the phrase wrong.</p>";
+			$message = "<p>Missing phrase or token.</p>";
 		}
-	} else {
-		$message = "<p>Missing phrase or token.</p>";
 	}
+
+	// Only issue the next token once the submitted one has been judged against the old one.
+	$js_token = javascriptIssueToken();
 }
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
@@ -95,6 +87,7 @@ $page[ 'body' ] = <<<EOF
 	$message
 
 	<form name="low_js" method="post">
+		<input type="hidden" name="js_token" value="$js_token" />
 		<input type="hidden" name="token" value="" id="token" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
@@ -102,7 +95,7 @@ $page[ 'body' ] = <<<EOF
 EOF;
 }
 
-require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/javascript/source/{$vulnerabilityFile}";
+$page[ 'body' ] .= $javascriptSource;
 
 $page[ 'body' ] .= <<<EOF
 	</div>
