@@ -5,12 +5,20 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 	$id = $_COOKIE[ 'id' ];
 	$exists = false;
 
+	// Only a number can be a user id
+	$id = is_numeric( $id ) ? intval( $id ) : null;
+
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT first_name, last_name FROM users WHERE user_id = ? LIMIT 1;");
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$result = false;
+				if ($stmt !== false && $id !== null) {
+					mysqli_stmt_bind_param($stmt, "i", $id);
+					mysqli_stmt_execute($stmt);
+					$result = mysqli_stmt_get_result($stmt);
+				}
 			} catch (Exception $e) {
 				$result = false;
 			}
@@ -30,10 +38,11 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
 			try {
-				$results = $sqlite_db_connection->query($query);
-				$row = $results->fetchArray();
+				$stmt = $sqlite_db_connection->prepare("SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;");
+				$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+				$results = $id === null ? false : $stmt->execute();
+				$row = $results === false ? false : $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {
 				$exists = false;
