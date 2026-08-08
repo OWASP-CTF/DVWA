@@ -90,8 +90,11 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                 mysqli_query($GLOBALS["___mysqli_ston"], $create_table);
             }
 
-            // Log the access attempt with prepared statement
-            $ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'];
+            // Log the access attempt with prepared statement. The address is
+            // the one the connection actually came from - X-Forwarded-For is
+            // set by whoever sent the request, so trusting it lets an attacker
+            // write whatever they like into the audit trail.
+            $ip = $_SERVER['REMOTE_ADDR'];
             $target_id = $user_exists ? $id : 0; // Use 0 for non-existent users
 
             $log_query = "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES (?, ?, ?)";

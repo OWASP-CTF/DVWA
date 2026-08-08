@@ -69,12 +69,20 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                 mysqli_query($GLOBALS["___mysqli_ston"], $create_table);
             }
             
-            // Log the access attempt
-            $ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'];
+            // Log the access attempt. The address is the one the connection
+            // actually came from - X-Forwarded-For is set by whoever sent the
+            // request, so trusting it both lets an attacker poison the audit
+            // trail and, since it used to be concatenated straight into the
+            // query below, was a SQL injection vector via that header.
+            $ip = $_SERVER['REMOTE_ADDR'];
             $target_id = $user_exists ? $id : 0; // Use 0 for non-existent users
-            $log_query = "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES 
-                        ({$current_user_id}, {$target_id}, '{$ip}')";
-            mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
+            $log_query = "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES (?, ?, ?)";
+            $log_stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $log_query);
+            if ($log_stmt) {
+                mysqli_stmt_bind_param($log_stmt, "iis", $current_user_id, $target_id, $ip);
+                mysqli_stmt_execute($log_stmt);
+                mysqli_stmt_close($log_stmt);
+            }
         } catch (Exception $e) {
             // Silently fail if logging doesn't work
         }
