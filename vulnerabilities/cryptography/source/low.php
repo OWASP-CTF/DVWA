@@ -18,9 +18,19 @@ $encode_radio_selected = " checked='checked' ";
 $decode_radio_selected = " ";
 $message = "";
 
-// The secret the demo message carries. Kept out of the encoding routine so the
-// comparison below never treats attacker supplied data as anything but data.
-$expected_password = "Olifant";
+/*
+ * The secret the intercepted message carries.
+ *
+ * It used to be the literal "Olifant", which is the published answer for this
+ * module: posting that one word logged you in without decoding anything, so
+ * replacing the cipher underneath it changed nothing that mattered. The value
+ * is now generated per session, so the only way to produce it is to actually
+ * decrypt the message.
+ */
+if( !isset( $_SESSION[ 'crypto_low_password' ] ) ) {
+	$_SESSION[ 'crypto_low_password' ] = bin2hex( random_bytes( 8 ) );
+}
+$expected_password = $_SESSION[ 'crypto_low_password' ];
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	try {
