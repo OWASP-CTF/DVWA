@@ -1,17 +1,20 @@
 <?php
 
-if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
+if( isset( $_POST[ 'Change' ] ) && isset( $_POST[ 'step' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
+	// Any previous CAPTCHA pass is void once a new attempt starts
+	unset( $_SESSION[ 'captcha_passed' ] );
+
 	// Get input
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
+	$pass_new  = isset( $_POST[ 'password_new' ] )  ? $_POST[ 'password_new' ]  : '';
+	$pass_conf = isset( $_POST[ 'password_conf' ] ) ? $_POST[ 'password_conf' ] : '';
 
 	// Check CAPTCHA from 3rd party
 	$resp = recaptcha_check_answer(
 		$_DVWA[ 'recaptcha_private_key' ],
-		$_POST['g-recaptcha-response']
+		isset( $_POST['g-recaptcha-response'] ) ? $_POST['g-recaptcha-response'] : ''
 	);
 
 	// Did the CAPTCHA fail?
@@ -24,6 +27,11 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// The state variable now lives server side, so the client cannot
+			// forge it by sending passed_captcha=true.
+			$_SESSION[ 'captcha_passed' ] = true;
+
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
@@ -43,20 +51,25 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	}
 }
 
-if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
+if( isset( $_POST[ 'Change' ] ) && isset( $_POST[ 'step' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
-	// Get input
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
-
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if they did stage 1. The state is read from the session,
+	// never from the request, so the hidden passed_captcha field carries no
+	// authority.
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+
+	// Single use - consume the token before doing anything with it
+	unset( $_SESSION[ 'captcha_passed' ] );
+
+	// Get input
+	$pass_new  = isset( $_POST[ 'password_new' ] )  ? $_POST[ 'password_new' ]  : '';
+	$pass_conf = isset( $_POST[ 'password_conf' ] ) ? $_POST[ 'password_conf' ] : '';
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {

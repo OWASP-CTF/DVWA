@@ -31,12 +31,6 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
-
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
 	<h1>Vulnerability: DOM Based Cross Site Scripting (XSS)</h1>
@@ -48,10 +42,22 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
+					// The querystring value is attacker controlled, so it is never written
+					// into the document as-is. Only an exact match against the known set of
+					// supported languages is ever rendered, at every security level.
+					var allowedLanguages = ["English", "French", "Spanish", "German"];
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
-						document.write("<option value='' disabled='disabled'>----</option>");
+						lang = lang.split("&")[0].split("#")[0];
+						try {
+							lang = decodeURIComponent(lang);
+						} catch (e) {
+							lang = "";
+						}
+						if (allowedLanguages.indexOf(lang) >= 0) {
+							document.write("<option value='" + lang + "'>" + lang + "</option>");
+							document.write("<option value='' disabled='disabled'>----</option>");
+						}
 					}
 					    
 					document.write("<option value='English'>English</option>");

@@ -80,12 +80,31 @@ class HealthController
     )   
     ]
 	
+	# Only an IPv4/IPv6 address or a plain hostname is an acceptable ping target.
+	private function isValidTarget($target) {
+		if (filter_var ($target, FILTER_VALIDATE_IP) !== false) {
+			return true;
+		}
+		return preg_match ('/^[a-zA-Z0-9]([a-zA-Z0-9\-\.]{0,253}[a-zA-Z0-9])?$/', $target) === 1;
+	}
+
 	private function checkConnectivity() {
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("target", $input)) {
 			$target = $input['target'];
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			# The target is passed to a shell command so it must be an allowlisted
+			# IP address or hostname. JSON can supply arrays/objects/numbers so the
+			# type is checked before anything else.
+			if (!is_string ($target) || !$this->isValidTarget ($target)) {
+				$response['status_code_header'] = 'HTTP/1.1 422 Unprocessable Entity';
+				$response['body'] = json_encode (array ("status" => "Invalid target"));
+				return $response;
+			}
+
+			# Defence in depth: even though the target is allowlisted above, quote it
+			# so it can never be parsed as extra shell syntax.
+			exec ("ping -c 4 " . escapeshellarg ($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

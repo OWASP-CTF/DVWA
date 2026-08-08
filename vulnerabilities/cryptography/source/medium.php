@@ -1,6 +1,23 @@
 <?php
-function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+# Tokens are protected with an authenticated cipher (AES-256-GCM).
+# The wire format is: IV (12 bytes) || ciphertext || tag (16 bytes)
+# The tag is verified on decryption, so cut-and-paste / block splicing of
+# ciphertext from other tokens is rejected instead of silently decrypting.
+
+define ("MEDIUM_ALGO", "aes-256-gcm");
+define ("MEDIUM_IV_LENGTH", 12);
+define ("MEDIUM_TAG_LENGTH", 16);
+
+function decrypt ($raw, $key) {
+	if (!is_string ($raw) || strlen ($raw) <= MEDIUM_IV_LENGTH + MEDIUM_TAG_LENGTH) {
+		throw new Exception ("Token is in wrong format");
+	}
+
+	$iv         = substr ($raw, 0, MEDIUM_IV_LENGTH);
+	$tag        = substr ($raw, -MEDIUM_TAG_LENGTH);
+	$ciphertext = substr ($raw, MEDIUM_IV_LENGTH, -MEDIUM_TAG_LENGTH);
+
+	$e = openssl_decrypt($ciphertext, MEDIUM_ALGO, $key, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -18,14 +35,17 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (!array_key_exists ('token', $_POST)) {
 			throw new Exception ("No token passed");
 		} else {
-			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
+			$token = is_string ($_POST['token']) ? trim ($_POST['token']) : "";
+			# Expect hex encoding of IV || ciphertext || tag, so at minimum
+			# 12 + 1 + 16 bytes = 58 hex characters, and an even length.
+			if (strlen ($token) < 58 || strlen ($token) % 2 != 0 || !ctype_xdigit ($token)) {
 				throw new Exception ("Token is in wrong format");
 			} else {
 				$decrypted = decrypt(hex2bin ($token), $key);
 
 				$user = json_decode ($decrypted);
-				if ($user === null) {
+				if ($user === null || !is_object ($user) ||
+					!isset ($user->user) || !isset ($user->ex) || !isset ($user->level)) {
 					throw new Exception ("Could not decode JSON object.");
 				}
 
