@@ -1,6 +1,10 @@
 <?php
 
 if( isset( $_POST[ 'Change' ] ) ) {
+	// Check Anti-CSRF token. index.php already renders the token field at
+	// this level; it was never actually being verified here.
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
