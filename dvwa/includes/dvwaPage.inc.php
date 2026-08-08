@@ -638,7 +638,8 @@ function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the
 		return true;
 	}
 
-	if( $user_token !== $session_token || !isset( $session_token ) ) {
+	if( !isset( $session_token ) || !is_string( $user_token )
+	    || !hash_equals( (string)$session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -648,7 +649,7 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = md5( uniqid() );
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
