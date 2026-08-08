@@ -1,13 +1,51 @@
 <?php
+// ECB encrypts every 16-byte block independently and with no integrity
+// check, so identical plaintext blocks produce identical ciphertext blocks
+// and the blocks of any two captured tokens can be shuffled or spliced at
+// will -- which is exactly how a "user" token was turned into an "admin"
+// one, without the key. AES-256-GCM binds the whole token together: a fresh
+// IV per token kills the block-equality leak, and the authentication tag
+// makes any splice or reorder fail outright.
+
+define ("CRYPTO_MED_ALGO", "aes-256-gcm");
+define ("CRYPTO_MED_IV_LENGTH", 12);
+define ("CRYPTO_MED_TAG_LENGTH", 16);
+
+function encrypt_token ($cleartext, $key) {
+	$iv = random_bytes (CRYPTO_MED_IV_LENGTH);
+	$tag = "";
+
+	$e = openssl_encrypt($cleartext, CRYPTO_MED_ALGO, $key, OPENSSL_RAW_DATA, $iv, $tag, "", CRYPTO_MED_TAG_LENGTH);
+	if ($e === false) {
+		throw new Exception ("Encryption failed");
+	}
+
+	return bin2hex ($iv . $e . $tag);
+}
+
 function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+	if (strlen ($ciphertext) <= CRYPTO_MED_IV_LENGTH + CRYPTO_MED_TAG_LENGTH) {
+		throw new Exception ("Decryption failed");
+	}
+
+	$iv   = substr ($ciphertext, 0, CRYPTO_MED_IV_LENGTH);
+	$tag  = substr ($ciphertext, -CRYPTO_MED_TAG_LENGTH);
+	$body = substr ($ciphertext, CRYPTO_MED_IV_LENGTH, -CRYPTO_MED_TAG_LENGTH);
+
+	$e = openssl_decrypt($body, CRYPTO_MED_ALGO, $key, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
 	return $e;
 }
 
-$key = "ik ben een aardbei";
+// The signing key is generated per session rather than being a phrase in the
+// source of a page anyone can view.
+if (!isset ($_SESSION['crypto_medium_key'])) {
+	$_SESSION['crypto_medium_key'] = random_bytes (32);
+}
+
+$key = $_SESSION['crypto_medium_key'];
 
 $errors = "";
 $success = "";
@@ -19,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			throw new Exception ("No token passed");
 		} else {
 			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
+			if (!ctype_xdigit ($token) || strlen ($token) % 2 != 0) {
 				throw new Exception ("Token is in wrong format");
 			} else {
 				$decrypted = decrypt(hex2bin ($token), $key);
@@ -41,6 +79,13 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	}
 }
 
+// The captured tokens are reissued under the current scheme so the exercise
+// still has real material to work with -- they are simply no longer
+// splice-able into an admin token.
+$captured_sooty = encrypt_token (json_encode (array ("user" => "sooty", "ex" => time() - 86400, "level" => "admin", "bio" => "blah")), $key);
+$captured_sweep = encrypt_token (json_encode (array ("user" => "sweep", "ex" => time() - 86400, "level" => "user",  "bio" => "blah")), $key);
+$captured_soo   = encrypt_token (json_encode (array ("user" => "soo",   "ex" => time() + 86400, "level" => "user",  "bio" => "blah")), $key);
+
 $html = "
 		<p>
 		You have managed to get hold of three session tokens for an application you think is using poor cryptography to protect its secrets:
@@ -49,19 +94,19 @@ $html = "
 		<strong>Sooty (admin), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>e287af752ed3f9601befd45726785bd9b85bb230876912bf3c66e50758b222d0837d1e6b16bfae07b776feb7afe576305aec34b41499579d3fb6acc8dc92fd5fcea8743c3b2904de83944d6b19733cdb48dd16048ed89967c250ab7f00629dba</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($captured_sooty) . "</textarea>
 		</p>
 		<p>
 		<strong>Sweep (user), session expired</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>3061837c4f9debaf19d4539bfa0074c1b85bb230876912bf3c66e50758b222d083f2d277d9e5fb9a951e74bee57c77a3caeb574f10f349ed839fbfd223903368873580b2e3e494ace1e9e8035f0e7e07</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($captured_sweep) . "</textarea>
 		</p>
 		<p>
 		<strong>Soo (user), session valid</strong>
 		</p>
 		<p>
-<textarea style='width: 600px; height: 56px'>5fec0b1c993f46c8bad8a5c8d9bb9698174d4b2659239bbc50646e14a70becef83f2d277d9e5fb9a951e74bee57c77a3c9acb1f268c06c5e760a9d728e081fab65e83b9f97e65cb7c7c4b8427bd44abc16daa00fd8cd0105c97449185be77ef5</textarea>
+<textarea style='width: 600px; height: 56px'>" . htmlentities ($captured_soo) . "</textarea>
 		</p>
 		<p>
 		Based on the documentation, you know the format of the token is:
