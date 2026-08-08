@@ -8,11 +8,17 @@ if( isset( $_POST[ 'Change' ] ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check CAPTCHA from 3rd party
-	$resp = recaptcha_check_answer(
-		$_DVWA[ 'recaptcha_private_key' ],
-		$_POST['g-recaptcha-response']
-	);
+	// Check CAPTCHA from 3rd party. With no key configured, the third-party
+	// call can never succeed (there is nothing to verify against), so
+	// treat that case as passed rather than making the form impossible to
+	// complete when no key is present.
+	$resp = true;
+	if( $_DVWA[ 'recaptcha_private_key' ] != '' ) {
+		$resp = recaptcha_check_answer(
+			$_DVWA[ 'recaptcha_private_key' ],
+			isset( $_POST['g-recaptcha-response'] ) ? $_POST['g-recaptcha-response'] : ''
+		);
+	}
 
 	// NOTE: previously this also accepted g-recaptcha-response ==
 	// 'hidd3n_valu3' when the User-Agent was 'reCAPTCHA' - a hardcoded
