@@ -38,32 +38,21 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$token = $_POST['token'];
 
 		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
+			// The expected token was issued by the server and kept in the
+			// session. Recomputing in PHP what the page had just told the
+			// browser to compute proved nothing: the browser is free to run
+			// something else, so it could always produce the right answer.
+			$expected = isset($_SESSION['js_token']) ? $_SESSION['js_token'] : '';
+
+			if ($expected !== '' && is_string($token) && hash_equals($expected, $token)) {
+				$message = "<p style='color:red'>Well done!</p>";
+			} else {
+				$message = "<p>Invalid token.</p>";
 			}
+
+			// One shot: burn it whether it matched or not, so a captured token
+			// cannot be replayed.
+			unset($_SESSION['js_token']);
 		} else {
 			$message = "<p>You got the phrase wrong.</p>";
 		}
@@ -83,6 +72,10 @@ $page[ 'body' ] = <<<EOF
 	</p>
 EOF;
 } else {
+// Issue a fresh single use token for this render.
+$_SESSION['js_token'] = bin2hex(random_bytes(32));
+$js_token = $_SESSION['js_token'];
+
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
 	<h1>Vulnerability: JavaScript Attacks</h1>
@@ -95,7 +88,7 @@ $page[ 'body' ] = <<<EOF
 	$message
 
 	<form name="low_js" method="post">
-		<input type="hidden" name="token" value="" id="token" />
+		<input type="hidden" name="token" value="$js_token" id="token" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>
