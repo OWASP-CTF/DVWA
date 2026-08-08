@@ -5,10 +5,12 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On impossible only the admin is allowed to retrieve the data.
+Only the admin is allowed to change the data. The check is applied here, on the
+endpoint itself, not just on the page that calls it, and it is applied at every
+security level.
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+if (!dvwaIsLoggedIn() || dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
@@ -44,8 +46,25 @@ try {
 	exit;
 }
 
-$query = "UPDATE users SET first_name = '" . $data->first_name . "', last_name = '" .  $data->surname . "' where user_id = " . $data->id . "";
-$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+// Prepared statement, so nothing supplied in the JSON body can be parsed as SQL.
+$first_name = isset( $data->first_name ) ? (string)$data->first_name : '';
+$surname    = isset( $data->surname )    ? (string)$data->surname    : '';
+$user_id    = isset( $data->id )         ? intval( $data->id )       : 0;
+
+$query = "UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?";
+$stmt  = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+if (!$stmt) {
+	print json_encode (array ("result" => "fail", "error" => "Unable to save"));
+	exit;
+}
+mysqli_stmt_bind_param($stmt, "ssi", $first_name, $surname, $user_id);
+$ok = mysqli_stmt_execute($stmt);
+mysqli_stmt_close($stmt);
+
+if (!$ok) {
+	print json_encode (array ("result" => "fail", "error" => "Unable to save"));
+	exit;
+}
 
 print json_encode (array ("result" => "ok"));
 exit;
