@@ -218,12 +218,13 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		if (array_key_exists ("name", $input)) {
-			$this->data[$id]->name = $input['name'];
-		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
-		}
+		// Mass assignment: this endpoint is only documented/intended to
+		// update "name" (see UserUpdate / validateUpdate above). Blindly
+		// applying every key the caller sends - including "level" - let
+		// anyone silently promote themselves to admin by adding an
+		// undocumented field to the request body. Only ever apply the
+		// fields this endpoint is actually meant to update.
+		$this->data[$id]->name = $input['name'];
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;
