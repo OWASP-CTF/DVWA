@@ -6,31 +6,29 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			// Check database, using a prepared statement so the input can never
-			// be parsed as SQL.
-			$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;' );
-			$data->bindParam( ':id', $id, PDO::PARAM_STR );
-			$data->execute();
+			// Check database
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query ) or die( '<pre>Something went wrong.</pre>' );
 
 			// Get results
-			while( $row = $data->fetch() ) {
+			while( $row = mysqli_fetch_assoc( $result ) ) {
 				// Get values
 				$first = $row["first_name"];
 				$last  = $row["last_name"];
 
 				// Feedback for end user
-				$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
+				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 			}
 
-			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);		
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
 
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			#print $query;
 			try {
-				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;' );
-				$stmt->bindValue( ':id', $id, SQLITE3_TEXT );
-				$results = $stmt->execute();
+				$results = $sqlite_db_connection->query($query);
 			} catch (Exception $e) {
 				echo 'Caught exception: ' . $e->getMessage();
 				exit();
@@ -43,7 +41,7 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 					$last  = $row["last_name"];
 
 					// Feedback for end user
-					$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
+					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 				}
 			} else {
 				echo "Error in fetch ".$sqlite_db->lastErrorMsg();

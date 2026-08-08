@@ -1,23 +1,16 @@
 <?php
 
 if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
-	$target = "";
-
-	// Only ever redirect to the local info page, rebuilt from a numeric id, so
-	// the destination can never be chosen by whoever crafted the link.
-	if (preg_match ('/^info\.php\?id=([0-9]{1,9})$/', $_GET['redirect'], $matches)) {
-		$target = "info.php?id=" . intval ($matches[1]);
-	}
-
-	if ($target != "") {
-		header ("location: " . $target);
+	if (preg_match ("/http:\/\/|https:\/\//i", $_GET['redirect'])) {
+		http_response_code (500);
+		?>
+		<p>Absolute URLs not allowed.</p>
+		<?php
+		exit;
+	} else {
+		header ("location: " . $_GET['redirect']);
 		exit;
 	}
-
-	?>
-	<p>You can only redirect to the info page.</p>
-	<?php
-	exit;
 }
 
 http_response_code (500);
