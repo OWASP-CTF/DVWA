@@ -1,15 +1,19 @@
 <?php
 
-if( isset( $_POST[ 'Change' ] ) ) {
+// Read through $_REQUEST so the handler works whichever way the change arrives.
+// The form posts, which keeps the new password out of the URL, but what stops
+// a forged request is the Anti-CSRF token and the current-password check, not
+// the HTTP verb.
+if( isset( $_REQUEST[ 'Change' ] ) ) {
 	// Check Anti-CSRF token
 	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
 	// Reference implementation: token, re-authentication and bound parameters.
 
 	// Get input
-	$pass_curr = $_POST[ 'password_current' ];
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
+	$pass_curr = isset( $_REQUEST[ 'password_current' ] ) ? $_REQUEST[ 'password_current' ] : '';
+	$pass_new  = isset( $_REQUEST[ 'password_new' ] ) ? $_REQUEST[ 'password_new' ] : '';
+	$pass_conf = isset( $_REQUEST[ 'password_conf' ] ) ? $_REQUEST[ 'password_conf' ] : '';
 
 	// Check that the current password is correct. Knowing the token is not
 	// enough on its own; the request also has to prove it knows the password

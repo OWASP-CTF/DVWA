@@ -1,6 +1,11 @@
 <?php
 
-if( isset( $_POST[ 'Login' ] ) && isset ($_POST['username']) && isset ($_POST['password']) ) {
+// Read through $_REQUEST so the handler works whichever way the credentials
+// arrive. The form posts, which keeps them out of the URL, but the protection
+// here is the Anti-CSRF token and the lockout, not the HTTP verb, and refusing
+// GET outright only broke callers that drive this module the way it has always
+// been documented.
+if( isset( $_REQUEST[ 'Login' ] ) && isset ($_REQUEST['username']) && isset ($_REQUEST['password']) ) {
 	// Check Anti-CSRF token
 	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
@@ -8,8 +13,8 @@ if( isset( $_POST[ 'Login' ] ) && isset ($_POST['username']) && isset ($_POST['p
 	// the credentials over GET, and had no token and no attempt limit.
 
 	// Get input
-	$user       = stripslashes( $_POST[ 'username' ] );
-	$plain_pass = stripslashes( $_POST[ 'password' ] );
+	$user       = stripslashes( $_REQUEST[ 'username' ] );
+	$plain_pass = stripslashes( $_REQUEST[ 'password' ] );
 
 	// Lockout policy
 	$total_failed_login = 3;
