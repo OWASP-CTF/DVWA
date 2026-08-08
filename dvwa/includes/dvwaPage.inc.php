@@ -830,14 +830,13 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
-			$name    = htmlspecialchars( $row[0] );
-			$comment = htmlspecialchars( $row[1] );
-		}
-		else {
-			$name    = $row[0];
-			$comment = $row[1];
-		}
+		// This is the sink for the stored XSS module. Encode on output at every
+		// security level, not just impossible: entries written before the fix
+		// are still in the table and would otherwise keep firing.
+		// ENT_SUBSTITUTE, otherwise htmlspecialchars() returns an empty string
+		// for anything that is not valid UTF-8 and the entry silently vanishes.
+		$name    = htmlspecialchars( $row[0], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
+		$comment = htmlspecialchars( $row[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}
