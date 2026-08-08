@@ -50,12 +50,18 @@ if( isset( $_POST[ 'Login' ] ) ) {
 			dvwaPasswordStore( $row[ 'user' ], $pass );
 		}
 
-		dvwaMessagePush( "You have logged in as '{$user}'" );
+		// dvwaLogin() first: dvwaSecurityLog() reads the current user from the
+		// session, so logging before this point recorded every success as
+		// user=Unknown and repeated the key.
 		dvwaLogin( $row[ 'user' ] );
+		dvwaSecurityLog( 'login.success' );
+		dvwaMessagePush( "You have logged in as '" . htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' ) . "'" );
 		dvwaRedirect( DVWA_WEB_PAGE_TO_ROOT . 'index.php' );
 	}
 
-	// Login failed
+	// Login failed. Log it: an unauthenticated endpoint with no record of its
+	// failures cannot tell you an attack is under way (A09:2025).
+	dvwaSecurityLog( 'login.failure', array( 'attempted' => $user ) );
 	dvwaMessagePush( 'Login failed' );
 	dvwaRedirect( 'login.php' );
 }
