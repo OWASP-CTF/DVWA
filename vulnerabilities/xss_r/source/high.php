@@ -4,6 +4,7 @@ header ("X-XSS-Protection: 0");
 
 // Is there any input?
 if( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {
+	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
 	// Get input
 	// NOTE: a regex blacklist for the substring "script" only stops one of the
 	// countless XSS vectors, and still misses non-<script> payloads such as
@@ -16,5 +17,7 @@ if( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {
 	// Feedback for end user
 	$html .= "<pre>Hello {$name}</pre>";
 }
+
+generateSessionToken();
 
 ?>

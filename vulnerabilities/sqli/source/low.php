@@ -1,6 +1,7 @@
 <?php
 
 if( isset( $_REQUEST[ 'Submit' ] ) ) {
+	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
 	// Get input
 	$id = $_REQUEST[ 'id' ];
 
@@ -55,5 +56,7 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 		}
 	}
 }
+
+generateSessionToken();
 
 ?>

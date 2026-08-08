@@ -1,6 +1,7 @@
 <?php
 
 if( isset( $_POST[ 'Submit' ] ) ) {
+	checkToken( $_REQUEST[ 'user_token' ] ?? '', $_SESSION[ 'session_token' ] ?? null, 'index.php' );
 	// Get input
 	$id = $_POST[ 'id' ];
 
@@ -55,6 +56,8 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 		}
 	}
 }
+
+generateSessionToken();
 
 // This is used later on in the index.php page
 // Setting it here so we can close the database connection in here like in the rest of the source scripts

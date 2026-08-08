@@ -39,13 +39,13 @@ def test_blind_sqli_high_has_no_artificial_timing_branch():
     assert "rand(" not in body
 
 
-def test_brute_high_enforces_one_atomic_three_failure_window():
+def test_brute_high_enforces_database_backed_three_failure_window():
     body = source("vulnerabilities/brute/source/high.php")
-    assert "$max_fail = $total_failed_login" in body
+    assert "$total_failed_login = 3" in body
     assert "sleep( 2 );" in body
-    assert "flock( $bucket_handle, LOCK_EX )" in body
-    assert "flock( $bucket_handle, LOCK_UN )" in body
-    assert "@file_put_contents" not in body
+    assert "SELECT failed_login, last_login FROM users" in body
+    assert "failed_login = failed_login + 1, last_login = NOW()" in body
+    assert "UPDATE users SET failed_login = 0" in body
 
 
 def test_crypto_low_has_no_installation_wide_known_password():
@@ -62,3 +62,29 @@ def test_csp_low_resolves_only_repository_owned_script_ids():
     assert "array_key_exists($scriptId, $allowedScripts)" in body
     assert "htmlspecialchars($allowedScripts[$scriptId]" in body
     assert "htmlspecialchars( $_POST['include']" not in body
+
+
+def test_csrf_high_requires_current_password_reauthentication():
+    body = source("vulnerabilities/csrf/source/high.php")
+    index = source("vulnerabilities/csrf/index.php")
+    assert 'array_key_exists("password_current", $data)' in body
+    assert 'array_key_exists("password_current", $_REQUEST)' in body
+    assert "SELECT password FROM users WHERE user = (:user) AND password = (:password)" in body
+    assert "$current->rowCount() == 1" in body
+    assert "$vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php'" in index
+
+
+def test_injection_and_reflected_xss_forms_require_session_tokens():
+    modules = {
+        "exec": ("low", "medium", "high"),
+        "sqli": ("low", "medium"),
+        "sqli_blind": ("low", "medium"),
+        "xss_r": ("low", "medium", "high"),
+    }
+    for module, levels in modules.items():
+        index = source(f"vulnerabilities/{module}/index.php")
+        assert "if( true )" in index
+        for level in levels:
+            body = source(f"vulnerabilities/{module}/source/{level}.php")
+            assert "checkToken( $_REQUEST[ 'user_token' ]" in body
+            assert "generateSessionToken();" in body
