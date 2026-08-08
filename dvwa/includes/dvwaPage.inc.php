@@ -657,13 +657,14 @@ function dvwaGuestbook() {
 
 // Token functions --
 function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the given (CSRF) token
-	global $_DVWA;
+	// disable_authentication used to short circuit this check as well. Turning
+	// off the login screen for a scanner is one thing; silently turning off
+	// CSRF protection along with it is a separate decision nobody asked for.
 
-	if (array_key_exists("disable_authentication", $_DVWA) && $_DVWA['disable_authentication']) {
-		return true;
-	}
-
-	if( $user_token !== $session_token || !isset( $session_token ) ) {
+	// Compare with hash_equals() so the check does not leak the expected token
+	// through timing differences.
+	if( !isset( $session_token ) || !is_string( $session_token ) || $session_token === ''
+		|| !is_string( $user_token ) || !hash_equals( $session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -673,7 +674,8 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = md5( uniqid() );
+	// uniqid() is time based and therefore predictable, so use a CSPRNG instead.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
