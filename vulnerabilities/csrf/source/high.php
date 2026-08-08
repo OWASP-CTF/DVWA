@@ -16,21 +16,25 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 		$pass_conf = $data["password_conf"];
 		$change = true;
 	}
-} else {
-	if (array_key_exists("user_token", $_REQUEST) &&
-		array_key_exists("password_new", $_REQUEST) &&
-		array_key_exists("password_conf", $_REQUEST) &&
-		array_key_exists("Change", $_REQUEST)) {
-		$token = $_REQUEST["user_token"];
-		$pass_new = $_REQUEST["password_new"];
-		$pass_conf = $_REQUEST["password_conf"];
+} elseif ($_SERVER['REQUEST_METHOD'] == "POST") {
+	if (array_key_exists("user_token", $_POST) &&
+		array_key_exists("password_new", $_POST) &&
+		array_key_exists("password_conf", $_POST) &&
+		array_key_exists("Change", $_POST)) {
+		$token = $_POST["user_token"];
+		$pass_new = $_POST["password_new"];
+		$pass_conf = $_POST["password_conf"];
 		$change = true;
 	}
 }
 
 if ($change) {
 	// Check Anti-CSRF token
-	checkToken( $token, $_SESSION[ 'session_token' ], 'index.php' );
+	$session_token = isset( $_SESSION[ 'session_token' ] ) ? $_SESSION[ 'session_token' ] : '';
+	if( !is_string( $token ) || !is_string( $session_token ) || $session_token === '' || !hash_equals( $session_token, $token ) ) {
+		dvwaMessagePush( 'CSRF token is incorrect' );
+		dvwaRedirect( 'index.php' );
+	}
 
 	// Do the passwords match?
 	if( $pass_new == $pass_conf ) {
@@ -54,7 +58,7 @@ if ($change) {
 	mysqli_close($GLOBALS["___mysqli_ston"]);
 
 	if ($request_type == "json") {
-		generateSessionToken();
+		$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 		header ("Content-Type: application/json");
 		print json_encode (array("Message" =>$return_message));
 		exit;
@@ -64,6 +68,6 @@ if ($change) {
 }
 
 // Generate Anti-CSRF token
-generateSessionToken();
+$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 
 ?>
