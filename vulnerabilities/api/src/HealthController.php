@@ -83,9 +83,21 @@ class HealthController
 	private function checkConnectivity() {
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("target", $input)) {
-			$target = $input['target'];
+			$target = is_string ($input['target']) ? trim ($input['target']) : '';
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			// The target used to be concatenated straight into the shell, so
+			// {"target": "127.0.0.1; id"} ran arbitrary commands. Accept only
+			// an IP address or a plain hostname, and quote it regardless.
+			$is_ip       = filter_var ($target, FILTER_VALIDATE_IP) !== false;
+			$is_hostname = (bool) preg_match ('/^[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$/', $target);
+
+			if (!$is_ip && !$is_hostname) {
+				$response['status_code_header'] = 'HTTP/1.1 500 Internal Server Error';
+				$response['body'] = json_encode (array ("status" => "Invalid target"));
+				return $response;
+			}
+
+			exec ("ping -c 4 " . escapeshellarg ($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';
