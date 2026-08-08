@@ -42,46 +42,24 @@ $page[ 'body' ] = <<<EOF
 	<h1>Vulnerability: DOM Based Cross Site Scripting (XSS)</h1>
 
 	<div class="vulnerable_code_area">
-
+ 
  		<p>Please choose a language:</p>
 
 		<form name="XSS" method="GET">
-			<select name="default" id="xss_d_language"></select>
-			<script>
-				(function () {
-					var select = document.getElementById("xss_d_language");
-
-					// Build the options through the DOM rather than by writing a
-					// string of HTML, so nothing taken from the URL is ever parsed
-					// as markup.
-					function addOption(value, label, disabled) {
-						var option = document.createElement("option");
-						option.value = value;
-						option.textContent = label;
-						if (disabled) {
-							option.disabled = true;
-						}
-						select.appendChild(option);
-					}
-
+			<select name="default">
+				<script>
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						var label = lang;
-						try {
-							label = $decodeURI(lang);
-						} catch (e) {
-							label = lang;
-						}
-						addOption(lang, label, false);
-						addOption("", "----", true);
+						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
+						document.write("<option value='' disabled='disabled'>----</option>");
 					}
-
-					addOption("English", "English", false);
-					addOption("French", "French", false);
-					addOption("Spanish", "Spanish", false);
-					addOption("German", "German", false);
-				})();
-			</script>
+					    
+					document.write("<option value='English'>English</option>");
+					document.write("<option value='French'>French</option>");
+					document.write("<option value='Spanish'>Spanish</option>");
+					document.write("<option value='German'>German</option>");
+				</script>
+			</select>
 			<input type="submit" value="Select" />
 		</form>
 	</div>
