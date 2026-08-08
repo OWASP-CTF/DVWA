@@ -19,10 +19,15 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 		// What happens when the CAPTCHA was entered incorrectly
 		$html     .= "<pre><br />The CAPTCHA was incorrect. Please try again.</pre>";
 		$hide_form = false;
+		unset( $_SESSION[ 'captcha_passed' ] );
 		return;
 	}
 	else {
-		// CAPTCHA was correct. Do both new passwords match?
+		// CAPTCHA was correct. Remember that server-side - step 2 must not be reachable
+		// by an attacker who skips this step.
+		$_SESSION[ 'captcha_passed' ] = true;
+
+		// Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
 			// Show next stage for the user
 			$html .= "
@@ -49,6 +54,15 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
+
+	// Server-side proof that step 1's CAPTCHA was actually solved in this session.
+	// A client-supplied flag can be forged, so this must live server-side.
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
+		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
+		$hide_form = false;
+		return;
+	}
+	unset( $_SESSION[ 'captcha_passed' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {

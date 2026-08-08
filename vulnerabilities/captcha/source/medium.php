@@ -19,10 +19,15 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 		// What happens when the CAPTCHA was entered incorrectly
 		$html     .= "<pre><br />The CAPTCHA was incorrect. Please try again.</pre>";
 		$hide_form = false;
+		unset( $_SESSION[ 'captcha_passed' ] );
 		return;
 	}
 	else {
-		// CAPTCHA was correct. Do both new passwords match?
+		// CAPTCHA was correct. Remember that server-side (a client-supplied
+		// 'passed_captcha' flag can simply be forged by an attacker).
+		$_SESSION[ 'captcha_passed' ] = true;
+
+		// Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
 			// Show next stage for the user
 			$html .= "
@@ -31,7 +36,6 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
 					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
 					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
-					<input type=\"hidden\" name=\"passed_captcha\" value=\"true\" />
 					<input type=\"submit\" name=\"Change\" value=\"Change\" />
 				</form>";
 		}
@@ -51,12 +55,13 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Server-side proof that step 1's CAPTCHA was actually solved in this session.
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+	unset( $_SESSION[ 'captcha_passed' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
