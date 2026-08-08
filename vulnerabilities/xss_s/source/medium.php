@@ -8,12 +8,17 @@ if( isset( $_POST[ 'btnSign' ] ) ) {
 	$message = trim( $_POST[ 'mtxMessage' ] );
 	$name    = trim( $_POST[ 'txtName' ] );
 
-	// The maxlength attributes on the form are a client side hint only, so the
-	// lengths are enforced again here. mb_substr, because a byte-wise cut can
-	// leave half a multi-byte character behind and the encoder would then drop
-	// the whole field.
-	$message = mb_substr( stripslashes( $message ), 0, 50, 'UTF-8' );
-	$name    = mb_substr( stripslashes( $name ), 0, 10, 'UTF-8' );
+	// Bound the input to what the columns actually hold, so a long entry is
+	// rejected by us rather than silently truncated by the database. The form's
+	// maxlength attributes are a client side hint and are deliberately not
+	// mirrored here: they are a usability nicety, not a security control, and
+	// clamping to them threw away most of a normal comment. What neutralises a
+	// payload is the encoding in dvwaGuestbook(), not the length.
+	//
+	// mb_substr, because a byte-wise cut can leave half a multi-byte character
+	// behind and the encoder would then drop the whole field.
+	$message = mb_substr( stripslashes( $message ), 0, 300, 'UTF-8' );
+	$name    = mb_substr( stripslashes( $name ), 0, 100, 'UTF-8' );
 
 	// This level encoded the message but left the name on a '<script>'
 	// blacklist.
