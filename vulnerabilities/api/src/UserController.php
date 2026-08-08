@@ -48,6 +48,14 @@ class UserController
 		if (!is_numeric ($input['level'])) {
 			return false;
 		}
+		// This endpoint has no authentication at all - it is effectively
+		// self-service signup - so it must never be able to mint a
+		// privileged (level 0 / admin) account. Accepting whatever level
+		// the caller asks for would let anyone become admin simply by
+		// including "level": 0 in the request body.
+		if (intval($input['level']) <= 0) {
+			return false;
+		}
 		return true;
 	}
 
@@ -218,12 +226,13 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		if (array_key_exists ("name", $input)) {
-			$this->data[$id]->name = $input['name'];
-		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
-		}
+		// Mass assignment: this endpoint is only documented/intended to
+		// update "name" (see UserUpdate / validateUpdate above). Blindly
+		// applying every key the caller sends - including "level" - let
+		// anyone silently promote themselves to admin by adding an
+		// undocumented field to the request body. Only ever apply the
+		// fields this endpoint is actually meant to update.
+		$this->data[$id]->name = $input['name'];
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;

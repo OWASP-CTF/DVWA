@@ -1,6 +1,10 @@
 <?php
 
 if( isset( $_POST[ 'Change' ] ) ) {
+	// Check Anti-CSRF token. index.php already renders the token field at
+	// this level; it was never actually being verified here.
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
@@ -14,13 +18,11 @@ if( isset( $_POST[ 'Change' ] ) ) {
 		$_POST['g-recaptcha-response']
 	);
 
-	if (
-		$resp || 
-		(
-			$_POST[ 'g-recaptcha-response' ] == 'hidd3n_valu3'
-			&& $_SERVER[ 'HTTP_USER_AGENT' ] == 'reCAPTCHA'
-		)
-	){
+	// NOTE: previously this also accepted g-recaptcha-response ==
+	// 'hidd3n_valu3' when the User-Agent was 'reCAPTCHA' - a hardcoded
+	// backdoor that let anyone bypass the CAPTCHA entirely by spoofing
+	// their User-Agent header. Only a genuine CAPTCHA pass is accepted now.
+	if ( $resp ) {
 		// CAPTCHA was correct. Do both new passwords match?
 		if ($pass_new == $pass_conf) {
 			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));

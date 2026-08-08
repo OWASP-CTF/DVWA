@@ -9,6 +9,15 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 $request_url = $_SERVER['REQUEST_URI'];
 $stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
 
+// The request URI is attacker-controlled and gets spliced into a JS string
+// literal inside the inline <script> block below. A plain string
+// concatenation would let a crafted URI (e.g. containing a quote and a
+// </script> sequence) break out of the string and inject script. Encode it
+// as a JSON string instead: json_encode() escapes quotes/backslashes, and
+// the HEX_* flags additionally neutralise '<', '>', '&' and "'" so the
+// value can never terminate the surrounding <script> tag either.
+$stripped_url_js = json_encode( $stripped_url, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP );
+
 $html .= "
 <p>
 	Versioning is important in APIs, running multiple versions of an API can allow for backward compatibility and can allow new services to be added without affecting existing users. The downside to keeping old versions alive is when those older versions contain vulnerabilities.
@@ -44,7 +53,7 @@ $html .= "
 	}
 
 	function get_users() {
-		const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/';
+		const url = " . $stripped_url_js . " + '/vulnerabilities/api/v2/user/';
 		 
 		fetch(url, { 
 				method: 'GET',

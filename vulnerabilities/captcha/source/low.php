@@ -24,6 +24,11 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// Record server-side that this session actually passed the
+			// CAPTCHA, so step 2 can't be reached by simply posting
+			// step=2 directly without ever solving it.
+			$_SESSION[ 'captcha_passed' ] = true;
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
@@ -49,6 +54,15 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
+
+	// Step 2 must only be reachable after actually passing the CAPTCHA in
+	// step 1 - checked via server-side session state, not client input.
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
+		$html      .= "<pre><br />You have not passed the CAPTCHA.</pre>";
+		$hide_form  = false;
+		return;
+	}
+	unset( $_SESSION[ 'captcha_passed' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {

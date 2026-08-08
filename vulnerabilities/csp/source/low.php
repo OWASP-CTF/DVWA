@@ -1,6 +1,10 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+// A long allowlist of third-party domains (pastebin, hastebin, jsdelivr,
+// unpkg, etc) is not actually safe - many of those hosts let anyone publish
+// arbitrary script content at an attacker-controlled URL, which completely
+// defeats the point of the CSP. Only allow scripts from this origin.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
 
@@ -11,8 +15,13 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// The CSP already restricts which origin a script can load from, but the
+// submitted value used to be dropped straight into a single-quoted HTML
+// attribute with no escaping - a value containing a quote could close the
+// attribute early and inject arbitrary markup regardless of what the CSP
+// header allows. Encode it for this attribute context.
 $page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
+	<script src='" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "'></script>
 ";
 }
 $page[ 'body' ] .= '

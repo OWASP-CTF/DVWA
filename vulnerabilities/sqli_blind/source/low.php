@@ -5,40 +5,55 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 	$id = $_GET[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
-			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
-			} catch (Exception $e) {
-				print "There was an error.";
-				exit;
-			}
+	// A prepared statement stops the value from ever being parsed as SQL, but
+	// MySQL's loose type coercion when comparing a string against an INT
+	// column (e.g. "1' OR '1'='1") can still numerically match a real row -
+	// which would falsely report "exists" and hand a blind-SQLi oracle back
+	// to the attacker even though no injection actually occurred. Only ever
+	// run the lookup for a genuine whole number, exactly like impossible.php.
+	if( is_numeric( $id ) ) {
+		$id = intval( $id );
 
-			$exists = false;
-			if ($result !== false) {
+		switch ($_DVWA['SQLI_DB']) {
+			case MYSQL:
+				// Check database using a parameterised query
+				$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
 				try {
-					$exists = (mysqli_num_rows( $result ) > 0);
+					$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+					mysqli_stmt_bind_param($stmt, 'i', $id);
+					mysqli_stmt_execute($stmt);
+					$result = mysqli_stmt_get_result($stmt);
+				} catch (Exception $e) {
+					print "There was an error.";
+					exit;
+				}
+
+				$exists = false;
+				if ($result !== false) {
+					try {
+						$exists = (mysqli_num_rows( $result ) > 0);
+					} catch(Exception $e) {
+						$exists = false;
+					}
+				}
+				((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+				break;
+			case SQLITE:
+				global $sqlite_db_connection;
+
+				$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id;";
+				try {
+					$stmt = $sqlite_db_connection->prepare($query);
+					$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+					$results = $stmt->execute();
+					$row = $results->fetchArray();
+					$exists = $row !== false;
 				} catch(Exception $e) {
 					$exists = false;
 				}
-			}
-			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
-			break;
-		case SQLITE:
-			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
-			try {
-				$results = $sqlite_db_connection->query($query);
-				$row = $results->fetchArray();
-				$exists = $row !== false;
-			} catch(Exception $e) {
-				$exists = false;
-			}
-
-			break;
+				break;
+		}
 	}
 
 	if ($exists) {

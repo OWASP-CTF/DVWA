@@ -614,14 +614,11 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
-			$name    = htmlspecialchars( $row[0] );
-			$comment = htmlspecialchars( $row[1] );
-		}
-		else {
-			$name    = $row[0];
-			$comment = $row[1];
-		}
+		// Encode for the HTML context this is written into, at every level -
+		// stored entries must never be able to be parsed as markup here,
+		// regardless of what filtering (if any) ran before they were saved.
+		$name    = htmlspecialchars( $row[0] );
+		$comment = htmlspecialchars( $row[1] );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}

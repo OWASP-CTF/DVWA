@@ -1,0 +1,28 @@
+# Defence in depth for the File Upload module.
+#
+# The application already whitelists the extension, caps the size, and
+# verifies the upload decodes as an image before it is ever written here, so
+# nothing that lands in this directory should be a script in the first
+# place. This makes it so even if that validation were ever bypassed or
+# regressed, anything placed here is served as an inert download rather than
+# executed.
+<IfModule mod_php.c>
+	php_admin_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+	php_admin_flag engine off
+</IfModule>
+
+<FilesMatch "\.(?i:php[0-9]?|phtml|pht|phar|cgi|pl|shtml)$">
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+	<IfModule !mod_authz_core.c>
+		Order allow,deny
+		Deny from all
+	</IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+	Header always set X-Content-Type-Options "nosniff"
+</IfModule>
