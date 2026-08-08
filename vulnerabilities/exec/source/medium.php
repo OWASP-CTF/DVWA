@@ -12,6 +12,11 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 
 	// Remove any of the characters in the array (blacklist).
 	$target = str_replace( array_keys( $substitutions ), $substitutions, $target );
+	if( filter_var( $target, FILTER_VALIDATE_IP ) === false ) {
+		$html .= '<pre>ERROR: You have entered an invalid IP.</pre>';
+		return;
+	}
+	$target = escapeshellarg( $target );
 
 	// Determine OS and execute the ping command.
 	if( stristr( php_uname( 's' ), 'Windows NT' ) ) {
