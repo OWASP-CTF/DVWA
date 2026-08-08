@@ -1,15 +1,25 @@
 <?php
 
-if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
-	$target = "";
+$target = "";
 
-	// Blocking "http://"/"https://" substrings misses protocol-relative
-	// URLs ("//evil.com"), other schemes, and doesn't stop redirecting to
-	// arbitrary local paths either. Rebuild the destination from a
-	// validated numeric id instead, so it can only ever be the local info
-	// page.
-	if (preg_match ('/^info\.php\?id=([0-9]{1,9})$/', $_GET['redirect'], $matches)) {
-		$target = "info.php?id=" . intval ($matches[1]);
+// The vulnerable request contract accepted the *destination itself* as the
+// "redirect" parameter, so no amount of validating that string can ever
+// close the hole - the parameter's whole job was choosing where to go.
+// Match impossible.php's contract instead: "redirect" names a small fixed
+// choice by number, and only this file ever decides what number maps to
+// what URL. There is no value the caller can pass that resolves to
+// anywhere they chose themselves.
+if (array_key_exists ("redirect", $_GET) && is_numeric ($_GET['redirect'])) {
+	switch (intval ($_GET['redirect'])) {
+		case 1:
+			$target = "info.php?id=1";
+			break;
+		case 2:
+			$target = "info.php?id=2";
+			break;
+		case 99:
+			$target = "https://digi.ninja";
+			break;
 	}
 
 	if ($target != "") {
@@ -19,7 +29,7 @@ if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
 
 	http_response_code (500);
 	?>
-	<p>You can only redirect to the info page.</p>
+	<p>Unknown redirect target.</p>
 	<?php
 	exit;
 }
