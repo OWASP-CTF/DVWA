@@ -1,11 +1,19 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
+if( isset( $_POST[ 'Login' ] ) ) {
+	// Check Anti-CSRF token
+	if (array_key_exists ("session_token", $_SESSION)) {
+		$session_token = $_SESSION[ 'session_token' ];
+	} else {
+		$session_token = "";
+	}
+	checkToken( $_REQUEST[ 'user_token' ], $session_token, 'index.php' );
+
 	// Get username
-	$user = $_GET[ 'username' ];
+	$user = $_POST[ 'username' ];
 
 	// Get password
-	$pass = $_GET[ 'password' ];
+	$pass = $_POST[ 'password' ];
 	$pass = md5( $pass );
 
 	// Default values
@@ -79,5 +87,8 @@ if( isset( $_GET[ 'Login' ] ) ) {
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
