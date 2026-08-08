@@ -31,11 +31,12 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
+# Never decode the querystring. The browser percent-encodes "<" and ">" when
+# it builds location.href, so the fragment arrives as inert text; calling
+# decodeURI() on it turned "%3Cscript%3E" back into a live tag for
+# document.write() to execute. The fragment never reaches the server, so no
+# amount of server-side filtering in low/medium/high could catch it.
+$decodeURI = "";
 
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
