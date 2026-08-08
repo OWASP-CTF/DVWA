@@ -176,6 +176,32 @@ function dvwaCurrentUser() {
 
 // -- END (Session functions)
 
+// -- START (Password hashing compatibility layer)
+// The 'users' table historically stored raw MD5 hex digests. These helpers let every
+// verification/write call site move to password_hash()/password_verify() while still
+// accepting existing MD5 rows, which are upgraded transparently on next successful login.
+
+function dvwaHashPassword( $plaintext ) {
+	return password_hash( $plaintext, PASSWORD_DEFAULT );
+}
+
+function dvwaVerifyPassword( $plaintext, $storedHash, &$needsUpgrade = null ) {
+	$needsUpgrade = false;
+
+	if ( password_get_info( $storedHash )[ 'algo' ] !== null ) {
+		return password_verify( $plaintext, $storedHash );
+	}
+
+	// Legacy 32-character MD5 hex digest.
+	$legacyMatch = hash_equals( (string) $storedHash, md5( $plaintext ) );
+	if ( $legacyMatch ) {
+		$needsUpgrade = true;
+	}
+	return $legacyMatch;
+}
+
+// -- END (Password hashing compatibility layer)
+
 function &dvwaPageNewGrab() {
 	$returnArray = array(
 		'title'           => 'Damn Vulnerable Web Application (DVWA)',

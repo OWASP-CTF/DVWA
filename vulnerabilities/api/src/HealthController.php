@@ -80,12 +80,38 @@ class HealthController
     )   
     ]
 	
+	private function checkToken() {
+		if (array_key_exists ("HTTP_AUTHORIZATION", $_SERVER)) {
+			$header = $_SERVER['HTTP_AUTHORIZATION'];
+			$bits = explode (" ", $header);
+			if (count ($bits) == 2) {
+				if (strtolower($bits[0]) == "bearer") {
+					return (Login::check_access_token($bits[1]));
+				}
+			}
+		}
+
+		return false;
+	}
+
 	private function checkConnectivity() {
+		if (!$this->checkToken()) {
+			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
+			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
+			return $response;
+		}
+
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("target", $input)) {
 			$target = $input['target'];
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			if (!preg_match('/^[a-zA-Z0-9.\-:]{1,253}$/', $target)) {
+				$response['status_code_header'] = 'HTTP/1.1 422 Unprocessable Entity';
+				$response['body'] = json_encode (array ("status" => "Invalid target"));
+				return $response;
+			}
+
+			exec ("ping -c 4 " . escapeshellarg($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

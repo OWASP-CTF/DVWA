@@ -24,7 +24,6 @@ if( isset( $_POST[ 'Login' ] ) ) {
 	$pass = $_POST[ 'password' ];
 	$pass = stripslashes( $pass );
 	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-	$pass = md5( $pass );
 
 	$query = ("SELECT table_schema, table_name, create_time
 				FROM information_schema.tables
@@ -36,9 +35,19 @@ if( isset( $_POST[ 'Login' ] ) ) {
 		dvwaRedirect( DVWA_WEB_PAGE_TO_ROOT . 'setup.php' );
 	}
 
-	$query  = "SELECT * FROM `users` WHERE user='$user' AND password='$pass';";
-	$result = @mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '.<br />Try <a href="setup.php">installing again</a>.</pre>' );
-	if( $result && mysqli_num_rows( $result ) == 1 ) {    // Login Successful...
+	$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], "SELECT * FROM `users` WHERE user = ?" ) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '.<br />Try <a href="setup.php">installing again</a>.</pre>' );
+	mysqli_stmt_bind_param( $stmt, 's', $user );
+	mysqli_stmt_execute( $stmt );
+	$result = mysqli_stmt_get_result( $stmt );
+	$row    = $result ? mysqli_fetch_assoc( $result ) : null;
+
+	if( $row && dvwaVerifyPassword( $pass, $row[ 'password' ], $needsUpgrade ) ) {    // Login Successful...
+		if( $needsUpgrade ) {
+			$newHash  = dvwaHashPassword( $pass );
+			$updStmt  = mysqli_prepare( $GLOBALS["___mysqli_ston"], "UPDATE `users` SET password = ? WHERE user = ?" );
+			mysqli_stmt_bind_param( $updStmt, 'ss', $newHash, $user );
+			mysqli_stmt_execute( $updStmt );
+		}
 		dvwaMessagePush( "You have logged in as '{$user}'" );
 		dvwaLogin( $user );
 		dvwaRedirect( DVWA_WEB_PAGE_TO_ROOT . 'index.php' );
