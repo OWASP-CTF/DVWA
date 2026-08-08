@@ -5,9 +5,10 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On high and impossible, only the admin is allowed to retrieve the data.
+On low, high and impossible, only the admin is allowed to retrieve the data.
 */
-if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
+if ((dvwaSecurityLevelGet() == "low" || dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
+	http_response_code(403);
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
