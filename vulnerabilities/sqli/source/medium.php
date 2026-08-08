@@ -4,31 +4,30 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_POST[ 'id' ];
 
+	$id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);
+
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			// Prepared statement: the id is sent as a bound integer parameter and
-			// can never be parsed as SQL.
-			$data = $db->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = (:id);' );
-			$data->bindValue( ':id', (int)$id, PDO::PARAM_INT );
-			$data->execute();
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
 
 			// Get results
-			while( $row = $data->fetch() ) {
+			while( $row = mysqli_fetch_assoc( $result ) ) {
 				// Display values
 				$first = $row["first_name"];
 				$last  = $row["last_name"];
 
 				// Feedback for end user
-				$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
+				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 			}
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
 
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+			#print $query;
 			try {
-				$stmt = $sqlite_db_connection->prepare( 'SELECT first_name, last_name FROM users WHERE user_id = :id;' );
-				$stmt->bindValue( ':id', (int)$id, SQLITE3_INTEGER );
-				$results = $stmt->execute();
+				$results = $sqlite_db_connection->query($query);
 			} catch (Exception $e) {
 				echo 'Caught exception: ' . $e->getMessage();
 				exit();
@@ -41,7 +40,7 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 					$last  = $row["last_name"];
 
 					// Feedback for end user
-					$html .= "<pre>ID: " . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "<br />First name: " . htmlspecialchars( $first, ENT_QUOTES, 'UTF-8' ) . "<br />Surname: " . htmlspecialchars( $last, ENT_QUOTES, 'UTF-8' ) . "</pre>";
+					$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
 				}
 			} else {
 				echo "Error in fetch ".$sqlite_db->lastErrorMsg();
