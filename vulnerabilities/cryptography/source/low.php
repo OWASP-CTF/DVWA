@@ -47,6 +47,17 @@ $encode_radio_selected = " checked='checked' ";
 $decode_radio_selected = " ";
 $message = "";
 
+// A fixed password remains exploitable even after replacing the XOR cipher:
+// an attacker who already knows the old lab plaintext can skip decryption and
+// submit it directly. Bind the intercepted secret to the current session so
+// there is no universal, source-known credential shared by every installation.
+if (!isset($_SESSION['cryptography_low_password']) ||
+	!is_string($_SESSION['cryptography_low_password']) ||
+	!preg_match('/^[a-f0-9]{32}$/D', $_SESSION['cryptography_low_password'])) {
+	$_SESSION['cryptography_low_password'] = bin2hex(random_bytes(16));
+}
+$login_password = $_SESSION['cryptography_low_password'];
+
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	try {
 		if (array_key_exists ('message', $_POST)) {
@@ -60,8 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
-			$password = $_POST['password'];
-			if ($password == "Olifant") {
+			$password = is_string($_POST['password']) ? $_POST['password'] : '';
+			if (hash_equals($login_password, $password)) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
@@ -73,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 }
 
 try {
-	$intercepted = htmlentities (low_encode ("Your new password is: Olifant"));
+	$intercepted = htmlentities (low_encode ("Your new password is: " . $login_password));
 } catch (Exception $e) {
 	$intercepted = "";
 }
