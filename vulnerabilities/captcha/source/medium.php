@@ -22,7 +22,13 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 		return;
 	}
 	else {
-		// CAPTCHA was correct. Do both new passwords match?
+		// CAPTCHA was correct. Record that fact server-side - the client can
+		// still be sent a 'passed_captcha' hint for display, but step 2 below
+		// must not trust it, since a hidden form field is fully attacker
+		// controlled and $_SESSION is not.
+		$_SESSION[ 'medium_captcha_passed' ] = true;
+
+		// Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
 			// Show next stage for the user
 			$html .= "
@@ -51,8 +57,9 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if they did stage 1 - trust the server-side session flag
+	// set during step 1, not the client-supplied 'passed_captcha' field.
+	if( empty( $_SESSION[ 'medium_captcha_passed' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
@@ -67,6 +74,10 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 		// Update database
 		$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . dvwaCurrentUser() . "';";
 		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+
+		// The pass is single-use - clear it so it cannot be replayed for a
+		// future password change without completing the CAPTCHA again.
+		unset( $_SESSION[ 'medium_captcha_passed' ] );
 
 		// Feedback for the end user
 		$html .= "<pre>Password Changed.</pre>";
