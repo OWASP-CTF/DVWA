@@ -31,11 +31,10 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
+# Never decode the querystring, at any level. Decoding is what turns a
+# percent encoded payload back into markup, and the impossible level
+# already relies on not doing it.
+$decodeURI = "";
 
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
