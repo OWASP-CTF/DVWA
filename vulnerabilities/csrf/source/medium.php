@@ -1,6 +1,7 @@
 <?php
 
 if( isset( $_GET[ 'Change' ] ) ) {
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 	// Checks to see where the request came from
 	if( stripos( $_SERVER[ 'HTTP_REFERER' ] ,$_SERVER[ 'SERVER_NAME' ]) !== false ) {
 		// Get input
@@ -33,5 +34,7 @@ if( isset( $_GET[ 'Change' ] ) ) {
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+generateSessionToken();
 
 ?>
