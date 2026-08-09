@@ -131,3 +131,10 @@ def test_api_order_updates_validate_field_types_and_lengths():
     assert "strlen($input['name']) > 100" in source
     assert "strlen($input['address']) > 500" in source
     assert "!is_array($input['items'])" in source
+
+
+def test_api_tokens_do_not_use_hardcoded_secrets():
+    source = read("vulnerabilities/api/src/Login.php")
+    assert '"12345"' not in source
+    assert '"98765"' not in source
+    assert "getenv('DVWA_ACCESS_TOKEN_SECRET')" in source
