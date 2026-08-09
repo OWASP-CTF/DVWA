@@ -1,11 +1,18 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
+// The login is only accepted over POST now (matching index.php), and it
+// carries the Anti-CSRF token bound to this session, exactly like the
+// higher levels already did - a lockout alone doesn't stop a forged
+// cross-site login attempt.
+if( isset( $_POST[ 'Login' ] ) && isset( $_POST[ 'username' ] ) && isset( $_POST[ 'password' ] ) ) {
+	// Check Anti-CSRF token
+	checkToken( isset( $_REQUEST[ 'user_token' ] ) ? $_REQUEST[ 'user_token' ] : '', $_SESSION[ 'session_token' ], 'index.php' );
+
 	// Get username
-	$user = $_GET[ 'username' ];
+	$user = $_POST[ 'username' ];
 
 	// Get password
-	$pass = $_GET[ 'password' ];
+	$pass = $_POST[ 'password' ];
 	$pass = md5( $pass );
 
 	// Basic anti-automation: lock this account out of THIS security level
@@ -77,5 +84,8 @@ if( isset( $_GET[ 'Login' ] ) ) {
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>

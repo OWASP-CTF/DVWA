@@ -69,9 +69,6 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 			sleep( rand( 2, 4 ) );
 		}
 
-		// User wasn't found, so the page wasn't!
-		header( $_SERVER[ 'SERVER_PROTOCOL' ] . ' 404 Not Found' );
-
 		// Feedback for end user
 		$html .= '<pre>User ID is MISSING from the database.</pre>';
 	}
