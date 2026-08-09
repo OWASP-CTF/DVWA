@@ -38,14 +38,13 @@ if ($stmt) {
 	mysqli_stmt_close($stmt);
 }
 
-if (isset($_GET['action'], $_GET['user_id'])) {
+if (isset($_GET['user_id'])) {
 	$requestedId = filter_var($_GET['user_id'], FILTER_VALIDATE_INT, array('options' => array('min_range' => 1)));
 
 	if ($requestedId === false) {
 		$html .= '<p>Invalid user ID format. Please enter a number.</p>';
 	} elseif ((int) $requestedId !== $currentUserId) {
-		http_response_code(403);
-		$html .= '<p>Access denied. Insufficient privileges.</p>';
+		$html .= '<p>Access denied. You can only view your own profile.</p>';
 		bacLogAccessAttempt($currentUserId, $requestedId, 'unauthorized_access');
 	} else {
 		$stmt = mysqli_prepare($GLOBALS['___mysqli_ston'], 'SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = ? LIMIT 1');
@@ -65,5 +64,23 @@ if (isset($_GET['action'], $_GET['user_id'])) {
 		}
 	}
 }
+
+/*
+The module shows the caller's role. The value is read from the database for the
+session user - the user_role cookie the base module echoed here is never
+consulted, so the banner is informational only and cannot be spoofed.
+*/
+$currentRole = 'regular_user';
+$stmt = mysqli_prepare($GLOBALS['___mysqli_ston'], 'SELECT role FROM users WHERE user_id = ? LIMIT 1');
+if ($stmt) {
+	mysqli_stmt_bind_param($stmt, 'i', $currentUserId);
+	mysqli_stmt_execute($stmt);
+	$result = mysqli_stmt_get_result($stmt);
+	if ($result && ($roleRow = mysqli_fetch_assoc($result)) && !empty($roleRow['role'])) {
+		$currentRole = $roleRow['role'];
+	}
+	mysqli_stmt_close($stmt);
+}
+$html .= "<div class='info-banner'>Current Role: " . htmlspecialchars((string) $currentRole, ENT_QUOTES, 'UTF-8') . "</div>";
 
 ?>
