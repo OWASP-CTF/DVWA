@@ -29,26 +29,28 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 }
 
 if ($change) {
-	// Check Anti-CSRF token
-	checkToken( $token, $_SESSION[ 'session_token' ], 'index.php' );
+	// Check Anti-CSRF token using secure comparison
+	if( !isset( $token ) || !isset( $_SESSION[ 'session_token' ] ) || !hash_equals( $_SESSION[ 'session_token' ], $token ) ) {
+		$return_message = "Invalid CSRF token.";
+	} else {
+		// Do the passwords match?
+		if( $pass_new == $pass_conf ) {
+			// They do!
+			$pass_new = mysqli_real_escape_string ($GLOBALS["___mysqli_ston"], $pass_new);
+			$pass_new = md5( $pass_new );
 
-	// Do the passwords match?
-	if( $pass_new == $pass_conf ) {
-		// They do!
-		$pass_new = mysqli_real_escape_string ($GLOBALS["___mysqli_ston"], $pass_new);
-		$pass_new = md5( $pass_new );
+			// Update the database
+			$current_user = dvwaCurrentUser();
+			$insert = "UPDATE `users` SET password = '" . $pass_new . "' WHERE user = '" . $current_user . "';";
+			$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert );
 
-		// Update the database
-		$current_user = dvwaCurrentUser();
-		$insert = "UPDATE `users` SET password = '" . $pass_new . "' WHERE user = '" . $current_user . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert );
-
-		// Feedback for the user
-		$return_message = "Password Changed.";
-	}
-	else {
-		// Issue with passwords matching
-		$return_message = "Passwords did not match.";
+			// Feedback for the user
+			$return_message = "Password Changed.";
+		}
+		else {
+			// Issue with passwords matching
+			$return_message = "Passwords did not match.";
+		}
 	}
 
 	mysqli_close($GLOBALS["___mysqli_ston"]);

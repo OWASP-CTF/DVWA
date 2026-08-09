@@ -1,6 +1,12 @@
 <?php
 
 if( isset( $_GET[ 'Change' ] ) ) {
+	// Check Anti-CSRF token
+	if( !isset( $_GET[ 'user_token' ] ) || !isset( $_SESSION[ 'session_token' ] ) || !hash_equals( $_SESSION[ 'session_token' ], $_GET[ 'user_token' ] ) ) {
+		$html .= "<pre>Invalid CSRF token.</pre>";
+		return;
+	}
+
 	// Get input
 	$pass_new  = $_GET[ 'password_new' ];
 	$pass_conf = $_GET[ 'password_conf' ];
@@ -26,5 +32,8 @@ if( isset( $_GET[ 'Change' ] ) ) {
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>
