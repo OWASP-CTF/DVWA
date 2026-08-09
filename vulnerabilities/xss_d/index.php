@@ -31,11 +31,17 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
+# The inline script below re-reads document.location.href itself, which
+# includes the URL fragment (the part after '#'). The fragment is never
+# sent to the server, so the whitelist checks in low/medium/high.php never
+# see it - a payload appended after '#' sails straight through server-side
+# validation. The browser does percent-encode unsafe characters such as
+# '<' and '>' when it builds location.href from what was typed, so as long
+# as that value is never decoded again, an injected payload stays inert
+# text instead of becoming live markup when document.write() runs. Calling
+# decodeURI() on it undoes that protection, so never decode it - this
+# applies to every level, not just "impossible".
+$decodeURI = "";
 
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
@@ -48,9 +54,25 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
+					// Never trust the browser to have left this inert. The
+					// query string sits in a URL fragment, which some
+					// navigation paths (e.g. an attacker script assigning
+					// location.href directly, rather than a typed address)
+					// never percent-encode. Encode it here, explicitly, for
+					// the HTML context it is about to be written into.
+					function xssdEscapeForHtml(value) {
+						return String(value)
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#39;");
+					}
+
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
+						var label = $decodeURI(lang);
+						document.write("<option value='" + xssdEscapeForHtml(lang) + "'>" + xssdEscapeForHtml(label) + "</option>");
 						document.write("<option value='' disabled='disabled'>----</option>");
 					}
 					    

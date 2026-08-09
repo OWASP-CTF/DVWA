@@ -85,7 +85,16 @@ class HealthController
 		if (array_key_exists ("target", $input)) {
 			$target = $input['target'];
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			// The target has to look like a host name or an IP address, and is
+			// passed to the shell as a single escaped argument, so it can never
+			// be interpreted as shell syntax.
+			if (!is_string ($target) || !preg_match ('/^[A-Za-z0-9]([A-Za-z0-9.:_-]{0,253}[A-Za-z0-9])?$/', $target)) {
+				$response['status_code_header'] = 'HTTP/1.1 500 Internal Server Error';
+				$response['body'] = json_encode (array ("status" => "Connection failed"));
+				return $response;
+			}
+
+			exec ("ping -c 4 " . escapeshellarg ($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

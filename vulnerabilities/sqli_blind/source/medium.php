@@ -5,14 +5,23 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 	$id = $_POST[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
-		case MYSQL:
-			$id = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $id ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	// The dropdown only ever submits a positive decimal user id. Validate that
+	// shape before binding, rather than loosely casting to int, so a
+	// non-numeric payload is rejected outright instead of being silently
+	// coerced to some other in-range value.
+	$valid_id = is_string( $id ) && ctype_digit( $id ) && filter_var( $id, FILTER_VALIDATE_INT, array(
+		'options' => array( 'min_range' => 1 )
+	) ) !== false;
 
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+	if ( $valid_id ) switch ($_DVWA['SQLI_DB']) {
+		case MYSQL:
+			// Check database using a parameterised query
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+				mysqli_stmt_bind_param($stmt, 'i', $id);
+				mysqli_stmt_execute($stmt);
+				$result = mysqli_stmt_get_result($stmt);
 			} catch (Exception $e) {
 				print "There was an error.";
 				exit;
@@ -26,14 +35,16 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 					$exists = false;
 				}
 			}
-			
+
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
-			
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id;";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare($query);
+				$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {

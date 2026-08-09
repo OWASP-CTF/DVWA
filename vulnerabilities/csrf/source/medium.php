@@ -1,37 +1,40 @@
 <?php
 
 if( isset( $_GET[ 'Change' ] ) ) {
-	// Checks to see where the request came from
-	if( stripos( $_SERVER[ 'HTTP_REFERER' ] ,$_SERVER[ 'SERVER_NAME' ]) !== false ) {
-		// Get input
-		$pass_new  = $_GET[ 'password_new' ];
-		$pass_conf = $_GET[ 'password_conf' ];
+	// A Referer check alone is bypassable (missing referrer, no-referrer
+	// policies, a client that simply never sends one, etc) and was the
+	// original "protection" here. Require a real per-session Anti-CSRF
+	// token instead - it proves the request came from this app's own
+	// form, which a same-origin Referer string never actually did.
+	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
-		// Do the passwords match?
-		if( $pass_new == $pass_conf ) {
-			// They do!
-			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-			$pass_new = md5( $pass_new );
+	// Get input
+	$pass_new  = $_GET[ 'password_new' ];
+	$pass_conf = $_GET[ 'password_conf' ];
 
-			// Update the database
-			$current_user = dvwaCurrentUser();
-			$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . $current_user . "';";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+	// Do the passwords match?
+	if( $pass_new == $pass_conf ) {
+		// They do!
+		$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+		$pass_new = md5( $pass_new );
 
-			// Feedback for the user
-			$html .= "<pre>Password Changed.</pre>";
-		}
-		else {
-			// Issue with passwords matching
-			$html .= "<pre>Passwords did not match.</pre>";
-		}
+		// Update the database
+		$current_user = dvwaCurrentUser();
+		$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . $current_user . "';";
+		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+
+		// Feedback for the user
+		$html .= "<pre>Password Changed.</pre>";
 	}
 	else {
-		// Didn't come from a trusted source
-		$html .= "<pre>That request didn't look correct.</pre>";
+		// Issue with passwords matching
+		$html .= "<pre>Passwords did not match.</pre>";
 	}
 
 	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 }
+
+// Generate Anti-CSRF token
+generateSessionToken();
 
 ?>

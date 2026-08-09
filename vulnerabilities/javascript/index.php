@@ -29,6 +29,32 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+// The old checks derived the expected token from the submitted phrase alone,
+// using a fixed transform each level's own (obfuscated, but readable)
+// JavaScript carried out - a reimplementable rule, not a secret, so an
+// attacker never needed a browser to produce a valid token. Instead, mint an
+// unguessable token per level here on the server, hand it to the page ready
+// filled in, and require the exact same value back. Nothing about the
+// phrase's content ever factors into what token is expected, so there is no
+// transform left to reverse-engineer.
+function dvwaJsChallengeToken( $level ) {
+	if ( !isset( $_SESSION[ 'dvwa_js_tokens' ] ) || !is_array( $_SESSION[ 'dvwa_js_tokens' ] ) ) {
+		$_SESSION[ 'dvwa_js_tokens' ] = array();
+	}
+	if ( empty( $_SESSION[ 'dvwa_js_tokens' ][ $level ] ) ) {
+		$_SESSION[ 'dvwa_js_tokens' ][ $level ] = bin2hex( random_bytes( 32 ) );
+	}
+	return $_SESSION[ 'dvwa_js_tokens' ][ $level ];
+}
+
+function dvwaJsChallengeTokenRotate( $level ) {
+	$_SESSION[ 'dvwa_js_tokens' ][ $level ] = bin2hex( random_bytes( 32 ) );
+	return $_SESSION[ 'dvwa_js_tokens' ][ $level ];
+}
+
+$level = dvwaSecurityLevelGet();
+$pageToken = ( $level == 'impossible' ) ? '' : dvwaJsChallengeToken( $level );
+
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
@@ -38,31 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$token = $_POST['token'];
 
 		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
+			if ( $level == "impossible" ) {
+				$vulnerabilityFile = 'impossible.php';
+			} else {
+				if (is_string ($token) && hash_equals ($pageToken, $token)) {
+					$message = "<p style='color:red'>Well done!</p>";
+				} else {
+					$message = "<p>Invalid token.</p>";
+				}
+				// One-shot: whether the attempt succeeded or not, the value
+				// just checked is never valid again.
+				$pageToken = dvwaJsChallengeTokenRotate( $level );
 			}
 		} else {
 			$message = "<p>You got the phrase wrong.</p>";
@@ -71,6 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$message = "<p>Missing phrase or token.</p>";
 	}
 }
+
+$pageToken = htmlspecialchars( $pageToken, ENT_QUOTES, 'UTF-8' );
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
 $page[ 'body' ] = <<<EOF
@@ -95,7 +109,7 @@ $page[ 'body' ] = <<<EOF
 	$message
 
 	<form name="low_js" method="post">
-		<input type="hidden" name="token" value="" id="token" />
+		<input type="hidden" name="token" value="{$pageToken}" id="token" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>

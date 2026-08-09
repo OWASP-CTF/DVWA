@@ -45,8 +45,8 @@ $page[ 'body' ] .= "
 				<input type=\"submit\" name=\"Submit\" value=\"Submit\">
 			</p>\n";
 
-if( $vulnerabilityFile == 'impossible.php' )
-	$page[ 'body' ] .= "			" . tokenField();
+// Every level now verifies this token server-side, not just impossible.
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>
