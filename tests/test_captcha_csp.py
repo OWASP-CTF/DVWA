@@ -106,3 +106,9 @@ def test_open_redirect_low_does_not_reflect_destination():
     source = read("vulnerabilities/open_redirect/source/low.php")
     assert "if ($target === 'info.php')" in source
     assert 'header ("location: " . $_GET[\'redirect\'])' not in source
+
+
+def test_upload_high_uses_detected_type_and_random_name():
+    source = read("vulnerabilities/upload/source/high.php")
+    assert "finfo(FILEINFO_MIME_TYPE)" in source
+    assert "random_bytes(16)" in source
