@@ -29,43 +29,32 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+/*
+ * Anything computed by the browser can be read and reproduced by the caller.
+ * Derive the accepted token with a per-session key that never leaves the
+ * server, rather than sending the accepted bearer token in the form itself.
+ */
+if( !isset( $_SESSION[ 'javascript_secret' ] ) || !is_string( $_SESSION[ 'javascript_secret' ] ) || $_SESSION[ 'javascript_secret' ] === '' ) {
+	$_SESSION[ 'javascript_secret' ] = bin2hex( random_bytes( 32 ) );
+}
+
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
 
-		$phrase = $_POST['phrase'];
-		$token = $_POST['token'];
+		$phrase = is_string( $_POST[ 'phrase' ] ) ? $_POST[ 'phrase' ] : "";
+		$token  = is_string( $_POST[ 'token' ] ) ? $_POST[ 'token' ] : "";
 
-		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
-			}
-		} else {
+		if( !hash_equals( "success", $phrase ) ) {
 			$message = "<p>You got the phrase wrong.</p>";
+		} elseif( dvwaSecurityLevelGet() === 'impossible' ) {
+			$vulnerabilityFile = 'impossible.php';
+		} else {
+			$expected_token = hash_hmac( 'sha256', $phrase, $_SESSION[ 'javascript_secret' ] );
+			$message = hash_equals( $expected_token, $token )
+				? "<p style='color:red'>Well done!</p>"
+				: "<p>Invalid token.</p>";
 		}
 	} else {
 		$message = "<p>Missing phrase or token.</p>";

@@ -5,33 +5,47 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 	$id = $_GET[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
+	// Binding text as an integer is not validation: "1 OR 1=1" is coerced to
+	// user ID 1 and incorrectly answers EXISTS. Only a complete decimal ID may
+	// reach either database driver.
+	if( is_string( $id ) && preg_match( '/^[0-9]{1,10}\z/', $id ) === 1 ) {
+		$id = (int)$id;
+
+		switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
+			// The user supplied id is bound as a parameter, so it can never be parsed as SQL
+			// and the true/false response can no longer be used as a boolean oracle.
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
 			} catch (Exception $e) {
 				print "There was an error.";
 				exit;
 			}
 
 			$exists = false;
-			if ($result !== false) {
+			if ($stmt !== false) {
 				try {
-					$exists = (mysqli_num_rows( $result ) > 0);
+					mysqli_stmt_bind_param( $stmt, 'i', $id );
+					mysqli_stmt_execute( $stmt );
+					mysqli_stmt_store_result( $stmt );
+					$exists = (mysqli_stmt_num_rows( $stmt ) > 0);
 				} catch(Exception $e) {
 					$exists = false;
 				}
+				mysqli_stmt_close( $stmt );
 			}
 			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id;";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare( $query );
+				$stmt->bindValue( ':id', $id, SQLITE3_INTEGER );
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {
@@ -39,15 +53,13 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 			}
 
 			break;
+		}
 	}
 
 	if ($exists) {
 		// Feedback for end user
 		$html .= '<pre>User ID exists in the database.</pre>';
 	} else {
-		// User wasn't found, so the page wasn't!
-		header( $_SERVER[ 'SERVER_PROTOCOL' ] . ' 404 Not Found' );
-
 		// Feedback for end user
 		$html .= '<pre>User ID is MISSING from the database.</pre>';
 	}

@@ -7,9 +7,11 @@ if( isset( $_POST[ 'btnSign' ] ) ) {
 
 	// Sanitize message input
 	$message = stripslashes( $message );
+	$message = htmlspecialchars( $message, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 	$message = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $message ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 
 	// Sanitize name input
+	$name = htmlspecialchars( $name, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 	$name = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $name ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 
 	// Update database

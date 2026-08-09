@@ -5,7 +5,8 @@ require_once ("token_library_high.php");
 $ret = "";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-	if ($_SERVER['CONTENT_TYPE'] != "application/json") {
+	$content_type = array_key_exists ('CONTENT_TYPE', $_SERVER) ? $_SERVER['CONTENT_TYPE'] : "";
+	if ($content_type != "application/json") {
 		$ret = json_encode (array (
 						"status" => 527,
 						"message" => "Content type must be application/json"

@@ -1,11 +1,19 @@
 <?php
 /*
 
-Nothing to see here for this vulnerability, have a look
-instead at the dvwaHtmlEcho function in:
+Only the admin user is allowed to access this page.
 
-* dvwa/includes/dvwaPage.inc.php
+The page, the API which returns the user data, and the API which updates it
+all check authorisation independently:
+
+* vulnerabilities/authbypass/get_user_data.php
+* vulnerabilities/authbypass/change_user_details.php
 
 */
 
+if (dvwaCurrentUser() != "admin") {
+	print "Unauthorised";
+	http_response_code(403);
+	exit;
+}
 ?>

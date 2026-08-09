@@ -18,6 +18,19 @@ class HealthController
 		$this->command = $command;
 	}
 
+	# The connectivity target is handed to an OS command so it has to be a
+	# plain host name or IP address. Anything else is rejected rather than
+	# escaped and hoped for the best.
+	private static function validTarget($target) {
+		if (!is_string ($target) || strlen ($target) == 0 || strlen ($target) > 253) {
+			return false;
+		}
+		if (filter_var ($target, FILTER_VALIDATE_IP) !== false) {
+			return true;
+		}
+		return preg_match ('/^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/', $target) === 1;
+	}
+
     #[OAT\Post(
 		tags: ["health"],
         path: '/vulnerabilities/api/v2/health/echo',
@@ -85,7 +98,13 @@ class HealthController
 		if (array_key_exists ("target", $input)) {
 			$target = $input['target'];
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			if (!self::validTarget ($target)) {
+				$response['status_code_header'] = 'HTTP/1.1 500 Internal Server Error';
+				$response['body'] = json_encode (array ("status" => "Connection failed"));
+				return $response;
+			}
+
+			exec ("ping -c 4 " . escapeshellarg ($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

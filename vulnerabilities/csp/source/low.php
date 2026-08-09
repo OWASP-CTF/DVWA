@@ -1,27 +1,41 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+/*
+ * Every host on a script-src allow list can run code with the full authority
+ * of this origin. Paste sites, code hosting CDNs and JSONP endpoints all let
+ * an attacker choose that code, so allow listing them gives away exactly the
+ * protection the policy was added for.
+ *
+ * Only scripts served by this application are trusted. object-src and
+ * base-uri are locked down too so the policy cannot be sidestepped with a
+ * plugin or a rewritten <base href>.
+ */
+
+$headerCSP = "Content-Security-Policy: script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self';";
 
 header($headerCSP);
-
-# These might work if you can't create your own for some reason
-# https://cdn.jsdelivr.net/gh/digininja/csp_bypass/alert.js
-# https://unpkg.com/@digininja/csp_bypass@1.0.0/index.js
+header("X-Content-Type-Options: nosniff");
 
 ?>
 <?php
+
 if (isset ($_POST['include'])) {
-$page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
+	// Do not turn a caller-controlled value into a script-fetching primitive,
+	// even when the path is same-origin. Reflect it only as text.
+	$include = is_string ($_POST['include']) ? $_POST['include'] : "";
+	$page[ 'body' ] .= "
+	" . htmlspecialchars ($include, ENT_QUOTES, 'UTF-8') . "
 ";
 }
+
 $page[ 'body' ] .= '
 <form name="csp" method="POST">
-	<p>You can include scripts from external sources, examine the Content Security Policy and enter a URL to include here:</p>
+	<p>The Content Security Policy allows script from this site only. A submitted URL is displayed as text and is never loaded as script.</p>
+	<p>1+2+3+4+5=<span id="answer"></span></p>
 	<input size="50" type="text" name="include" value="" id="include" />
 	<input type="submit" value="Include" />
+	<input type="button" id="solve" value="Solve the sum" />
 </form>
-<p>
-	You will probably need to do some reading up on what some of the domains allowed by the CSP do and how they can be used.
-</p>
+
+<script src="source/impossible.js"></script>
 ';

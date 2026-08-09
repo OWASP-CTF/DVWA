@@ -13,6 +13,39 @@ $page[ 'source_button' ] = 'csrf';
 
 dvwaDatabaseConnect();
 
+// A CSRF token proves that the request came from a form issued to this
+// session, while the current password re-authenticates this sensitive action.
+function csrfChangePassword( $pass_current, $pass_new, $pass_conf ) {
+	global $db;
+
+	if( !is_string( $pass_current ) || !is_string( $pass_new ) || !is_string( $pass_conf ) ) {
+		return false;
+	}
+
+	if( !hash_equals( $pass_new, $pass_conf ) ) {
+		return false;
+	}
+
+	$current_user = dvwaCurrentUser();
+	$current_hash = md5( $pass_current );
+
+	$check = $db->prepare( 'SELECT 1 FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+	$check->bindParam( ':user', $current_user, PDO::PARAM_STR );
+	$check->bindParam( ':password', $current_hash, PDO::PARAM_STR );
+	$check->execute();
+
+	if( $check->fetchColumn() === false ) {
+		return false;
+	}
+
+	$new_hash = md5( $pass_new );
+	$update = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user) LIMIT 1;' );
+	$update->bindParam( ':password', $new_hash, PDO::PARAM_STR );
+	$update->bindParam( ':user', $current_user, PDO::PARAM_STR );
+
+	return $update->execute();
+}
+
 $vulnerabilityFile = '';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
@@ -51,13 +84,9 @@ $page[ 'body' ] .= "
 		<div id=\"test_credentials\">
 			".$testCredentials ."
 		</div><br />
-		<form action=\"#\" method=\"GET\">";
-
-if( $vulnerabilityFile == 'impossible.php' ) {
-	$page[ 'body' ] .= "
+		<form action=\"#\" method=\"POST\">
 			Current password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_current\"><br />";
-}
 
 $page[ 'body' ] .= "
 			New password:<br />
@@ -67,8 +96,10 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
-	$page[ 'body' ] .= "			" . tokenField();
+// The Anti-CSRF token is required at every security level, so always render the
+// hidden field. Every source/*.php calls generateSessionToken() before we get
+// here, so $_SESSION[ 'session_token' ] is always populated at this point.
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>

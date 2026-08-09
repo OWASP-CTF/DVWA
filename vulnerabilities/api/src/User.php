@@ -23,11 +23,11 @@ final class User
     #[OAT\Property(type: 'integer', example: 1)]
     public int $level;
 
-	public string $password;
+	private string $password;
 
 	function __construct ($id, $name, $level, $password) {
 		if (is_null ($id)) {
-			$id = mt_rand(50,100);
+			$id = random_int(50,100);
 		}
 		$this->id = $id;
 		$this->name = $name;
@@ -36,13 +36,14 @@ final class User
 	}
 
 	public function toArray($version) {
+		# The password hash is never part of the representation returned to a
+		# caller, whichever version of the API they are talking to.
 		switch ($version) {
 			case 1:
 				$a = array (
 					"id" => $this->id,
 					"name" => $this->name,
 					"level" => $this->level,
-					"password" => $this->password,
 				);
 				break;
 			default:

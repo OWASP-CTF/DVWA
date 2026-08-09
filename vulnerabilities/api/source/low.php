@@ -7,7 +7,9 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 }
 
 $request_url = $_SERVER['REQUEST_URI'];
-$stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+// The request URI is attacker controlled and is written into a JavaScript
+// string below, so encode it before it is used.
+$stripped_url = htmlspecialchars (str_replace ("/vulnerabilities/api/", "", $request_url), ENT_QUOTES, 'UTF-8');
 
 $html .= "
 <p>
