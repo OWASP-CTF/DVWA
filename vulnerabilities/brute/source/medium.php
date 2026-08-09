@@ -1,3 +1,14 @@
 <?php
-require __DIR__ . '/impossible.php';
+if( isset( $_GET[ 'Login' ] ) ) {
+	$user = mysqli_real_escape_string( $GLOBALS['___mysqli_ston'], $_GET[ 'username' ] );
+	$pass = md5( mysqli_real_escape_string( $GLOBALS['___mysqli_ston'], $_GET[ 'password' ] ) );
+	$query = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
+	$result = mysqli_query( $GLOBALS['___mysqli_ston'], $query );
+	if( $result && mysqli_num_rows( $result ) == 1 ) {
+		$html .= "<p>Welcome to the password protected area {$user}</p>";
+	} else {
+		sleep( 2 );
+		$html .= '<pre><br />Username and/or password incorrect.</pre>';
+	}
+}
 ?>

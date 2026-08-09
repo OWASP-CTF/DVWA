@@ -1,3 +1,3 @@
 <?php
-require __DIR__ . '/impossible.php';
+$file = $_GET['page'];
 ?>
