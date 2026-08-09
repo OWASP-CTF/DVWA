@@ -5,7 +5,13 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 	$id = $_COOKIE[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
+	// The entire cookie must be a decimal ID before it is converted. Otherwise
+	// an injected value with a numeric prefix is silently coerced to that user
+	// and continues to expose an EXISTS/MISSING oracle.
+	if( is_string( $id ) && preg_match( '/^[0-9]{1,10}\z/', $id ) === 1 ) {
+		$id = (int)$id;
+
+		switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
 			// The cookie value is bound as a parameter, so the trailing LIMIT can no longer be
@@ -48,6 +54,7 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 			}
 
 			break;
+		}
 	}
 
 	if ($exists) {
@@ -59,9 +66,6 @@ if( isset( $_COOKIE[ 'id' ] ) ) {
 		if( rand( 0, 5 ) == 3 ) {
 			sleep( rand( 2, 4 ) );
 		}
-
-		// User wasn't found, so the page wasn't!
-		header( $_SERVER[ 'SERVER_PROTOCOL' ] . ' 404 Not Found' );
 
 		// Feedback for end user
 		$html .= '<pre>User ID is MISSING from the database.</pre>';

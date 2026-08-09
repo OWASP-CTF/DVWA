@@ -5,7 +5,13 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 	$id = $_POST[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
+	// Reject the complete value unless it is a decimal ID. Relying on the
+	// integer bind alone would coerce an injection string beginning with "1"
+	// to user ID 1 and preserve the boolean oracle.
+	if( is_string( $id ) && preg_match( '/^[0-9]{1,10}\z/', $id ) === 1 ) {
+		$id = (int)$id;
+
+		switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
 			// The user supplied id is bound as a parameter, so it can never be parsed as SQL.
@@ -47,6 +53,7 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 				$exists = false;
 			}
 			break;
+		}
 	}
 
 	if ($exists) {

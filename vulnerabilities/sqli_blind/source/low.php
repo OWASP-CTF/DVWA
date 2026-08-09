@@ -5,7 +5,13 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 	$id = $_GET[ 'id' ];
 	$exists = false;
 
-	switch ($_DVWA['SQLI_DB']) {
+	// Binding text as an integer is not validation: "1 OR 1=1" is coerced to
+	// user ID 1 and incorrectly answers EXISTS. Only a complete decimal ID may
+	// reach either database driver.
+	if( is_string( $id ) && preg_match( '/^[0-9]{1,10}\z/', $id ) === 1 ) {
+		$id = (int)$id;
+
+		switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
 			// The user supplied id is bound as a parameter, so it can never be parsed as SQL
@@ -47,15 +53,13 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 			}
 
 			break;
+		}
 	}
 
 	if ($exists) {
 		// Feedback for end user
 		$html .= '<pre>User ID exists in the database.</pre>';
 	} else {
-		// User wasn't found, so the page wasn't!
-		header( $_SERVER[ 'SERVER_PROTOCOL' ] . ' 404 Not Found' );
-
 		// Feedback for end user
 		$html .= '<pre>User ID is MISSING from the database.</pre>';
 	}

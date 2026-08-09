@@ -62,6 +62,14 @@ class ResidualSecurityTests(unittest.TestCase):
         self.assertNotIn('name="client_token"', body)
         self.assertIn('name="token" value="" id="token"', body)
 
+    def test_blind_sqli_rejects_numeric_prefix_payloads_before_binding(self):
+        for level in ("low", "medium", "high"):
+            with self.subTest(level=level):
+                body = source(f"vulnerabilities/sqli_blind/source/{level}.php")
+                self.assertIn("preg_match( '/^[0-9]{1,10}\\z/'", body)
+                self.assertLess(body.index("preg_match("), body.index("switch ($_DVWA['SQLI_DB'])"))
+                self.assertNotIn("404 Not Found", body)
+
 
 if __name__ == "__main__":
     unittest.main()
