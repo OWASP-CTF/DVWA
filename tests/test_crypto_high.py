@@ -6,4 +6,6 @@ def test_crypto_high_uses_authenticated_random_encryption():
     assert 'aes-256-gcm' in source
     assert 'rainbowclimbinghigh' not in source
     assert 'random_bytes(12)' in source
+    assert 'function encrypt ($plaintext, $iv, &$tag)' in source
+    assert 'encrypt ($token, $iv, $tag)' in source
     assert '"tag"' in source

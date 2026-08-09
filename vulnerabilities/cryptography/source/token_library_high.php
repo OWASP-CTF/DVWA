@@ -3,14 +3,13 @@
 define ("ALGO", "aes-256-gcm");
 function encryption_key () { return hash('sha256', getenv('DVWA_CRYPTO_KEY') ?: 'dvwa-development-key', true); }
 
-function encrypt ($plaintext, $iv) {
+function encrypt ($plaintext, $iv, &$tag) {
 	# Default padding is PKCS#7 which is interchangeable with PKCS#5
 	# https://en.wikipedia.org/wiki/Padding_%28cryptography%29#PKCS#5_and_PKCS#7
 
 	if (strlen ($iv) != 12) {
 		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
-	$tag = "";
 	$e = openssl_encrypt($plaintext, ALGO, encryption_key(), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
@@ -42,7 +41,7 @@ function create_token ($debug = false) {
 		print "Encryption key: configured\n";
 	}
 
-	$e = encrypt ($token, $iv);
+	$e = encrypt ($token, $iv, $tag);
 	$data = array (
 					"token" => base64_encode ($e),
 					"iv" => base64_encode ($iv),
