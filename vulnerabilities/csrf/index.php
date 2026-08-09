@@ -53,7 +53,13 @@ $page[ 'body' ] .= "
 		</div><br />
 		<form action=\"#\" method=\"GET\">";
 
-if( $vulnerabilityFile == 'impossible.php' ) {
+// A CSRF token alone only proves the request came from a page on this site -
+// anything able to read that page (e.g. a same-site XSS bug, or a token that
+// simply leaked) can read the token too and replay it. From high upward the
+// form also asks for the current password, so a forged/replayed request
+// still can't succeed without something an off-site attacker never has
+// access to.
+if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' ) {
 	$page[ 'body' ] .= "
 			Current password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_current\"><br />";
@@ -67,8 +73,9 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
-	$page[ 'body' ] .= "			" . tokenField();
+// All levels (except the raw source-only demo) now require the per-session
+// anti-CSRF token to actually submit the form.
+$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
 		</form>
