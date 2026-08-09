@@ -40,6 +40,9 @@ class Login
 		$tokenObj = new Token();
 		$decrypted = $tokenObj->decrypt_token ($token);
 
+		if ($decrypted === false) {
+			return false;
+		}
 		if ($decrypted['secret'] == self::REFRESH_TOKEN_SECRET && $decrypted['expires'] > time()) {
 			return true;
 		}
