@@ -55,6 +55,9 @@ class Token {
 		}
 
 		$token = json_decode ($decrypted, true);
+		if (!is_array($token) || !isset($token['secret'], $token['expires']) || !is_string($token['secret']) || !is_int($token['expires'])) {
+			return false;
+		}
 		return $token;
 	}
 }
