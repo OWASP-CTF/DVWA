@@ -124,3 +124,38 @@ def test_api_user_updates_reject_mass_assignment():
     source = read("vulnerabilities/api/src/UserController.php")
     assert "strlen($input['name']) > 100" in source
     assert 'array_key_exists ("level", $input)' not in source[source.index('private function updateUser'):source.index('private function updateUser') + 1800]
+
+
+def test_api_order_updates_validate_field_types_and_lengths():
+    source = read("vulnerabilities/api/src/OrderController.php")
+    assert "strlen($input['name']) > 100" in source
+    assert "strlen($input['address']) > 500" in source
+    assert "!is_array($input['items'])" in source
+
+
+def test_api_tokens_do_not_use_hardcoded_secrets():
+    source = read("vulnerabilities/api/src/Login.php")
+    assert '"12345"' not in source
+    assert '"98765"' not in source
+    assert "getenv('DVWA_ACCESS_TOKEN_SECRET')" in source
+
+
+def test_api_json_login_uses_configured_password_verification():
+    source = read("vulnerabilities/api/src/LoginController.php")
+    assert 'getenv(\'DVWA_API_PASSWORD_HASH\')' in source
+    assert 'password_verify($password, $expectedPasswordHash)' in source
+    assert '$password == "becareful"' not in source[source.index('private function loginJSON'):source.index('private function login()')]
+
+
+def test_api_basic_login_uses_configured_client_credentials():
+    source = read("vulnerabilities/api/src/LoginController.php")
+    login = source[source.index('private function login()'):]
+    assert "getenv('DVWA_API_CLIENT_ID')" in login
+    assert "getenv('DVWA_API_CLIENT_SECRET')" in login
+    assert "hash_equals($expectedClient, $client_id)" in login
+
+
+def test_api_user_creation_does_not_assign_predictable_password_hash():
+    source = read("vulnerabilities/api/src/UserController.php")
+    assert "password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT)" in source
+    assert 'hash ("sha256", "password")' not in source
