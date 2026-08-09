@@ -4,8 +4,11 @@ if (!defined('DVWA_WEB_PAGE_TO_ROOT')) {
 }
 
 // Get current user's ID
-$query = "SELECT user_id, role FROM users WHERE user = '" . dvwaCurrentUser() . "';";
-$result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
+$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT user_id, role FROM users WHERE user = ?");
+$current_user = dvwaCurrentUser();
+mysqli_stmt_bind_param($stmt, "s", $current_user);
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
 $row = ($result && mysqli_num_rows($result) > 0) ? mysqli_fetch_assoc($result) : array('user_id' => 0, 'role' => '');
 $current_user_id = intval($row['user_id']);
 $role = $row['role'];
