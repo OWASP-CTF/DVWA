@@ -159,3 +159,8 @@ def test_api_user_creation_does_not_assign_predictable_password_hash():
     source = read("vulnerabilities/api/src/UserController.php")
     assert "password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT)" in source
     assert 'hash ("sha256", "password")' not in source
+
+
+def test_api_user_creation_rejects_privileged_levels():
+    source = read("vulnerabilities/api/src/UserController.php")
+    assert "intval($input['level']) !== 1" in source
