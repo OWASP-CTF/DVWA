@@ -22,28 +22,28 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         $check_result = mysqli_query($GLOBALS["___mysqli_ston"], $check_query);
         $user_exists = ($check_result && mysqli_num_rows($check_result) > 0);
         
-        // "Secure" check that's easily bypassed
-        if (isset($_GET['token']) && $_GET['token'] == 'user_token') {
-            if ($user_exists) {
-                $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = '$id';";
-                $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
-                
-                if ($result && mysqli_num_rows($result) > 0) {
-                    $row = mysqli_fetch_assoc($result);
-                    $html .= "
-                        <div class=\"profile-info\">
-                            <h3>User Profile</h3>
-                            <p>User ID: {$row['user_id']}</p>
-                            <p>Name: {$row['first_name']} {$row['last_name']}</p>
-                            <p>Avatar: {$row['avatar']}</p>
-                            <!-- Hint: This token check isn't very secure... -->
-                        </div>";
-                }
-            } else {
-                $html .= "<p>No user found with ID: {$id}</p>";
+        // The old check was a static, identical-for-every-user magic token ("user_token") -
+        // knowing it (or finding it in this file's own hint comment) let anyone view any
+        // profile, with no per-user restriction at all. Compare against $current_user_id
+        // instead, which was derived server-side above from the authenticated session.
+        if (!$user_exists) {
+            $html .= "<p>No user found with ID: {$id}</p>";
+        } else if ((int) $id === (int) $current_user_id) {
+            $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = '$id';";
+            $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
+
+            if ($result && mysqli_num_rows($result) > 0) {
+                $row = mysqli_fetch_assoc($result);
+                $html .= "
+                    <div class=\"profile-info\">
+                        <h3>User Profile</h3>
+                        <p>User ID: " . htmlspecialchars($row['user_id'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p>Name: " . htmlspecialchars($row['first_name'], ENT_QUOTES, 'UTF-8') . " " . htmlspecialchars($row['last_name'], ENT_QUOTES, 'UTF-8') . "</p>
+                        <p>Avatar: " . htmlspecialchars($row['avatar'], ENT_QUOTES, 'UTF-8') . "</p>
+                    </div>";
             }
         } else {
-            $html .= "<p>Access denied. Valid token required. <!-- Try using token=user_token --></p>";
+            $html .= "<p>Access denied. You can only view your own profile.</p>";
         }
         
         // Log access attempts
