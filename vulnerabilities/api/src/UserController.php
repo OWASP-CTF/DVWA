@@ -37,6 +37,20 @@ class UserController
 		$this->version = $version;
 	}
 
+	private function checkToken() {
+		if (array_key_exists ("HTTP_AUTHORIZATION", $_SERVER)) {
+			$header = $_SERVER['HTTP_AUTHORIZATION'];
+			$bits = explode (" ", $header);
+			if (count ($bits) == 2) {
+				if (strtolower($bits[0]) == "bearer") {
+					return (Login::check_access_token($bits[1]));
+				}
+			}
+		}
+
+		return false;
+	}
+
 	private function validateAdd($input)
 	{
 		if (! isset($input['name'])) {
@@ -254,6 +268,11 @@ class UserController
 	}
 
 	public function processRequest() {
+		if ($this->requestMethod !== 'OPTIONS' && !$this->checkToken()) {
+			header('HTTP/1.1 401 Unauthorized');
+			echo json_encode(array ('error' => 'Unauthorized'));
+			return;
+		}
 		switch ($this->requestMethod) {
 			case 'GET':
 				if ($this->userId) {
