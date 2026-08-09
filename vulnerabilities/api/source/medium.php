@@ -80,7 +80,7 @@ $html .= "
 			Look at the call used to update your name and exploit it to elevate your user to admin (level 0).
 		</p>
 		<p id='user_info'></p>
-		<form method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form method='post' action=''>
 			<p>
 				<label for='name'>Name</label>
 				<input type='text' value='' name='name' id='name'>
