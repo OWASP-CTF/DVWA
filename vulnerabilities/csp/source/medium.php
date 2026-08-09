@@ -1,13 +1,13 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' 'unsafe-inline' 'nonce-TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=';";
+// A CSP nonce must be a fresh, unpredictable random value generated per request - this one was
+// a hardcoded constant baked into the source (and documented right here in a comment), so any
+// attacker could reuse the exact same nonce to run their own inline script. Nothing in this
+// codebase actually emits a legitimate nonce'd inline script, so 'unsafe-inline' and the nonce
+// are dropped entirely rather than replaced with a real per-request one.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
-
-// Disable XSS protections so that inline alert boxes will work
-header ("X-XSS-Protection: 0");
-
-# <script nonce="TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=">alert(1)</script>
 
 ?>
 <?php

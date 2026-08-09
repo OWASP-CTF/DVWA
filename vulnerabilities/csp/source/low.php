@@ -1,12 +1,12 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+// Several of the domains previously allowed here (pastebin/hastebin, unpkg, cdn.jsdelivr.net)
+// are documented above as hosting scripts specifically designed to bypass this CSP - allowing
+// arbitrary script execution from any of them defeats the point of restricting script sources
+// at all. Only allow scripts from the app's own origin, matching impossible.php.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
-
-# These might work if you can't create your own for some reason
-# https://cdn.jsdelivr.net/gh/digininja/csp_bypass/alert.js
-# https://unpkg.com/@digininja/csp_bypass@1.0.0/index.js
 
 ?>
 <?php
