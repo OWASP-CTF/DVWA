@@ -46,11 +46,15 @@ function dvwa_start_session() {
 	// This will setup the session cookie based on
 	// the security level.
 
-	// The session cookie is always protected, regardless of the security
-	// level. The security level only changes the vulnerable modules, it must
-	// not weaken the platform's own session handling.
-	$httponly = true;
-	$samesite = "Strict";
+	$security_level = dvwaSecurityLevelGet();
+	if ($security_level == 'impossible') {
+		$httponly = true;
+		$samesite = "Strict";
+	}
+	else {
+		$httponly = false;
+		$samesite = "";
+	}
 
 	$maxlifetime = 86400;
 	$secure = false;
@@ -80,13 +84,25 @@ function dvwa_start_session() {
 	 * session_start() might not generate a Set-Cookie header if a cookie already
 	 * exists.
 	 *
-	 * We always regenerate the session id here, at every security level. PHP
-	 * generates a new random id, which prevents the reuse of a previous
-	 * unauthenticated id that an attacker might have planted or already know
-	 * (aka session fixation attack).
+	 * For impossible security level, we regenerate the session id, PHP will
+	 * generate a new random id. This is good security practice because it
+	 * prevents the reuse of a previous unauthenticated id that an attacker
+	 * might have knowledge of (aka session fixation attack).
+   *
+	 * For lower levels, we want to allow session fixation attacks, so if an id
+	 * already exists, we don't want it to change after authentication. We thus
+	 * set the id to its previous value using session_id(), which will force
+	 * the Set-Cookie header.
 	*/
-	session_start();
-	session_regenerate_id( true ); // force a new id to be generated
+	if ($security_level == 'impossible') {
+		session_start();
+		session_regenerate_id(); // force a new id to be generated
+	}
+	else {
+		if (isset($_COOKIE[session_name()])) // if a session id already exists
+			session_id($_COOKIE[session_name()]); // we keep the same id
+		session_start(); // otherwise a new one will be generated here
+	}
 }
 
 if (array_key_exists ("Login", $_POST) && $_POST['Login'] == "Login") {
@@ -122,11 +138,6 @@ function dvwaPageStartup( $pActions ) {
 }
 
 function dvwaLogin( $pUsername ) {
-	// Give the now-authenticated user a brand new session id so that any id
-	// known before authentication cannot be replayed to reach this account.
-	if( session_status() == PHP_SESSION_ACTIVE ) {
-		session_regenerate_id( true );
-	}
 	$dvwaSession =& dvwaSessionGrab();
 	$dvwaSession[ 'username' ] = $pUsername;
 }
@@ -146,10 +157,6 @@ function dvwaIsLoggedIn() {
 function dvwaLogout() {
 	$dvwaSession =& dvwaSessionGrab();
 	unset( $dvwaSession[ 'username' ] );
-	// Retire the identifier as well, so a captured id is useless after logout.
-	if( session_status() == PHP_SESSION_ACTIVE ) {
-		session_regenerate_id( true );
-	}
 }
 
 
