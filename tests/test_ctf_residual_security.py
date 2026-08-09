@@ -52,6 +52,16 @@ class ResidualSecurityTests(unittest.TestCase):
         self.assertIn("$current_password_ok", high)
         self.assertNotIn("hidd3n_valu3", high)
 
+    def test_javascript_levels_do_not_disclose_the_accepted_token(self):
+        body = source("vulnerabilities/javascript/index.php")
+
+        self.assertIn("random_bytes( 32 )", body)
+        self.assertIn("hash_hmac( 'sha256', $phrase", body)
+        self.assertIn("hash_equals( $expected_token, $token )", body)
+        self.assertNotIn("$server_token", body)
+        self.assertNotIn('name="client_token"', body)
+        self.assertIn('name="token" value="" id="token"', body)
+
 
 if __name__ == "__main__":
     unittest.main()
