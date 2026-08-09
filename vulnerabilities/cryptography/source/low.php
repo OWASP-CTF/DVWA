@@ -53,7 +53,7 @@ $html = "
 		<p>
 		This super secure system will allow you to exchange messages with your friends without anyone else being able to read them. Use the box below to encode and decode messages.
 		</p>
-		<form name=\"xor\" method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form name=\"xor\" method='post' action=''>
 			<p>
 				<label for='message'>Message:</lable><br />
 				<textarea style='width: 600px; height: 56px' id='message' name='message'>" . htmlentities ($message) . "</textarea>
@@ -99,7 +99,7 @@ if ($success != "") {
 }
 
 $html .= "
-		<form name=\"ecb\" method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form name=\"ecb\" method='post' action=''>
 			<p>
 				<label for='password'>Password:</lable><br />
 <input type='password' id='password' name='password'>

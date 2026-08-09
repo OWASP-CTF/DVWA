@@ -97,7 +97,7 @@ if ($success != "") {
 }
 
 $html .= "
-		<form name=\"ecb\" method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form name=\"ecb\" method='post' action=''>
 			<p>
 				<label for='token'>Token:</lable><br />
 <textarea style='width: 600px; height: 56px' id='token' name='token'></textarea>
