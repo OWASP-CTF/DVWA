@@ -16,6 +16,14 @@ RUN apt-get update \
  # Use pdo_sqlite instead of pdo_mysql if you want to use sqlite
  && docker-php-ext-install gd mysqli pdo pdo_mysql
 
+# The base image loads no php.ini, so display_errors is On: requesting any
+# vulnerabilities/*/source/ fragment directly returns its path and stack trace.
+RUN { echo 'display_errors = Off'; \
+      echo 'display_startup_errors = Off'; \
+      echo 'log_errors = On'; \
+      echo 'expose_php = Off'; \
+    } > /usr/local/etc/php/conf.d/zz-dvwa-hardening.ini
+
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 COPY --chown=www-data:www-data . .
 COPY --chown=www-data:www-data config/config.inc.php.dist config/config.inc.php

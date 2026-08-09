@@ -164,7 +164,8 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		$user = new User(null, $input['name'], intval ($input['level']), hash ("sha256", "password"));
+		// New accounts are always created at the standard user level, never at the level asked for.
+		$user = new User(null, $input['name'], 1, hash ("sha256", "password"));
 		$this->data[] = $user;
 		$response['status_code_header'] = 'HTTP/1.1 201 Created';
 		$response['body'] = json_encode($user->toArray($this->version));
@@ -218,12 +219,8 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		if (array_key_exists ("name", $input)) {
-			$this->data[$id]->name = $input['name'];
-		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
-		}
+		// Only the name is client updatable, the privilege level is not.
+		$this->data[$id]->name = $input['name'];
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;

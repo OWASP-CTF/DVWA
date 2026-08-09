@@ -1,13 +1,21 @@
 <?php
 function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+	if (strlen ($ciphertext) < 28) {
+		throw new Exception ("Decryption failed");
+	}
+	$e = openssl_decrypt (substr ($ciphertext, 28), 'aes-128-gcm', $key, OPENSSL_RAW_DATA, substr ($ciphertext, 0, 12), substr ($ciphertext, 12, 16));
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
 	return $e;
 }
 
-$key = "ik ben een aardbei";
+// ECB gives no integrity so blocks of different tokens can be swapped. GCM
+// authenticates the whole token under a per session key held on the server.
+if (!isset ($_SESSION['crypto_token_key'])) {
+	$_SESSION['crypto_token_key'] = openssl_random_pseudo_bytes (16);
+}
+$key = $_SESSION['crypto_token_key'];
 
 $errors = "";
 $success = "";
@@ -22,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			if (strlen($token) % 32 != 0) {
 				throw new Exception ("Token is in wrong format");
 			} else {
-				$decrypted = decrypt(hex2bin ($token), $key);
+				$decrypted = decrypt (ctype_xdigit ($token) ? hex2bin ($token) : "", $key);
 
 				$user = json_decode ($decrypted);
 				if ($user === null) {

@@ -5,10 +5,10 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On impossible only the admin is allowed to retrieve the data.
+Only the admin is allowed to change the data.
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+if (dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
@@ -44,8 +44,11 @@ try {
 	exit;
 }
 
-$query = "UPDATE users SET first_name = '" . $data->first_name . "', last_name = '" .  $data->surname . "' where user_id = " . $data->id . "";
-$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+$stmt = $db->prepare( 'UPDATE users SET first_name = (:first_name), last_name = (:surname) WHERE user_id = (:id);' );
+$stmt->bindValue( ':first_name', $data->first_name, PDO::PARAM_STR );
+$stmt->bindValue( ':surname', $data->surname, PDO::PARAM_STR );
+$stmt->bindValue( ':id', intval( $data->id ), PDO::PARAM_INT );
+$stmt->execute();
 
 print json_encode (array ("result" => "ok"));
 exit;
