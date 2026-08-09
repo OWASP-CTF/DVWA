@@ -7,6 +7,7 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
+	$pass_curr = $_POST[ 'password_current' ];
 
 	// Check CAPTCHA from 3rd party
 	$resp = recaptcha_check_answer(
@@ -29,6 +30,7 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
 				<form action=\"#\" method=\"POST\">
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
+					<input type=\"hidden\" name=\"password_current\" value=\"{$pass_curr}\" />
 					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
 					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
 					<input type=\"hidden\" name=\"passed_captcha\" value=\"true\" />
@@ -50,6 +52,7 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
+	$pass_curr = md5( $_POST[ 'password_current' ] );
 
 	// Check to see if they did stage 1
 	if( !$_POST[ 'passed_captcha' ] ) {
@@ -58,8 +61,17 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 		return;
 	}
 
-	// Check to see if both password match
-	if( $pass_new == $pass_conf ) {
+	// "passed_captcha" is just a client-supplied hidden field with no server-side proof behind
+	// it - by itself it never proved the requester actually knows the account's current
+	// password. Verify the current password before allowing the change.
+	$currCheck = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT password FROM users WHERE user = ? AND password = ? LIMIT 1;");
+	$currUser  = dvwaCurrentUser();
+	mysqli_stmt_bind_param($currCheck, 'ss', $currUser, $pass_curr);
+	mysqli_stmt_execute($currCheck);
+	$currResult = mysqli_stmt_get_result($currCheck);
+
+	// Check to see if both password match and the current password was correct
+	if( ( $pass_new == $pass_conf ) && $currResult && mysqli_num_rows( $currResult ) == 1 ) {
 		// They do!
 		$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 		$pass_new = md5( $pass_new );
@@ -72,8 +84,8 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 		$html .= "<pre>Password Changed.</pre>";
 	}
 	else {
-		// Issue with the passwords matching
-		$html .= "<pre>Passwords did not match.</pre>";
+		// Issue with the passwords matching or the current password was wrong
+		$html .= "<pre>Passwords did not match or current password incorrect.</pre>";
 		$hide_form = false;
 	}
 
