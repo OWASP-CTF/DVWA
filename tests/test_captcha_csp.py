@@ -24,3 +24,11 @@ def test_csp_levels_do_not_render_submitted_markup():
         source = read(f"vulnerabilities/csp/source/{level}.php")
         assert ". $_POST['include']" not in source
         assert "<script src='" not in source
+
+
+def test_command_execution_levels_validate_ip_and_quote_command_argument():
+    for level in ("low", "medium", "high"):
+        source = read(f"vulnerabilities/exec/source/{level}.php")
+        assert "FILTER_VALIDATE_IP" in source
+        assert "escapeshellarg($target)" in source
+        assert "shell_exec( 'ping  ' . $target )" not in source
