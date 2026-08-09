@@ -57,7 +57,9 @@ class LoginController
 			$username = $input['username'];
 			$password = $input['password'];
 
-			if ($username == "mrbennett" && $password == "becareful") {
+			$expectedUser = getenv('DVWA_API_USERNAME') ?: 'mrbennett';
+			$expectedPasswordHash = getenv('DVWA_API_PASSWORD_HASH') ?: password_hash('becareful', PASSWORD_DEFAULT);
+			if (hash_equals($expectedUser, $username) && password_verify($password, $expectedPasswordHash)) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';
 				$response['body'] = json_encode (array ("token" => Login::create_token()));
 			} else {

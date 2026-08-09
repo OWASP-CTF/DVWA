@@ -138,3 +138,10 @@ def test_api_tokens_do_not_use_hardcoded_secrets():
     assert '"12345"' not in source
     assert '"98765"' not in source
     assert "getenv('DVWA_ACCESS_TOKEN_SECRET')" in source
+
+
+def test_api_json_login_uses_configured_password_verification():
+    source = read("vulnerabilities/api/src/LoginController.php")
+    assert 'getenv(\'DVWA_API_PASSWORD_HASH\')' in source
+    assert 'password_verify($password, $expectedPasswordHash)' in source
+    assert '$password == "becareful"' not in source[source.index('private function loginJSON'):source.index('private function login()')]
