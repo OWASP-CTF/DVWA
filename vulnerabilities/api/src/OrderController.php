@@ -22,17 +22,11 @@ class OrderController
 	}
 
 	private function checkToken() {
-		if (array_key_exists ("HTTP_AUTHORIZATION", $_SERVER)) {
-			$header = $_SERVER['HTTP_AUTHORIZATION'];
-			$bits = explode (" ", $header);
-			if (count ($bits) == 2) {
-				if (strtolower($bits[0]) == "bearer") {
-					return (Login::check_access_token($bits[1]));
-				}
-			}
+		$token = Helpers::extractBearerToken();
+		if ($token === null) {
+			return false;
 		}
-
-		return false;
+		return Login::check_access_token($token);
 	}
 
 	private function validateAdd($input)
