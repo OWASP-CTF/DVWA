@@ -6,7 +6,7 @@ if( array_key_exists( "name", $_GET ) && $_GET[ 'name' ] != NULL ) {
 	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
 
 	// Get input
-	$name = htmlspecialchars( $_GET[ 'name' ] );
+	$name = htmlspecialchars( (string) $_GET[ 'name' ], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 
 	// Feedback for end user
 	$html .= "<pre>Hello {$name}</pre>";
