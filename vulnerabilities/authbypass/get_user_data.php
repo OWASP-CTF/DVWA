@@ -5,9 +5,12 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On high and impossible, only the admin is allowed to retrieve the data.
+This endpoint returns every user's profile data and is reachable directly,
+independently of whichever page happens to link to it, so it must enforce its
+own admin check regardless of security level. The returned fields are also
+always HTML-encoded, since they end up rendered back into the calling page.
 */
-if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
+if (!dvwaIsLoggedIn() || dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
@@ -15,19 +18,13 @@ if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible")
 $query  = "SELECT user_id, first_name, last_name FROM users";
 $result = mysqli_query($GLOBALS["___mysqli_ston"],  $query );
 
-$guestbook = ''; 
+$guestbook = '';
 $users = array();
 
-while ($row = mysqli_fetch_row($result) ) { 
-	if( dvwaSecurityLevelGet() == 'impossible' ) { 
-		$user_id = $row[0];
-		$first_name = htmlspecialchars( $row[1] );
-		$surname = htmlspecialchars( $row[2] );
-	} else {
-		$user_id = $row[0];
-		$first_name = $row[1];
-		$surname = $row[2];
-	}   
+while ($row = mysqli_fetch_row($result) ) {
+	$user_id = $row[0];
+	$first_name = htmlspecialchars( $row[1], ENT_QUOTES, 'UTF-8' );
+	$surname = htmlspecialchars( $row[2], ENT_QUOTES, 'UTF-8' );
 
 	$user = array (
 					"user_id" => $user_id,

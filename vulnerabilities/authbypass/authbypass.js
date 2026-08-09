@@ -37,16 +37,38 @@ function populate_form() {
 		table_body = document.getElementById('user_table').getElementsByTagName('tbody')[0];
 		users.forEach(updateTable);
 
+		function buildField (type, idAttr, nameAttr, valueAttr) {
+			var field = document.createElement('input');
+			field.setAttribute('type', type);
+			field.setAttribute('id', idAttr);
+			field.setAttribute('name', nameAttr);
+			field.setAttribute('value', valueAttr);
+			return field;
+		}
+
 		function updateTable (user) {
+			var uid = String(user['user_id']);
+
 			var row = table_body.insertRow(0);
+
 			var cell0 = row.insertCell(-1);
-			cell0.innerHTML = user['user_id'] + '<input type="hidden" id="user_id_' + user['user_id'] + '" name="user_id" value="' + user['user_id'] + '" />';
+			cell0.appendChild(document.createTextNode(uid));
+			cell0.appendChild(buildField('hidden', 'user_id_' + uid, 'user_id', uid));
+
 			var cell1 = row.insertCell(1);
-			cell1.innerHTML = '<input type="text" id="first_name_' + user['user_id'] + '" name="first_name" value="' + user['first_name'] + '" />';
+			cell1.appendChild(buildField('text', 'first_name_' + uid, 'first_name', user['first_name']));
+
 			var cell2 = row.insertCell(2);
-			cell2.innerHTML = '<input type="text" id="surname_' + user['user_id'] + '" name="surname" value="' + user['surname'] + '" />';
+			cell2.appendChild(buildField('text', 'surname_' + uid, 'surname', user['surname']));
+
 			var cell3 = row.insertCell(3);
-			cell3.innerHTML = '<input type="button" value="Update" onclick="submit_change(' + user['user_id'] + ')" />';
+			var updateBtn = document.createElement('input');
+			updateBtn.setAttribute('type', 'button');
+			updateBtn.setAttribute('value', 'Update');
+			updateBtn.addEventListener('click', function () {
+				submit_change(uid);
+			});
+			cell3.appendChild(updateBtn);
 		}
 	};
 	xhr.send();

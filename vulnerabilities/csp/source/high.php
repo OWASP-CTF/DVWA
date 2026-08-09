@@ -6,8 +6,10 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// Encode the submitted value for the HTML context so it can't be parsed as
+// markup or a new <script> tag, defeating the CSP.
 $page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	" . htmlspecialchars( $_POST['include'], ENT_QUOTES, 'UTF-8' ) . "
 ";
 }
 $page[ 'body' ] .= '

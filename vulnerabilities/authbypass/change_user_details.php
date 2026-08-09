@@ -5,10 +5,12 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On impossible only the admin is allowed to retrieve the data.
+This endpoint performs a sensitive write (editing a user's profile) and is
+reachable directly, independently of whichever page happens to link to it, so
+it must enforce its own admin check regardless of security level.
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+if (!dvwaIsLoggedIn() || dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
@@ -44,8 +46,34 @@ try {
 	exit;
 }
 
-$query = "UPDATE users SET first_name = '" . $data->first_name . "', last_name = '" .  $data->surname . "' where user_id = " . $data->id . "";
-$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+// Bind the caller-supplied values as parameters instead of concatenating them
+// into the query text, so nothing in the JSON body can be parsed as SQL.
+$new_first_name = isset( $data->first_name ) ? (string) $data->first_name : '';
+$new_surname    = isset( $data->surname )    ? (string) $data->surname    : '';
+$target_user_id = isset( $data->id )         ? intval( $data->id )       : 0;
+
+$query = "UPDATE users SET first_name = ?, last_name = ? WHERE user_id = ?";
+$stmt = mysqli_prepare( $GLOBALS["___mysqli_ston"], $query );
+if ( !$stmt ) {
+	print json_encode (array ("result" => "fail", "error" => "Unable to update user"));
+	exit;
+}
+mysqli_stmt_bind_param( $stmt, "ssi", $new_first_name, $new_surname, $target_user_id );
+
+// mysqli throws on error by default (PHP >= 8.1), so a bad value (e.g. one
+// too long for the column) must be caught here rather than left to crash
+// with a raw stack trace.
+try {
+	$update_ok = mysqli_stmt_execute( $stmt );
+} catch ( mysqli_sql_exception $e ) {
+	$update_ok = false;
+}
+mysqli_stmt_close( $stmt );
+
+if ( !$update_ok ) {
+	print json_encode (array ("result" => "fail", "error" => "Unable to update user"));
+	exit;
+}
 
 print json_encode (array ("result" => "ok"));
 exit;

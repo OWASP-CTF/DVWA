@@ -1,7 +1,11 @@
 <?php
 
-$request_url = $_SERVER['REQUEST_URI'];
+// Only the path component is used (query string / fragment dropped), and the
+// value is later embedded as a JS string literal, so it is JSON-encoded for
+// that context rather than concatenated in raw.
+$request_url = parse_url ($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+$user_endpoint_js = json_encode ($stripped_url . "/vulnerabilities/api/v2/user/2", JSON_UNESCAPED_SLASHES);
 
 $html .= "
 	<script>
@@ -28,7 +32,7 @@ $html .= "
 		}
 
 		function get_user() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $user_endpoint_js . ";
 			 
 			fetch(url, { 
 					method: 'GET',
@@ -48,7 +52,7 @@ $html .= "
 		}
 
 		function update_name() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $user_endpoint_js . ";
 			const name = document.getElementById ('name').value;
 			const data = JSON.stringify({name: name});
 			 

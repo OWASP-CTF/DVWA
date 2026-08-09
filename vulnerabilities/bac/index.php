@@ -41,11 +41,17 @@ function setupRequiredTables()
 setupRequiredTables();
 
 // Handle log viewing
-$html = '';
+//
+// This uses its own variable name ($log_html), distinct from the $html
+// variable each vulnerabilities/bac/source/{level}.php file resets and
+// populates for its own unrelated content. Sharing the name with theirs
+// would mean this table gets silently discarded by their `$html = "";`
+// before it's ever embedded in the page below.
+$log_html = '';
 
 // Add log viewing functionality
-$html .= "<div class='log-container'>";
-$html .= "<h3>Access Log</h3>";
+$log_html .= "<div class='log-container'>";
+$log_html .= "<h3>Access Log</h3>";
 
 // Get logs from the bac_log table
 $log_query = "SELECT l.id, l.user_id, l.target_id, l.ip_address, l.timestamp, 
@@ -58,27 +64,36 @@ $log_query = "SELECT l.id, l.user_id, l.target_id, l.ip_address, l.timestamp,
 $log_result = mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
 
 if ($log_result && mysqli_num_rows($log_result) > 0) {
-    $html .= "<table class='log-table'>";
-    $html .= "<tr><th>ID</th><th>Accessor</th><th>Target</th><th>IP Address</th><th>Timestamp</th></tr>";
+    $log_html .= "<table class='log-table'>";
+    $log_html .= "<tr><th>ID</th><th>Accessor</th><th>Target</th><th>IP Address</th><th>Timestamp</th></tr>";
 
     while ($log = mysqli_fetch_assoc($log_result)) {
-        $target_user = $log['target_user'] ? $log['target_user'] : 'Non-existent User (ID: ' . $log['target_id'] . ')';
+        // accessor_user/ip_address/timestamp/target_user are stored data, and
+        // ip_address in particular is attacker-controlled (taken from a
+        // caller-supplied header), so every text field is HTML-encoded and
+        // every numeric field is coerced to an int before being rendered.
+        $safe_target_user = $log['target_user']
+            ? htmlspecialchars($log['target_user'], ENT_QUOTES, 'UTF-8')
+            : 'Non-existent User (ID: ' . intval($log['target_id']) . ')';
+        $safe_accessor_user = htmlspecialchars((string) $log['accessor_user'], ENT_QUOTES, 'UTF-8');
+        $safe_ip_address = htmlspecialchars((string) $log['ip_address'], ENT_QUOTES, 'UTF-8');
+        $safe_timestamp = htmlspecialchars((string) $log['timestamp'], ENT_QUOTES, 'UTF-8');
 
-        $html .= "<tr>";
-        $html .= "<td>{$log['id']}</td>";
-        $html .= "<td>{$log['accessor_user']} (ID: {$log['user_id']})</td>";
-        $html .= "<td>{$target_user}</td>";
-        $html .= "<td>{$log['ip_address']}</td>";
-        $html .= "<td>{$log['timestamp']}</td>";
-        $html .= "</tr>";
+        $log_html .= "<tr>";
+        $log_html .= "<td>" . intval($log['id']) . "</td>";
+        $log_html .= "<td>{$safe_accessor_user} (ID: " . intval($log['user_id']) . ")</td>";
+        $log_html .= "<td>{$safe_target_user}</td>";
+        $log_html .= "<td>{$safe_ip_address}</td>";
+        $log_html .= "<td>{$safe_timestamp}</td>";
+        $log_html .= "</tr>";
     }
 
-    $html .= "</table>";
+    $log_html .= "</table>";
 } else {
-    $html .= "<p>No access logs found.</p>";
+    $log_html .= "<p>No access logs found.</p>";
 }
 
-$html .= "</div>";
+$log_html .= "</div>";
 
 // Load the vulnerability content
 $vulnerabilityFile = '';
@@ -154,7 +169,7 @@ $page['body'] .= "
         
        
         
-        {$html}
+        {$log_html}
        ";
 
 
