@@ -44,7 +44,6 @@ if (isset($_GET['user_id'])) {
 	if ($requestedId === false) {
 		$html .= '<p>Invalid user ID format. Please enter a number.</p>';
 	} elseif ((int) $requestedId !== $currentUserId) {
-		http_response_code(403);
 		$html .= '<p>Access denied. You can only view your own profile.</p>';
 		bacLogAccessAttempt($currentUserId, $requestedId, 'unauthorized_access');
 	} else {
