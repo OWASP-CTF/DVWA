@@ -12,24 +12,25 @@ $page[ 'help_button' ]   = 'open_redirect';
 $page[ 'source_button' ] = 'open_redirect';
 dvwaDatabaseConnect();
 
+// Every level now takes the same request shape as impossible: "redirect"
+// is a small fixed number, not the destination itself.
+$vulnerabilityFile = '';
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
-		$link1 = "source/low.php?redirect=info.php?id=1";
-		$link2 = "source/low.php?redirect=info.php?id=2";
+		$vulnerabilityFile = 'low.php';
 		break;
 	case 'medium':
-		$link1 = "source/medium.php?redirect=info.php?id=1";
-		$link2 = "source/medium.php?redirect=info.php?id=2";
+		$vulnerabilityFile = 'medium.php';
 		break;
 	case 'high':
-		$link1 = "source/high.php?redirect=info.php?id=1";
-		$link2 = "source/high.php?redirect=info.php?id=2";
+		$vulnerabilityFile = 'high.php';
 		break;
 	default:
-		$link1 = "source/impossible.php?redirect=1";
-		$link2 = "source/impossible.php?redirect=2";
+		$vulnerabilityFile = 'impossible.php';
 		break;
 }
+$link1 = "source/{$vulnerabilityFile}?redirect=1";
+$link2 = "source/{$vulnerabilityFile}?redirect=2";
 
 $page[ 'body' ] .= "
 <div class=\"body_padded\">
