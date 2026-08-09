@@ -36,21 +36,37 @@ final class User
 	}
 
 	public function toArray($version) {
-		$a = array (
+		switch ($version) {
+			case 1:
+				$a = array (
+					"id" => $this->id,
+					"name" => $this->name,
+					"level" => $this->level,
+					"password" => $this->password,
+				);
+				break;
+			default:
+			case 2:
+				$a = array (
 					"id" => $this->id,
 					"name" => $this->name,
 					"level" => $this->level,
 				);
+				break;
+		}
 
 		return $a;
 	}
 }
 
-#[OAT\Schema(required: ['name'])]
+#[OAT\Schema(required: ['level', 'name'])]
 final class UserAdd
 {
     #[OAT\Property(example: "fred")]
     public string $name;
+
+    #[OAT\Property(type: 'integer', example: 1)]
+    public string $level;
 }
 
 #[OAT\Schema(required: ['name'])]
