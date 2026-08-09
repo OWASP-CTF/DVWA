@@ -45,7 +45,9 @@ $page[ 'body' ] .= "
 				<input type=\"submit\" name=\"Submit\" value=\"Submit\">
 			</p>\n";
 
-if( $vulnerabilityFile == 'impossible.php' )
+// checkToken() runs at every security level, so the anti-CSRF token field
+// has to be rendered at every level too - without it every submit fails
+// the token check and the form cannot be used at all.
 	$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "

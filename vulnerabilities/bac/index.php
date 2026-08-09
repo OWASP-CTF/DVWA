@@ -55,6 +55,8 @@ $log_query = "SELECT l.id, l.user_id, l.target_id, l.ip_address, l.timestamp,
                  LEFT JOIN users u2 ON l.target_id = u2.user_id 
                  ORDER BY l.timestamp DESC LIMIT 50";
 
+// The Access Log is part of what this module shows, not a control it teaches -
+// it is left readable, exactly as the module ships it.
 $log_result = mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
 
 if ($log_result && mysqli_num_rows($log_result) > 0) {
@@ -62,7 +64,10 @@ if ($log_result && mysqli_num_rows($log_result) > 0) {
     $html .= "<tr><th>ID</th><th>Accessor</th><th>Target</th><th>IP Address</th><th>Timestamp</th></tr>";
 
     while ($log = mysqli_fetch_assoc($log_result)) {
-        $target_user = $log['target_user'] ? $log['target_user'] : 'Non-existent User (ID: ' . $log['target_id'] . ')';
+		$log = array_map(function ($value) {
+			return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+		}, $log);
+		$target_user = $log['target_user'] ? $log['target_user'] : 'Non-existent User (ID: ' . $log['target_id'] . ')';
 
         $html .= "<tr>";
         $html .= "<td>{$log['id']}</td>";
