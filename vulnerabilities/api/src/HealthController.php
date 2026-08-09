@@ -85,7 +85,21 @@ class HealthController
 		if (array_key_exists ("target", $input)) {
 			$target = $input['target'];
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			// "target" is attacker-controlled and was previously concatenated
+			// straight into a shell command, letting anything after it (e.g.
+			// "; id" or "$(...)" ) run as an OS command. A connectivity check
+			// only ever needs to reach a hostname or IP address, so require
+			// the value to look like one before it ever reaches exec(), and
+			// still pass it through escapeshellarg() as defence in depth so
+			// no shell metacharacters can be interpreted even if the format
+			// check were somehow bypassed.
+			if (!preg_match('/^[A-Za-z0-9.-]+$/', $target)) {
+				$response['status_code_header'] = 'HTTP/1.1 500 Internal Server Error';
+				$response['body'] = json_encode (array ("status" => "Invalid target"));
+				return $response;
+			}
+
+			exec ("ping -c 4 " . escapeshellarg($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';

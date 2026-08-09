@@ -36,13 +36,19 @@ final class User
 	}
 
 	public function toArray($version) {
+		// The password hash is an internal implementation detail (it isn't
+		// even declared with an OAT\Property so it never shows up in the
+		// generated OpenAPI schema) and no caller of this API has any
+		// legitimate need to see it. It must never be serialised back out,
+		// regardless of which API version is being represented -- an old
+		// version's response shape is not a reason to excessively expose
+		// sensitive object properties.
 		switch ($version) {
 			case 1:
 				$a = array (
 					"id" => $this->id,
 					"name" => $this->name,
 					"level" => $this->level,
-					"password" => $this->password,
 				);
 				break;
 			default:
