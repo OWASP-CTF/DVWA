@@ -1,12 +1,17 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+// The previous allowlist included hosts that will happily serve back
+// arbitrary, attacker-supplied JavaScript to anyone (public paste/CDN-style
+// mirrors such as pastebin/hastebin, and package mirrors like unpkg.com /
+// cdn.jsdelivr.net that will serve any package an attacker chooses to
+// publish). Allowing script-src from a domain is only as safe as that
+// domain's promise never to host attacker-chosen content, so an allowlist
+// should only ever contain 'self' plus origins that genuinely can't be used
+// that way. Nothing on this page legitimately needs a third-party script
+// source, so script-src is restricted to 'self'.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
-
-# These might work if you can't create your own for some reason
-# https://cdn.jsdelivr.net/gh/digininja/csp_bypass/alert.js
-# https://unpkg.com/@digininja/csp_bypass@1.0.0/index.js
 
 ?>
 <?php
