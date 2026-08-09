@@ -1,6 +1,26 @@
 <?php
+// AES-ECB on its own only gives confidentiality, not authenticity: because
+// each 16-byte block is encrypted independently, an attacker who collects a
+// few tokens can cut-and-paste ciphertext blocks between them (e.g. take the
+// "level":"admin" block from one token and the "user":"sweep" block from
+// another) and produce a brand new ciphertext that still decrypts cleanly to
+// a forged, attacker-chosen JSON object. To stop a tampered/forged
+// ciphertext ever reaching that decrypt step, every token now has to carry a
+// keyed MAC over its ciphertext, verified with a constant-time comparison
+// before we trust (or even attempt to decrypt) anything.
+define ('MEDIUM_TOKEN_MAC_KEY', 'e9f1c2f0a6b9e5d7b4a1c8f3d2e0b6a4-token-mac');
+
 function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+	if (strlen ($ciphertext) <= 32) {
+		throw new Exception ("Token is in wrong format");
+	}
+	$mac        = substr ($ciphertext, 0, 32);
+	$encrypted  = substr ($ciphertext, 32);
+	$expected   = hash_hmac ('sha256', $encrypted, MEDIUM_TOKEN_MAC_KEY, true);
+	if (!hash_equals ($expected, $mac)) {
+		throw new Exception ("Token failed integrity check");
+	}
+	$e = openssl_decrypt($encrypted, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
