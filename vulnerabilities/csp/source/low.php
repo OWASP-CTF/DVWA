@@ -28,11 +28,12 @@ $page[ 'body' ] .= "
 }
 $page[ 'body' ] .= '
 <form name="csp" method="POST">
-	<p>You can include scripts from external sources, examine the Content Security Policy and enter a URL to include here:</p>
+	<p>Scripts may only load from this origin, so a URL entered here is shown back as text rather than included.</p>
+	<p>1+2+3+4+5=<span id="answer"></span></p>
 	<input size="50" type="text" name="include" value="" id="include" />
 	<input type="submit" value="Include" />
+	<input type="button" id="solve" value="Solve the sum" />
 </form>
-<p>
-	You will probably need to do some reading up on what some of the domains allowed by the CSP do and how they can be used.
-</p>
+
+<script src="source/low.js"></script>
 ';
