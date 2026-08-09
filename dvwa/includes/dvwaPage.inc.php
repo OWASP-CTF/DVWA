@@ -614,14 +614,10 @@ function dvwaGuestbook() {
 	$guestbook = '';
 
 	while( $row = mysqli_fetch_row( $result ) ) {
-		if( dvwaSecurityLevelGet() == 'impossible' ) {
-			$name    = htmlspecialchars( $row[0] );
-			$comment = htmlspecialchars( $row[1] );
-		}
-		else {
-			$name    = $row[0];
-			$comment = $row[1];
-		}
+		// Encode the stored entry for the HTML context it is written into, at
+		// every level, so it can never be parsed as markup.
+		$name    = htmlspecialchars( $row[0] );
+		$comment = htmlspecialchars( $row[1] );
 
 		$guestbook .= "<div id=\"guestbook_comments\">Name: {$name}<br />" . "Message: {$comment}<br /></div>\n";
 	}
@@ -638,7 +634,8 @@ function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the
 		return true;
 	}
 
-	if( $user_token !== $session_token || !isset( $session_token ) ) {
+	if( !isset( $session_token ) || !is_string( $user_token )
+	    || !hash_equals( (string)$session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -648,7 +645,10 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = md5( uniqid() );
+	// 16 bytes from the CSPRNG, rendered as 32 hex characters. The length
+	// matches the md5() this replaces, so anything parsing the rendered token
+	// is unaffected; the entropy is real rather than a hash of the clock.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
