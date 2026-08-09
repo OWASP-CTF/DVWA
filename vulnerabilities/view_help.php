@@ -11,18 +11,22 @@ $page[ 'title' ] = 'Help' . $page[ 'title_separator' ].$page[ 'title' ];
 if (array_key_exists ("id", $_GET) &&
 	array_key_exists ("security", $_GET) &&
 	array_key_exists ("locale", $_GET)) {
-	$id       = $_GET[ 'id' ];
-	$security = $_GET[ 'security' ];
+	$id = $_GET[ 'id' ];
 	$locale = $_GET[ 'locale' ];
+	$helpModules = array( 'api', 'authbypass', 'bac', 'brute', 'captcha', 'cryptography', 'csp', 'csrf', 'exec', 'fi', 'javascript', 'open_redirect', 'sqli', 'sqli_blind', 'upload', 'weak_id', 'xss_d', 'xss_r', 'xss_s' );
 
-	ob_start();
-	if ($locale == 'en') {
-		eval( '?>' . file_get_contents( DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/{$id}/help/help.php" ) . '<?php ' );
+	if (in_array($id, $helpModules, true) && in_array($locale, array('en', 'zh'), true)) {
+		$helpFile = DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/{$id}/help/" . ($locale === 'en' ? 'help.php' : "help.{$locale}.php");
+		if (is_file($helpFile)) {
+			ob_start();
+			include $helpFile;
+			$help = ob_get_clean();
+		} else {
+			$help = '<p>Not Found</p>';
+		}
 	} else {
-		eval( '?>' . file_get_contents( DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/{$id}/help/help.{$locale}.php" ) . '<?php ' );
+		$help = '<p>Not Found</p>';
 	}
-	$help = ob_get_contents();
-	ob_end_clean();
 } else {
 	$help = "<p>Not Found</p>";
 }
