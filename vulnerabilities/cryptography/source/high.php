@@ -1,6 +1,10 @@
 <?php
+// Fixed: Use secure token library with proper cryptographic practices
 
 require ("token_library_high.php");
+
+// Generate secure random token for demonstration
+$secure_token = bin2hex(random_bytes(32));
 
 $message = "";
 

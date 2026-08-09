@@ -1,19 +1,22 @@
 <?php
+// Fixed: Strict CSP with secure nonce, removed 'unsafe-inline'
+// Generate cryptographically secure nonce for each request
 
-$headerCSP = "Content-Security-Policy: script-src 'self' 'unsafe-inline' 'nonce-TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=';";
+$nonce = base64_encode(random_bytes(16));
+$headerCSP = "Content-Security-Policy: script-src 'nonce-" . $nonce . "' 'self'; object-src 'none'; base-uri 'self'; form-action 'self';";
 
 header($headerCSP);
 
-// Disable XSS protections so that inline alert boxes will work
-header ("X-XSS-Protection: 0");
-
-# <script nonce="TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=">alert(1)</script>
-
+// Re-enable XSS protection header
+header("X-XSS-Protection: 1; mode=block");
 ?>
 <?php
+// Sanitize user input before including in page
 if (isset ($_POST['include'])) {
-$page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	// Escape HTML to prevent XSS
+	$safe_include = htmlspecialchars($_POST['include'], ENT_QUOTES, 'UTF-8');
+	$page[ 'body' ] .= "
+	" . $safe_include . "
 ";
 }
 $page[ 'body' ] .= '
