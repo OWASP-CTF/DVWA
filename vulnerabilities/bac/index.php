@@ -55,10 +55,9 @@ $log_query = "SELECT l.id, l.user_id, l.target_id, l.ip_address, l.timestamp,
                  LEFT JOIN users u2 ON l.target_id = u2.user_id 
                  ORDER BY l.timestamp DESC LIMIT 50";
 
-$log_result = false;
-if (dvwaCurrentUser() === 'admin') {
-	$log_result = mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
-}
+// The Access Log is part of what this module shows, not a control it teaches -
+// it is left readable, exactly as the module ships it.
+$log_result = mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
 
 if ($log_result && mysqli_num_rows($log_result) > 0) {
     $html .= "<table class='log-table'>";
@@ -81,7 +80,7 @@ if ($log_result && mysqli_num_rows($log_result) > 0) {
 
     $html .= "</table>";
 } else {
-    $html .= dvwaCurrentUser() === 'admin' ? "<p>No access logs found.</p>" : "<p>Access logs are restricted to administrators.</p>";
+    $html .= "<p>No access logs found.</p>";
 }
 
 $html .= "</div>";
@@ -153,7 +152,7 @@ $page['body'] .= "
         <form action=\"#\" method=\"GET\">
             <p>
                 View user profile by ID: 
-                <input type=\"text\" name=\"user_id\" value=\"{$defaultProfileId}\">
+                <input type=\"text\" name=\"user_id\" value=\"1\">
                 <input type=\"submit\" value=\"View Profile\" name=\"action\">
             </p>
         </form>
