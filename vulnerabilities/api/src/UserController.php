@@ -53,7 +53,7 @@ class UserController
 
 	private function validateUpdate($input)
 	{
-		if (! isset($input['name'])) {
+		if (! isset($input['name']) || !is_string($input['name']) || strlen($input['name']) > 100) {
 			return false;
 		}
 		return true;
@@ -220,9 +220,6 @@ class UserController
 		}
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
-		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
 		}
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
