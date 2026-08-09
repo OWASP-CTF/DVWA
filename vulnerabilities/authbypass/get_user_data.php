@@ -7,7 +7,7 @@ dvwaDatabaseConnect();
 /*
 On high and impossible, only the admin is allowed to retrieve the data.
 */
-if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
+if (dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }

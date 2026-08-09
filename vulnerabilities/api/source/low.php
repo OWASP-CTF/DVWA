@@ -23,7 +23,7 @@ $html .= "
 		var name_input = document.getElementById ('name');
 
 		if (user_json.name == '') {
-			user_info.innerHTML = 'User details: unknown user';
+			user_info.textContent = 'User details: unknown user';
 			name_input.value = 'unknown';
 		} else {
 			if (user_json.level == 0) {
@@ -31,7 +31,7 @@ $html .= "
 			} else {
 				level = 'user';
 			}
-			user_info.innerHTML = 'User details: ' + user_json.name + ' (' + level + ')';
+			user_info.textContent = 'User details: ' + user_json.name + ' (' + level + ')';
 			name_input.value = user_json.name;
 		}
 
@@ -78,7 +78,7 @@ $html .= "
 		item = items[0];
 		Object.keys(item).forEach(function(k){
 			let cell = row.insert_th_Cell(-1);
-			cell.innerHTML = k;
+			cell.textContent = k;
 			if (k == 'password') {
 				successDiv = document.getElementById ('message');
 				successDiv.style.display = 'block';
@@ -91,7 +91,7 @@ $html .= "
 			let row = tableBody.insertRow();
 			for (const [key, value] of Object.entries(item)) {
 				let cell = row.insertCell(-1);
-				cell.innerHTML = value;
+			cell.textContent = value;
 			}
 		});
 	}

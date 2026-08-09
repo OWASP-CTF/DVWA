@@ -32,3 +32,13 @@ def test_command_execution_levels_validate_ip_and_quote_command_argument():
         assert "FILTER_VALIDATE_IP" in source
         assert "escapeshellarg($target)" in source
         assert "shell_exec( 'ping  ' . $target )" not in source
+
+
+def test_api_and_authbypass_boundaries_are_hardened():
+    for level in ("low", "medium"):
+        source = read(f"vulnerabilities/api/source/{level}.php")
+        assert "user_info.innerHTML" not in source
+    assert 'if (dvwaCurrentUser() != "admin")' in read("vulnerabilities/authbypass/get_user_data.php")
+    source = read("vulnerabilities/authbypass/change_user_details.php")
+    assert "mysqli_prepare" in source
+    assert "mysqli_stmt_bind_param" in source
