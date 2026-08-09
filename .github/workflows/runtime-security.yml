@@ -1,0 +1,54 @@
+name: Runtime security tests
+
+on:
+  pull_request:
+    branches: [dc34-ctf]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-security-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the pull request
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Build and start DVWA
+        run: |
+          set -euo pipefail
+          docker compose build dvwa
+          docker compose up -d --pull never
+
+      - name: Wait for DVWA
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:4280/login.php >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker compose ps
+          docker compose logs dvwa
+          exit 1
+
+      - name: Run runtime security tests
+        env:
+          DVWA_BASE_URL: http://127.0.0.1:4280
+        run: python3 -m unittest discover -s tests/smoke -v
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop services
+        if: always()
+        run: docker compose down --volumes
