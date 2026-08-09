@@ -26,25 +26,8 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 			$cmd = shell_exec( 'ping  -c 4 ' . $target );
 		}
 
-		// Feedback for the end user. Unprivileged containers cannot open the
-		// raw socket ping needs, so ping writes its complaint to stderr and
-		// shell_exec returns nothing - which rendered an empty box and made the
-		// feature look broken. Fall back to a reachability check so the module
-		// always reports a result. The octet validation above is untouched, so
-		// nothing beyond a plain IPv4 address ever reaches the shell.
-		if( trim( (string) $cmd ) === '' ) {
-			$start = microtime( true );
-			$socket = @fsockopen( 'tcp://' . $target, 80, $errno, $errstr, 2 );
-			$elapsed = round( ( microtime( true ) - $start ) * 1000, 1 );
-			if( $socket ) {
-				fclose( $socket );
-				$cmd = "PING {$target}: reachable, time={$elapsed} ms\n";
-			}
-			else {
-				$cmd = "PING {$target}: no response ({$elapsed} ms)\n";
-			}
-		}
-		$html .= "<pre>" . htmlspecialchars( (string) $cmd, ENT_QUOTES, 'UTF-8' ) . "</pre>";
+		// Feedback for the end user
+		$html .= "<pre>{$cmd}</pre>";
 	}
 	else {
 		// Ops. Let the user name theres a mistake
