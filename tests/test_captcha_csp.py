@@ -164,3 +164,10 @@ def test_api_user_creation_does_not_assign_predictable_password_hash():
 def test_api_user_creation_rejects_privileged_levels():
     source = read("vulnerabilities/api/src/UserController.php")
     assert "intval($input['level']) !== 1" in source
+
+
+def test_api_user_delete_requires_bearer_access_token():
+    source = read("vulnerabilities/api/src/UserController.php")
+    section = source[source.index('private function deleteUser'):source.index('public function processRequest')]
+    assert "HTTP_AUTHORIZATION" in section
+    assert "Login::check_access_token" in section

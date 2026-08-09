@@ -248,6 +248,10 @@ class UserController
     ]  
 	
 	private function deleteUser($id) {
+		$header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+		if (!str_starts_with($header, 'Bearer ') || !Login::check_access_token(substr($header, 7))) {
+			return array('status_code_header' => 'HTTP/1.1 401 Unauthorized', 'body' => json_encode(array('status' => 'Invalid or missing token')));
+		}
 		if (!array_key_exists ($id, $this->data)) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
