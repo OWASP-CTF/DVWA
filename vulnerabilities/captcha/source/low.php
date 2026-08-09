@@ -17,12 +17,18 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	// Did the CAPTCHA fail?
 	if( !$resp ) {
 		// What happens when the CAPTCHA was entered incorrectly
+		unset( $_SESSION[ 'low_captcha_passed' ] );
 		$html     .= "<pre><br />The CAPTCHA was incorrect. Please try again.</pre>";
 		$hide_form = false;
 		return;
 	}
 	else {
-		// CAPTCHA was correct. Do both new passwords match?
+		// CAPTCHA was correct. Remember that server-side (a client cannot
+		// forge their own session), so step 2 can trust it rather than
+		// just trusting that the client bothered to submit step 1 at all.
+		$_SESSION[ 'low_captcha_passed' ] = true;
+
+		// Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
 			// Show next stage for the user
 			$html .= "
@@ -45,6 +51,18 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
+
+	// The only proof that the CAPTCHA was solved is the server-side session
+	// flag set above. A request that jumps straight to step 2 (skipping or
+	// forging the CAPTCHA step) will never have that flag set.
+	if( empty( $_SESSION[ 'low_captcha_passed' ] ) ) {
+		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
+		$hide_form = false;
+		return;
+	}
+
+	// Single use - don't let this step be replayed to change the password again.
+	unset( $_SESSION[ 'low_captcha_passed' ] );
 
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];

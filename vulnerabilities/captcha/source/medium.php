@@ -17,12 +17,20 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	// Did the CAPTCHA fail?
 	if( !$resp ) {
 		// What happens when the CAPTCHA was entered incorrectly
+		unset( $_SESSION[ 'medium_captcha_passed' ] );
 		$html     .= "<pre><br />The CAPTCHA was incorrect. Please try again.</pre>";
 		$hide_form = false;
 		return;
 	}
 	else {
-		// CAPTCHA was correct. Do both new passwords match?
+		// CAPTCHA was correct. Record that fact server-side, in the
+		// session. A client-supplied "passed_captcha" field (the previous
+		// approach) is just an assertion from the attacker and can be
+		// forged directly on a step=2 request without ever solving the
+		// CAPTCHA - the session can't be.
+		$_SESSION[ 'medium_captcha_passed' ] = true;
+
+		// Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
 			// Show next stage for the user
 			$html .= "
@@ -31,7 +39,6 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
 					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
 					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
-					<input type=\"hidden\" name=\"passed_captcha\" value=\"true\" />
 					<input type=\"submit\" name=\"Change\" value=\"Change\" />
 				</form>";
 		}
@@ -47,16 +54,20 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
-	// Get input
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
-
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if step 1 was actually completed server-side. This can
+	// no longer be spoofed by simply posting a "passed_captcha" field.
+	if( empty( $_SESSION[ 'medium_captcha_passed' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+
+	// Single use.
+	unset( $_SESSION[ 'medium_captcha_passed' ] );
+
+	// Get input
+	$pass_new  = $_POST[ 'password_new' ];
+	$pass_conf = $_POST[ 'password_conf' ];
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {

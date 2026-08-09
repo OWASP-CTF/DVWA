@@ -5,6 +5,7 @@ if( isset( $_POST[ 'Change' ] ) ) {
 	$hide_form = true;
 
 	// Get input
+	$pass_curr = $_POST[ 'password_current' ];
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
@@ -15,13 +16,31 @@ if( isset( $_POST[ 'Change' ] ) ) {
 	);
 
 	if (
-		$resp || 
+		$resp ||
 		(
 			$_POST[ 'g-recaptcha-response' ] == 'hidd3n_valu3'
 			&& $_SERVER[ 'HTTP_USER_AGENT' ] == 'reCAPTCHA'
 		)
 	){
-		// CAPTCHA was correct. Do both new passwords match?
+		// Passing the CAPTCHA only proves there's a human/script on the
+		// other end - it says nothing about whether they're the account
+		// owner. Require the current password too, just like the
+		// impossible level, so a session-riding/CSRF'd request can't
+		// change the password without already knowing it.
+		global $db;
+		$pass_curr_hash = md5( $pass_curr );
+		$data = $db->prepare( 'SELECT user FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+		$data->bindParam( ':user', dvwaCurrentUser(), PDO::PARAM_STR );
+		$data->bindParam( ':password', $pass_curr_hash, PDO::PARAM_STR );
+		$data->execute();
+
+		if( $data->rowCount() != 1 ) {
+			$html      .= "<pre>Your current password is incorrect.</pre>";
+			$hide_form  = false;
+			return;
+		}
+
+		// Do both new passwords match?
 		if ($pass_new == $pass_conf) {
 			$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 			$pass_new = md5( $pass_new );
