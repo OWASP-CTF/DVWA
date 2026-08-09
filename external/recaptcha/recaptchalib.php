@@ -6,6 +6,15 @@ function recaptcha_check_answer($key, $response){
 	return CheckCaptcha($key, $response);
 }
 
+function captchaVerificationSucceeded($result) {
+	if (!is_string($result)) {
+		return false;
+	}
+
+	$verification = json_decode($result);
+	return is_object($verification) && isset($verification->success) && $verification->success === true;
+}
+
 function CheckCaptcha($key, $response) {
 
 	try {
@@ -20,17 +29,18 @@ function CheckCaptcha($key, $response) {
 			'http' => array(
 				'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
 				'method'  => 'POST',
-				'content' => http_build_query($dat)
+				'content' => http_build_query($dat),
+				'timeout' => 5
 			)
 		);
 
 		$context = stream_context_create($opt);
-		$result  = file_get_contents($url, false, $context);
+		$result  = @file_get_contents($url, false, $context);
 
-		return json_decode($result)->success;
+		return captchaVerificationSucceeded($result);
 
-	} catch (Exception $e) {
-		return null;
+	} catch (Throwable $e) {
+		return false;
 	}
 
 }
