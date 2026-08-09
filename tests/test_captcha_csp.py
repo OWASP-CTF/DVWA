@@ -145,3 +145,11 @@ def test_api_json_login_uses_configured_password_verification():
     assert 'getenv(\'DVWA_API_PASSWORD_HASH\')' in source
     assert 'password_verify($password, $expectedPasswordHash)' in source
     assert '$password == "becareful"' not in source[source.index('private function loginJSON'):source.index('private function login()')]
+
+
+def test_api_basic_login_uses_configured_client_credentials():
+    source = read("vulnerabilities/api/src/LoginController.php")
+    login = source[source.index('private function login()'):]
+    assert "getenv('DVWA_API_CLIENT_ID')" in login
+    assert "getenv('DVWA_API_CLIENT_SECRET')" in login
+    assert "hash_equals($expectedClient, $client_id)" in login
