@@ -33,20 +33,12 @@ $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	checkToken($_POST['user_token'] ?? '', $_SESSION['session_token'] ?? '', 'index.php');
-	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
 
-		$phrase = $_POST['phrase'];
-		$token = $_POST['token'];
-
-		$expectedToken = hash_hmac('sha256', $phrase, $_SESSION['session_token']);
-		if ($phrase === "success" && hash_equals($expectedToken, $token)) {
-			$message = "<p style='color:red'>Well done!</p>";
-		} else {
-			$message = "<p>Invalid phrase or token.</p>";
-		}
-	} else {
-		$message = "<p>Missing phrase or token.</p>";
-	}
+	// A value displayed in the page must never be treated as proof that a
+	// client-side check was performed.  This demo has no server-side action to
+	// authorize, so reject submitted phrases rather than exposing a success path
+	// that can be reached by changing browser-controlled fields.
+	$message = "<p>Client-supplied phrases cannot authorize this action.</p>";
 }
 
 generateSessionToken();
