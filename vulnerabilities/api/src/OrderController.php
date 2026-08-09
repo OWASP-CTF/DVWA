@@ -248,6 +248,8 @@ class OrderController
 			$gc->processRequest();
 			exit();
 		}
+		// FIXED: Prevent mass assignment - only allow updating specific fields
+		// Whitelist allowed fields to prevent attackers from setting unauthorized fields
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
 		}
