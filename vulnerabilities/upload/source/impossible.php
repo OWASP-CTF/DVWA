@@ -1,5 +1,21 @@
 <?php
 
+const UPLOAD_MAX_IMAGE_WIDTH = 8192;
+const UPLOAD_MAX_IMAGE_HEIGHT = 8192;
+const UPLOAD_MAX_IMAGE_PIXELS = 16777216;
+
+function uploadImageDimensionsAllowed($imageInfo) {
+	if( $imageInfo === false || !isset( $imageInfo[0], $imageInfo[1] ) ) {
+		return false;
+	}
+
+	$width = $imageInfo[0];
+	$height = $imageInfo[1];
+	return $width > 0 && $height > 0 &&
+		$width <= UPLOAD_MAX_IMAGE_WIDTH && $height <= UPLOAD_MAX_IMAGE_HEIGHT &&
+		$width * $height <= UPLOAD_MAX_IMAGE_PIXELS;
+}
+
 if( isset( $_POST[ 'Upload' ] ) ) {
 	// Check Anti-CSRF token
 	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
@@ -10,6 +26,7 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 	$uploaded_size = $_FILES[ 'uploaded' ][ 'size' ];
 	$uploaded_type = $_FILES[ 'uploaded' ][ 'type' ];
 	$uploaded_tmp  = $_FILES[ 'uploaded' ][ 'tmp_name' ];
+	$image_info = getimagesize( $uploaded_tmp );
 
 	// Where are we going to be writing to?
 	$target_path   = DVWA_WEB_PAGE_TO_ROOT . 'hackable/uploads/';
@@ -26,7 +43,7 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 	if( ( strtolower( $uploaded_ext ) == 'jpg' || strtolower( $uploaded_ext ) == 'jpeg' || strtolower( $uploaded_ext ) == 'png' ) &&
 		( $uploaded_size < 100000 ) &&
 		( $uploaded_type == 'image/jpeg' || $uploaded_type == 'image/png' ) &&
-		getimagesize( $uploaded_tmp ) ) {
+		uploadImageDimensionsAllowed( $image_info ) ) {
 
 		// Strip any metadata, by re-encoding image (Note, using php-Imagick is recommended over php-GD)
 		if( $uploaded_type == 'image/jpeg' ) {
