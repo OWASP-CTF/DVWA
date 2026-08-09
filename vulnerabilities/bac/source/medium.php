@@ -66,11 +66,11 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
             }
             
             // Log the access attempt - only log numeric target_id
-            $ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'];
+            $ip = filter_var($_SERVER['REMOTE_ADDR'], FILTER_VALIDATE_IP) ?: '0.0.0.0';
             $target_id = $user_exists ? $id : 0; // Use 0 for non-existent users
-            $log_query = "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES 
-                        ({$current_user_id}, {$target_id}, '{$ip}')";
-            mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
+            $log_stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES (?, ?, ?)");
+            mysqli_stmt_bind_param($log_stmt, "iis", $current_user_id, $target_id, $ip);
+            mysqli_stmt_execute($log_stmt);
         } catch (Exception $e) {
             // Silently fail if logging doesn't work
         }
