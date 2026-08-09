@@ -9,35 +9,7 @@ $page = dvwaPageNewGrab();
 $page[ 'title' ]   = 'Setup' . $page[ 'title_separator' ].$page[ 'title' ];
 $page[ 'page_id' ] = 'setup';
 
-function dvwaDatabaseIsInitialized() {
-	global $_DVWA;
-	global $DBMS;
-
-	if( $DBMS != 'MySQL' ) {
-		return false;
-	}
-
-	$connection = @mysqli_connect( $_DVWA[ 'db_server' ], $_DVWA[ 'db_user' ], $_DVWA[ 'db_password' ], $_DVWA[ 'db_database' ], $_DVWA[ 'db_port' ] );
-	if( !$connection ) {
-		return false;
-	}
-
-	$result = @mysqli_query( $connection, "SHOW TABLES LIKE 'users'" );
-	$initialized = $result && mysqli_num_rows( $result ) == 1;
-	if( $result ) {
-		mysqli_free_result( $result );
-	}
-	mysqli_close( $connection );
-
-	return $initialized;
-}
-
 if( isset( $_POST[ 'create_db' ] ) ) {
-	if( dvwaDatabaseIsInitialized() && ( !dvwaIsLoggedIn() || dvwaCurrentUser() != 'admin' ) ) {
-		http_response_code( 403 );
-		exit( 'Database reset requires an authenticated administrator.' );
-	}
-
 	// Anti-CSRF
 	if (array_key_exists ("session_token", $_SESSION)) {
 		$session_token = $_SESSION[ 'session_token' ];
