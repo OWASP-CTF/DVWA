@@ -190,8 +190,9 @@ function &dvwaPageNewGrab() {
 
 
 function dvwaThemeGet() {
-	if (isset($_COOKIE['theme'])) {
-		return $_COOKIE[ 'theme' ];
+	$themes = array('light', 'dark');
+	if (isset($_COOKIE['theme']) && is_string($_COOKIE['theme']) && in_array($_COOKIE['theme'], $themes, true)) {
+		return $_COOKIE['theme'];
 	}
 	return 'light';
 }
