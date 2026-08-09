@@ -12,3 +12,8 @@ def test_crypto_high_uses_authenticated_random_encryption():
     assert 'function encrypt ($plaintext, $iv, &$tag)' in source
     assert 'encrypt ($token, $iv, $tag)' in source
     assert '"tag"' in source
+
+
+def test_compose_requires_crypto_key():
+    compose = Path("compose.yml").read_text()
+    assert 'DVWA_CRYPTO_KEY=${DVWA_CRYPTO_KEY:?' in compose
