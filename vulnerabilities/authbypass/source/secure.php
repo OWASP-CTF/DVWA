@@ -5,6 +5,4 @@ if (dvwaCurrentUser() !== 'admin') {
 	exit('Unauthorised');
 }
 
-$html = '';
-
 ?>
