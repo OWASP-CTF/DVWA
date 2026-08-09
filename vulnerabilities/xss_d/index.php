@@ -48,12 +48,22 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
+					function escapeHtml(s) {
+						return String(s)
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#39;");
+					}
+
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
+						var displayLang = $decodeURI(lang);
+						document.write("<option value='" + escapeHtml(lang) + "'>" + escapeHtml(displayLang) + "</option>");
 						document.write("<option value='' disabled='disabled'>----</option>");
 					}
-					    
+
 					document.write("<option value='English'>English</option>");
 					document.write("<option value='French'>French</option>");
 					document.write("<option value='Spanish'>Spanish</option>");
