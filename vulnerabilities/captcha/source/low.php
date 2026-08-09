@@ -24,13 +24,15 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			$_SESSION[ 'captcha_passed' ] = true;
+			$_SESSION[ 'captcha_password_new' ] = $pass_new;
+			$_SESSION[ 'captcha_password_conf' ] = $pass_conf;
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
 				<form action=\"#\" method=\"POST\">
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
-					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
-					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
 					<input type=\"submit\" name=\"Change\" value=\"Change\" />
 				</form>";
 		}
@@ -46,9 +48,16 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
-	// Get input
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
+		$html .= "<pre>CAPTCHA validation is required.</pre>";
+		$hide_form = false;
+		return;
+	}
+
+	// Get the values approved during the CAPTCHA step.
+	$pass_new  = $_SESSION[ 'captcha_password_new' ];
+	$pass_conf = $_SESSION[ 'captcha_password_conf' ];
+	unset( $_SESSION[ 'captcha_passed' ], $_SESSION[ 'captcha_password_new' ], $_SESSION[ 'captcha_password_conf' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
