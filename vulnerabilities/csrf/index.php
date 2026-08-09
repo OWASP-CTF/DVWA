@@ -53,7 +53,7 @@ $page[ 'body' ] .= "
 		</div><br />
 		<form action=\"#\" method=\"GET\">";
 
-if( $vulnerabilityFile == 'impossible.php' ) {
+if( in_array( $vulnerabilityFile, array( 'low.php', 'medium.php', 'high.php', 'impossible.php' ) ) ) {
 	$page[ 'body' ] .= "
 			Current password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_current\"><br />";
@@ -67,7 +67,7 @@ $page[ 'body' ] .= "
 			<br />
 			<input type=\"submit\" value=\"Change\" name=\"Change\">\n";
 
-if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
+if( in_array( $vulnerabilityFile, array( 'low.php', 'medium.php', 'high.php', 'impossible.php' ) ) )
 	$page[ 'body' ] .= "			" . tokenField();
 
 $page[ 'body' ] .= "
