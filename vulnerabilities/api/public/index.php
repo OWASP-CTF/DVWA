@@ -40,9 +40,14 @@ $requestMethod = $_SERVER["REQUEST_METHOD"];
 
 $version = $local_uri[0];
 
-if (preg_match ("/v([0-9]*)/", $version, $matches)) {
+if (preg_match ("/^v([0-9]+)$/", $version, $matches)) {
 	$version = intval ($matches[1]);
 } else {
+	header("HTTP/1.1 404 Not Found");
+	exit();
+}
+
+if ($version !== 2) {
 	header("HTTP/1.1 404 Not Found");
 	exit();
 }
