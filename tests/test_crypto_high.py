@@ -11,6 +11,10 @@ def test_crypto_high_uses_authenticated_random_encryption():
     assert 'random_bytes(12)' in source
     assert 'function encrypt ($plaintext, $iv, &$tag)' in source
     assert 'encrypt ($token, $iv, $tag)' in source
+    assert 'if (!is_array ($data_array))' in source
+    assert "base64_decode ($data_array['token'], true)" in source
+    decrypt_failure_handler = source.rsplit('} catch (Exception $exp) {', 1)[1]
+    assert '"extra" => $exp->getMessage()' not in decrypt_failure_handler
     assert '"tag"' in source
 
 

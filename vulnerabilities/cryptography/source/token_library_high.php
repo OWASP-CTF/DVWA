@@ -75,7 +75,7 @@ function check_token ($data) {
 					);
 	}
 
-	if (is_null ($data_array)) {
+	if (!is_array ($data_array)) {
 		$ret = array (
 						"status" => 522,
 						"message" => "Data in wrong format"
@@ -96,10 +96,17 @@ function check_token ($data) {
 			return json_encode ($ret);
 		}
 		if (!array_key_exists ("tag", $data_array)) return json_encode(array("status" => 525, "message" => "Missing tag"));
-			
-		$ciphertext = base64_decode ($data_array['token']);
-		$iv = base64_decode ($data_array['iv']);
-		$tag = base64_decode ($data_array['tag']);
+
+		if (!is_string ($data_array['token']) || !is_string ($data_array['iv']) || !is_string ($data_array['tag'])) {
+			return json_encode (array ("status" => 528, "message" => "Invalid token format"));
+		}
+
+		$ciphertext = base64_decode ($data_array['token'], true);
+		$iv = base64_decode ($data_array['iv'], true);
+		$tag = base64_decode ($data_array['tag'], true);
+		if ($ciphertext === false || $iv === false || $tag === false) {
+			return json_encode (array ("status" => 528, "message" => "Invalid token format"));
+		}
 
 		# Assume failure
 		$ret = array (
@@ -132,8 +139,7 @@ function check_token ($data) {
 		} catch (Exception $exp) {
 			$ret = array (
 							"status" => 526,
-							"message" => "Unable to decrypt token",
-							"extra" => $exp->getMessage()
+							"message" => "Unable to decrypt token"
 						);
 		}
 	}
