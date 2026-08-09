@@ -1,7 +1,7 @@
 <?php
 
 if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
-	if (strpos($_GET['redirect'], "info.php") !== false) {
+	if ($_GET['redirect'] == "info.php?id=1" || $_GET['redirect'] == "info.php?id=2") {
 		header ("location: " . $_GET['redirect']);
 		exit;
 	} else {
