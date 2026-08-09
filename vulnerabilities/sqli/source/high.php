@@ -6,21 +6,29 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query ) or die( '<pre>Something went wrong.</pre>' );
+			// Check database using a prepared statement to prevent SQL injection
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ? LIMIT 1";
+			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+			if (!$stmt) {
+				$html .= "<pre>Database error.</pre>";
+				break;
+			}
+			mysqli_stmt_bind_param($stmt, "i", $id);
+			mysqli_stmt_execute($stmt);
+			$result = mysqli_stmt_get_result($stmt);
 
 			// Get results
 			while( $row = mysqli_fetch_assoc( $result ) ) {
 				// Get values
-				$first = $row["first_name"];
-				$last  = $row["last_name"];
+				$first = htmlspecialchars($row["first_name"], ENT_QUOTES, 'UTF-8');
+				$last  = htmlspecialchars($row["last_name"], ENT_QUOTES, 'UTF-8');
 
 				// Feedback for end user
-				$html .= "<pre>ID: {$id}<br />First name: {$first}<br />Surname: {$last}</pre>";
+				$html .= "<pre>ID: " . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . "<br />First name: {$first}<br />Surname: {$last}</pre>";
 			}
 
-			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);		
+			mysqli_stmt_close($stmt);
+			mysqli_close($GLOBALS["___mysqli_ston"]);
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
