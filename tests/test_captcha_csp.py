@@ -68,3 +68,8 @@ def test_file_inclusion_uses_allowlists_and_session_ids_are_unpredictable():
         assert "random_bytes(32)" in source
         assert "httponly" in source
     assert "in_array($file, $allowed, true)" in read("vulnerabilities/fi/source/high.php")
+
+
+def test_javascript_tokens_use_constant_time_comparison():
+    source = read("vulnerabilities/javascript/index.php")
+    assert source.count("hash_equals(") == 3
