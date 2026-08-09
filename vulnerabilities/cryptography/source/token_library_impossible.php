@@ -1,7 +1,14 @@
 <?php
 
-define ("KEY", "rainbowclimbinghigh");
 define ("ALGO", "aes-256-gcm");
+
+function encryption_key () {
+	$key = getenv('DVWA_CRYPTO_KEY');
+	if ($key === false || strlen($key) < 32) {
+		throw new Exception ("DVWA_CRYPTO_KEY must contain at least 32 characters");
+	}
+	return hash('sha256', 'cryptography-impossible:' . $key, true);
+}
 
 function encrypt ($plaintext, $iv) {
 	# Default padding is PKCS#7 which is interchangeable with PKCS#5
@@ -11,7 +18,7 @@ function encrypt ($plaintext, $iv) {
 		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
 
-	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_encrypt($plaintext, ALGO, encryption_key(), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
@@ -19,14 +26,14 @@ function encrypt ($plaintext, $iv) {
 }
 
 function decrypt ($ciphertext, $iv) {
-	if (strlen ($iv) != 12) {
-		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 12 || strlen ($ciphertext) < 16) {
+		throw new Exception ("Invalid nonce or ciphertext length");
 	}
 
     $tag = substr($ciphertext, -16);
 	$text = substr($ciphertext, 0, -16);
 
-	$e = openssl_decrypt($text, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_decrypt($text, ALGO, encryption_key(), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -38,7 +45,7 @@ function decrypt ($ciphertext, $iv) {
 
 function create_token () {
 	$token = "userid:2";
-	$iv = openssl_random_pseudo_bytes(12, $cstrong);
+	$iv = random_bytes(12);
 
 	$e = encrypt ($token, $iv);
 	$data = array (
@@ -66,7 +73,7 @@ function check_token ($data) {
 					);
 	}
 
-	if (is_null ($data_array)) {
+	if (!is_array ($data_array)) {
 		$ret = array (
 						"status" => 522,
 						"message" => "Data in wrong format"
@@ -86,9 +93,16 @@ function check_token ($data) {
 						);
 			return json_encode ($ret);
 		}
-			
-		$ciphertext = base64_decode ($data_array['token']);
-		$iv = base64_decode ($data_array['iv']);
+
+		if (!is_string ($data_array['token']) || !is_string ($data_array['iv'])) {
+			return json_encode (array ("status" => 528, "message" => "Invalid token format"));
+		}
+
+		$ciphertext = base64_decode ($data_array['token'], true);
+		$iv = base64_decode ($data_array['iv'], true);
+		if ($ciphertext === false || $iv === false) {
+			return json_encode (array ("status" => 528, "message" => "Invalid token format"));
+		}
 
 		# Assume failure
 		$ret = array (
@@ -121,8 +135,7 @@ function check_token ($data) {
 		} catch (Exception $exp) {
 			$ret = array (
 							"status" => 526,
-							"message" => "Unable to decrypt token",
-							"extra" => $exp->getMessage()
+							"message" => "Unable to decrypt token"
 						);
 		}
 	}
