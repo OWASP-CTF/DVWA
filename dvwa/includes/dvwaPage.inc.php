@@ -645,7 +645,10 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	if( isset( $_SESSION[ 'session_token' ] ) ) {
 		destroySessionToken();
 	}
-	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
+	// 16 bytes from the CSPRNG, rendered as 32 hex characters. The length
+	// matches the md5() this replaces, so anything parsing the rendered token
+	// is unaffected; the entropy is real rather than a hash of the clock.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
