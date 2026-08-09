@@ -7,12 +7,15 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			$id = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $id ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+			// mysqli_real_escape_string only helps when the value is quoted in the query - this
+			// query had no surrounding quotes around $id, so escaping alone did nothing to stop
+			// a numeric-context injection.
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+				mysqli_stmt_bind_param($stmt, 's', $id);
+				mysqli_stmt_execute($stmt);
+				$result = mysqli_stmt_get_result($stmt); // Removed 'or die' to suppress mysql errors
 			} catch (Exception $e) {
 				print "There was an error.";
 				exit;
@@ -31,9 +34,11 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 			
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id;";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare($query);
+				$stmt->bindValue(':id', $id, SQLITE3_TEXT);
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {
