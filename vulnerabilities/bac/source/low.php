@@ -19,8 +19,10 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         $id = intval($_GET['user_id']);
         
         // Check if user exists first
-        $check_query = "SELECT user_id FROM users WHERE user_id = $id";
-        $check_result = mysqli_query($GLOBALS["___mysqli_ston"], $check_query);
+        $check_stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT user_id FROM users WHERE user_id = ?");
+        mysqli_stmt_bind_param($check_stmt, "i", $id);
+        mysqli_stmt_execute($check_stmt);
+        $check_result = mysqli_stmt_get_result($check_stmt);
         $user_exists = ($check_result && mysqli_num_rows($check_result) > 0);
         
         if (!$user_exists) {
@@ -32,8 +34,10 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                 
                 if ($id == $cookie_id) {
                     // Access granted
-                    $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = $id;";
-                    $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
+                    $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = ?");
+                    mysqli_stmt_bind_param($stmt, "i", $id);
+                    mysqli_stmt_execute($stmt);
+                    $result = mysqli_stmt_get_result($stmt);
                     
                     if ($result && mysqli_num_rows($result) > 0) {
                         $row = mysqli_fetch_assoc($result);
