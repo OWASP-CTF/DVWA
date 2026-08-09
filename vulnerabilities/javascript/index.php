@@ -29,16 +29,25 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+// The phrase token must not be forgeable by the client, so it is keyed with a
+// secret that only ever exists server side. Deriving it from anything that is
+// sent to the browser (the anti-CSRF token, the session id, a fixed string,
+// ...) would let anyone recompute a token for an arbitrary phrase.
+if (!isset($_SESSION['javascript_phrase_key']) || !is_string($_SESSION['javascript_phrase_key']) || strlen($_SESSION['javascript_phrase_key']) !== 32) {
+	$_SESSION['javascript_phrase_key'] = random_bytes(32);
+}
+$phraseKey = $_SESSION['javascript_phrase_key'];
+
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	checkToken($_POST['user_token'] ?? '', $_SESSION['session_token'] ?? '', 'index.php');
 	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
 
-		$phrase = $_POST['phrase'];
-		$token = $_POST['token'];
+		$phrase = is_string($_POST['phrase']) ? $_POST['phrase'] : '';
+		$token = is_string($_POST['token']) ? $_POST['token'] : '';
 
-		$expectedToken = hash_hmac('sha256', $phrase, $_SESSION['session_token']);
+		$expectedToken = hash_hmac('sha256', $phrase, $phraseKey);
 		if ($phrase === "success" && hash_equals($expectedToken, $token)) {
 			$message = "<p style='color:red'>Well done!</p>";
 		} else {
@@ -51,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 generateSessionToken();
 $initialPhrase = 'ChangeMe';
-$phraseToken = hash_hmac('sha256', $initialPhrase, $_SESSION['session_token']);
+$phraseToken = hash_hmac('sha256', $initialPhrase, $phraseKey);
 $csrfField = tokenField();
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
