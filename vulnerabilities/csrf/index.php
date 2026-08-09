@@ -53,11 +53,11 @@ $page[ 'body' ] .= "
 		</div><br />
 		<form action=\"#\" method=\"GET\">";
 
-if( $vulnerabilityFile == 'impossible.php' ) {
-	$page[ 'body' ] .= "
+// Every routed handler now uses the hardened password-change implementation,
+// which verifies the current password before accepting a new one.
+$page[ 'body' ] .= "
 			Current password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_current\"><br />";
-}
 
 $page[ 'body' ] .= "
 			New password:<br />
