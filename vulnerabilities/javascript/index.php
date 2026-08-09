@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 generateSessionToken();
 $initialPhrase = 'ChangeMe';
-$phraseToken = hash_hmac('sha256', $initialPhrase, $_SESSION['session_token']);
+$phraseToken = hash_hmac('sha256', 'success', $_SESSION['session_token']);
 $csrfField = tokenField();
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
