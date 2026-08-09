@@ -153,3 +153,9 @@ def test_api_basic_login_uses_configured_client_credentials():
     assert "getenv('DVWA_API_CLIENT_ID')" in login
     assert "getenv('DVWA_API_CLIENT_SECRET')" in login
     assert "hash_equals($expectedClient, $client_id)" in login
+
+
+def test_api_user_creation_does_not_assign_predictable_password_hash():
+    source = read("vulnerabilities/api/src/UserController.php")
+    assert "password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT)" in source
+    assert 'hash ("sha256", "password")' not in source

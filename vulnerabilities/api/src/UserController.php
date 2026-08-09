@@ -164,7 +164,7 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		$user = new User(null, $input['name'], intval ($input['level']), hash ("sha256", "password"));
+		$user = new User(null, $input['name'], intval ($input['level']), password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT));
 		$this->data[] = $user;
 		$response['status_code_header'] = 'HTTP/1.1 201 Created';
 		$response['body'] = json_encode($user->toArray($this->version));
