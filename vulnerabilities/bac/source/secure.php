@@ -38,7 +38,7 @@ if ($stmt) {
 	mysqli_stmt_close($stmt);
 }
 
-if (isset($_GET['action'], $_GET['user_id'])) {
+if (isset($_GET['user_id'])) {
 	$requestedId = filter_var($_GET['user_id'], FILTER_VALIDATE_INT, array('options' => array('min_range' => 1)));
 
 	if ($requestedId === false) {
