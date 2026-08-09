@@ -14,16 +14,16 @@ dvwaDatabaseConnect();
 
 switch( dvwaSecurityLevelGet() ) {
 	case 'low':
-		$link1 = "source/low.php?redirect=info.php?id=1";
-		$link2 = "source/low.php?redirect=info.php?id=2";
+		$link1 = "source/low.php?redirect=1";
+		$link2 = "source/low.php?redirect=2";
 		break;
 	case 'medium':
-		$link1 = "source/medium.php?redirect=info.php?id=1";
-		$link2 = "source/medium.php?redirect=info.php?id=2";
+		$link1 = "source/medium.php?redirect=1";
+		$link2 = "source/medium.php?redirect=2";
 		break;
 	case 'high':
-		$link1 = "source/high.php?redirect=info.php?id=1";
-		$link2 = "source/high.php?redirect=info.php?id=2";
+		$link1 = "source/high.php?redirect=1";
+		$link2 = "source/high.php?redirect=2";
 		break;
 	default:
 		$link1 = "source/impossible.php?redirect=1";

@@ -1,6 +1,3 @@
 <?php
-
-// The page we wish to display
-$file = $_GET[ 'page' ];
-
+require __DIR__ . '/impossible.php';
 ?>

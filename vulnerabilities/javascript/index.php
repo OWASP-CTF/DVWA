@@ -32,45 +32,27 @@ switch( dvwaSecurityLevelGet() ) {
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
+	checkToken($_POST['user_token'] ?? '', $_SESSION['session_token'] ?? '', 'index.php');
 	if (array_key_exists ("phrase", $_POST) && array_key_exists ("token", $_POST)) {
 
 		$phrase = $_POST['phrase'];
 		$token = $_POST['token'];
 
-		if ($phrase == "success") {
-			switch( dvwaSecurityLevelGet() ) {
-				case 'low':
-					if ($token == md5(str_rot13("success"))) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
-						$message = "<p style='color:red'>Well done!</p>";
-					} else {
-						$message = "<p>Invalid token.</p>";
-					}
-					break;
-				default:
-					$vulnerabilityFile = 'impossible.php';
-					break;
-			}
+		$expectedToken = hash_hmac('sha256', $phrase, $_SESSION['session_token']);
+		if ($phrase === "success" && hash_equals($expectedToken, $token)) {
+			$message = "<p style='color:red'>Well done!</p>";
 		} else {
-			$message = "<p>You got the phrase wrong.</p>";
+			$message = "<p>Invalid phrase or token.</p>";
 		}
 	} else {
 		$message = "<p>Missing phrase or token.</p>";
 	}
 }
+
+generateSessionToken();
+$initialPhrase = 'ChangeMe';
+$phraseToken = hash_hmac('sha256', 'success', $_SESSION['session_token']);
+$csrfField = tokenField();
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
 $page[ 'body' ] = <<<EOF
@@ -95,8 +77,9 @@ $page[ 'body' ] = <<<EOF
 	$message
 
 	<form name="low_js" method="post">
-		<input type="hidden" name="token" value="" id="token" />
-		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
+		<input type="hidden" name="token" value="{$phraseToken}" id="token" />
+		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="{$initialPhrase}" id="phrase" />
+		{$csrfField}
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>
 EOF;
