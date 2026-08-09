@@ -15,7 +15,9 @@ https://github.com/blueimp/JavaScript-MD5
 
 	function generate_token() {
 		var phrase = document.getElementById("phrase").value;
-		document.getElementById("token").value = md5(rot13(phrase));
+		var nonceEl = document.getElementById("js_nonce");
+		var nonce = nonceEl ? nonceEl.value : "";
+		document.getElementById("token").value = md5(rot13(phrase) + nonce);
 	}
 
 	generate_token();

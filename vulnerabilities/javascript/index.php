@@ -29,6 +29,16 @@ switch( dvwaSecurityLevelGet() ) {
 		break;
 }
 
+// Anti-replay: the client-side token algorithms (low/medium/high) are all
+// pure static functions of the phrase, so a token computed once can be
+// captured and replayed forever, from any session, without ever loading the
+// page's JS. Bind the token to a single-use, per-session nonce that is
+// (re)issued with every page render, and consume it here before a new one
+// is generated below. A submission is only valid against the nonce that was
+// actually handed out for this session's last render.
+$jsUsedNonce = isset( $_SESSION[ 'dvwa' ][ 'js_nonce' ] ) ? $_SESSION[ 'dvwa' ][ 'js_nonce' ] : null;
+unset( $_SESSION[ 'dvwa' ][ 'js_nonce' ] );
+
 $message = "";
 // Check what was sent in to see if it was what was expected
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
@@ -37,24 +47,24 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$phrase = $_POST['phrase'];
 		$token = $_POST['token'];
 
-		if ($phrase == "success") {
+		if ($phrase == "success" && $jsUsedNonce !== null) {
 			switch( dvwaSecurityLevelGet() ) {
 				case 'low':
-					if ($token == md5(str_rot13("success"))) {
+					if ($token == md5(str_rot13("success") . $jsUsedNonce)) {
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";
 					}
 					break;
 				case 'medium':
-					if ($token == strrev("XXsuccessXX")) {
+					if ($token == strrev("XXsuccessXX" . $jsUsedNonce)) {
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";
 					}
 					break;
 				case 'high':
-					if ($token == hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ")) {
+					if ($token == hash("sha256", hash("sha256", hash("sha256", "XX" . strrev("success")) . "ZZ") . $jsUsedNonce)) {
 						$message = "<p style='color:red'>Well done!</p>";
 					} else {
 						$message = "<p>Invalid token.</p>";
@@ -64,6 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 					$vulnerabilityFile = 'impossible.php';
 					break;
 			}
+		} else if ($phrase == "success") {
+			$message = "<p>Invalid or expired token, reload the page and try again.</p>";
 		} else {
 			$message = "<p>You got the phrase wrong.</p>";
 		}
@@ -71,6 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$message = "<p>Missing phrase or token.</p>";
 	}
 }
+
+// Issue a fresh single-use nonce for whichever form is about to be rendered.
+$jsNonce = bin2hex( random_bytes( 16 ) );
+$_SESSION[ 'dvwa' ][ 'js_nonce' ] = $jsNonce;
 
 if ( dvwaSecurityLevelGet() == "impossible" ) {
 $page[ 'body' ] = <<<EOF
@@ -96,6 +112,7 @@ $page[ 'body' ] = <<<EOF
 
 	<form name="low_js" method="post">
 		<input type="hidden" name="token" value="" id="token" />
+		<input type="hidden" id="js_nonce" value="{$jsNonce}" />
 		<label for="phrase">Phrase</label> <input type="text" name="phrase" value="ChangeMe" id="phrase" />
 		<input type="submit" id="send" name="send" value="Submit" />
 	</form>
