@@ -12,9 +12,7 @@ header ("X-XSS-Protection: 0");
 ?>
 <?php
 if (isset ($_POST['include'])) {
-$page[ 'body' ] .= "
-	" . $_POST['include'] . "
-";
+	$page[ 'body' ] .= "\n";
 }
 $page[ 'body' ] .= '
 <form name="csp" method="POST">

@@ -24,6 +24,7 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			$_SESSION['captcha_passed'] = true;
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
@@ -52,7 +53,7 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_conf = $_POST[ 'password_conf' ];
 
 	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	if( empty($_SESSION['captcha_passed']) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
@@ -60,6 +61,7 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
+		unset($_SESSION['captcha_passed']);
 		// They do!
 		$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 		$pass_new = md5( $pass_new );
