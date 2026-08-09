@@ -1,23 +1,30 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+// This level is protected by the same policy as this module's impossible level: script-src is
+// narrowed to 'self'. The previous list allowed script from a dozen third-party hosts --
+// pastebin, hastebin, unpkg, jsDelivr and friends -- any one of which will serve attacker
+// authored JavaScript on request, so the policy named trusted origins that are not trustworthy
+// and permitted exactly the injection it was meant to prevent.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
-
-# These might work if you can't create your own for some reason
-# https://cdn.jsdelivr.net/gh/digininja/csp_bypass/alert.js
-# https://unpkg.com/@digininja/csp_bypass@1.0.0/index.js
 
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// The submitted value is no longer used to build a <script src> element at all. Escaping it
+// inside the attribute was not enough: the page still emitted a script tag pointing at whatever
+// origin the caller named, so the application was still asking the browser to fetch and run
+// third-party code, and the only thing standing between that and execution was the policy
+// header above. impossible.php does not construct the tag either. The value is now written as
+// text and escaped, so it cannot become an element of any kind.
 $page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
+	" . htmlspecialchars( $_POST['include'], ENT_QUOTES, 'UTF-8' ) . "
 ";
 }
 $page[ 'body' ] .= '
 <form name="csp" method="POST">
-	<p>You can include scripts from external sources, examine the Content Security Policy and enter a URL to include here:</p>
+	<p>Whatever you enter here gets dropped into the page as text. Examine the Content Security Policy and see if you can still get script to run:</p>
 	<input size="50" type="text" name="include" value="" id="include" />
 	<input type="submit" value="Include" />
 </form>
