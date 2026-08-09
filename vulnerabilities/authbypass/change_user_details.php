@@ -5,10 +5,14 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On impossible only the admin is allowed to retrieve the data.
+On low and impossible, only the admin is allowed to update user details.
+(Same gap as get_user_data.php: at low there was no server-side check here at
+all, so any authenticated non-admin user could POST an arbitrary "id" and
+overwrite another user's first_name/surname - the hidden menu link never
+enforced anything.)
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+if ((dvwaSecurityLevelGet() == "low" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }

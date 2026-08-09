@@ -5,9 +5,14 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On high and impossible, only the admin is allowed to retrieve the data.
+On low, high and impossible, only the admin is allowed to retrieve the data.
+(This whole page is meant to be an admin-only panel - source/medium.php enforces
+that server-side, but at low this endpoint had no check of its own. The
+"Authorisation Bypass" link being hidden from non-admins in dvwaHtmlEcho() only
+removes a menu item; it does not stop a logged-in low-level user from calling
+this endpoint directly and dumping every user's data.)
 */
-if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
+if ((dvwaSecurityLevelGet() == "low" || dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
