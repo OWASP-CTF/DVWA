@@ -2,7 +2,20 @@
 
 define ("KEY", "rainbowclimbinghigh");
 define ("ALGO", "aes-128-cbc");
-define ("IV", "1234567812345678");
+// A dedicated key for the integrity tag - never reuse the encryption key for
+// a MAC as well.
+define ("MAC_KEY", "prognostication-token-mac-9f2e7c1b");
+
+// CBC mode alone gives no way to tell a legitimate ciphertext from one an
+// attacker has tampered with. Historically this let an attacker flip bytes
+// in the token/IV and use the *shape* of the error that came back (bad
+// padding vs. a decrypt that "succeeded" but produced nonsense/garbage
+// content) as an oracle, byte-by-byte, to decrypt or even forge tokens
+// without ever knowing KEY. Encrypt-then-MAC removes that oracle: the tag is
+// checked, in constant time, before a single byte of the ciphertext is ever
+// passed to openssl_decrypt, and every failure path below (bad tag, bad
+// padding, bad IV) reports back the exact same generic error so nothing
+// about *why* it failed leaks to the caller.
 
 function encrypt ($plaintext, $iv) {
 	# Default padding is PKCS#7 which is interchangeable with PKCS#5
@@ -16,16 +29,29 @@ function encrypt ($plaintext, $iv) {
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
-	return $e;
+	$mac = hash_hmac ('sha256', $iv . $e, MAC_KEY, true);
+	return $mac . $e;
 }
 
 function decrypt ($ciphertext, $iv) {
 	if (strlen ($iv) != 16) {
-		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
+		// Same generic message as every other failure below - the caller
+		// should not be able to distinguish "bad IV" from "bad MAC" from
+		// "bad padding".
+		throw new Exception ("Invalid token");
 	}
-	$e = openssl_decrypt($ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
+	if (strlen ($ciphertext) <= 32) {
+		throw new Exception ("Invalid token");
+	}
+	$mac        = substr ($ciphertext, 0, 32);
+	$encrypted  = substr ($ciphertext, 32);
+	$expected   = hash_hmac ('sha256', $iv . $encrypted, MAC_KEY, true);
+	if (!hash_equals ($expected, $mac)) {
+		throw new Exception ("Invalid token");
+	}
+	$e = openssl_decrypt($encrypted, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
 	if ($e === false) {
-		throw new Exception ("Decryption failed");
+		throw new Exception ("Invalid token");
 	}
 	return $e;
 }
@@ -36,16 +62,21 @@ function decrypt ($ciphertext, $iv) {
 function create_token ($debug = false) {
 	$token = "userid:2";
 
+	// A fresh, random IV per token (rather than one hard-coded constant
+	// reused for every token) removes the identical-ciphertext-for-
+	// identical-plaintext pattern a fixed IV produces.
+	$iv = openssl_random_pseudo_bytes (16);
+
 	if ($debug) {
 		print "Clear text token: " . $token . "\n";
 		print "Encryption key: " . KEY . "\n";
-		print "IV: " . (IV) . "\n";
+		print "IV: " . bin2hex ($iv) . "\n";
 	}
 
-	$e = encrypt ($token, IV);
+	$e = encrypt ($token, $iv);
 	$data = array (
 					"token" => base64_encode ($e),
-					"iv" => base64_encode (IV)
+					"iv" => base64_encode ($iv)
 				);
 	return json_encode($data);
 }
