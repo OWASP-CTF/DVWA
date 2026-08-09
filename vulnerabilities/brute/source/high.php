@@ -1,43 +1,61 @@
 <?php
 
-if( isset( $_GET[ 'Login' ] ) ) {
-	// Check Anti-CSRF token
-	checkToken( $_REQUEST[ 'user_token' ], $_SESSION[ 'session_token' ], 'index.php' );
+// Credentials are only submitted via POST to keep them out of URL history,
+// proxy logs and Referer headers. The CSRF token prevents cross-origin replay.
+if( isset( $_POST['Login'], $_POST['username'], $_POST['password'] ) ) {
+	checkToken( $_REQUEST['user_token'] ?? '', $_SESSION['session_token'], 'index.php' );
 
-	// Sanitise username input
-	$user = $_GET[ 'username' ];
-	$user = stripslashes( $user );
-	$user = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $user ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	$user = stripslashes( $_POST['username'] );
+	$pass = md5( stripslashes( $_POST['password'] ) );
 
-	// Sanitise password input
-	$pass = $_GET[ 'password' ];
-	$pass = stripslashes( $pass );
-	$pass = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
-	$pass = md5( $pass );
+	$total_failed_login = 3;
+	$lockout_time       = 15; // minutes
+	$account_locked     = false;
 
-	// Check database
-	$query  = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
-	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+	// Lockout check — uses PDO to prevent SQL injection on the username itself
+	$stmt = $db->prepare( 'SELECT failed_login, last_login FROM users WHERE user = :user LIMIT 1;' );
+	$stmt->bindParam( ':user', $user, PDO::PARAM_STR );
+	$stmt->execute();
+	$row = $stmt->fetch();
 
-	if( $result && mysqli_num_rows( $result ) == 1 ) {
-		// Get users details
-		$row    = mysqli_fetch_assoc( $result );
-		$avatar = $row["avatar"];
-
-		// Login successful
-		$html .= "<p>Welcome to the password protected area {$user}</p>";
-		$html .= "<img src=\"{$avatar}\" />";
-	}
-	else {
-		// Login failed
-		sleep( rand( 0, 3 ) );
-		$html .= "<pre><br />Username and/or password incorrect.</pre>";
+	if( $row && $row['failed_login'] >= $total_failed_login ) {
+		$timeout = strtotime( $row['last_login'] ) + ( $lockout_time * 60 );
+		if( time() < $timeout ) {
+			$account_locked = true;
+		}
 	}
 
-	((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+	// Credential check — parameterised so neither field is interpreted as SQL
+	$stmt = $db->prepare( 'SELECT avatar FROM users WHERE user = :user AND password = :password LIMIT 1;' );
+	$stmt->bindParam( ':user',     $user, PDO::PARAM_STR );
+	$stmt->bindParam( ':password', $pass, PDO::PARAM_STR );
+	$stmt->execute();
+	$row = $stmt->fetch();
+
+	if( $row && !$account_locked ) {
+		$html .= '<p>Welcome to the password protected area '
+		       . htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' ) . '</p>';
+		$html .= '<img src="' . htmlspecialchars( $row['avatar'], ENT_QUOTES, 'UTF-8' ) . '" />';
+
+		// Reset failure counter on successful login
+		$stmt = $db->prepare( 'UPDATE users SET failed_login = 0 WHERE user = :user LIMIT 1;' );
+		$stmt->bindParam( ':user', $user, PDO::PARAM_STR );
+		$stmt->execute();
+	} else {
+		// Fixed delay prevents automated guessing at speed
+		sleep( 2 );
+
+		$html .= "<pre><br />Username and/or password incorrect.<br /><br/>"
+		       . "Alternative, the account has been locked because of too many failed logins.<br />"
+		       . "If this is the case, <em>please try again in {$lockout_time} minutes</em>.</pre>";
+
+		// Increment counter and record the timestamp of the latest failed attempt
+		$stmt = $db->prepare( 'UPDATE users SET failed_login = failed_login + 1, last_login = NOW() WHERE user = :user LIMIT 1;' );
+		$stmt->bindParam( ':user', $user, PDO::PARAM_STR );
+		$stmt->execute();
+	}
 }
 
-// Generate Anti-CSRF token
 generateSessionToken();
 
 ?>
