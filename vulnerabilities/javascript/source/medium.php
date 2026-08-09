@@ -1,3 +1,4 @@
 <?php
-$page[ 'body' ] .= '<script src="' . DVWA_WEB_PAGE_TO_ROOT . 'vulnerabilities/javascript/source/medium.js"></script>';
+// The token field is now pre-filled by index.php with a value the server
+// issued for this session; medium.js's transform is no longer consulted.
 ?>
