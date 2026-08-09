@@ -10,6 +10,10 @@ $current_user_id = ($result && mysqli_num_rows($result) > 0) ? mysqli_fetch_asso
 
 // Basic attempt at access control (but easily bypassed)
 $html = "";
+if (dvwaCurrentUser() !== 'admin') {
+    $html .= '<p>Access denied.</p>';
+    return;
+}
 if (isset($_GET['action']) && isset($_GET['user_id'])) {
     if (!preg_match('/^\d+$/', $_GET['user_id'])) {
         $html .= "<p>Invalid user ID format. Please enter a number.</p>";

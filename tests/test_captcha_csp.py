@@ -42,3 +42,10 @@ def test_api_and_authbypass_boundaries_are_hardened():
     source = read("vulnerabilities/authbypass/change_user_details.php")
     assert "mysqli_prepare" in source
     assert "mysqli_stmt_bind_param" in source
+
+
+def test_bac_levels_require_server_side_admin_authorization():
+    for level in ("low", "medium", "high"):
+        source = read(f"vulnerabilities/bac/source/{level}.php")
+        assert "dvwaCurrentUser() !== 'admin'" in source
+        assert "Access denied." in source
