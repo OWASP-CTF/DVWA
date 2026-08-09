@@ -1,13 +1,15 @@
 <?php
 function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+	$iv = substr($ciphertext, 0, 12);
+	$tag = substr($ciphertext, 12, 16);
+	$e = openssl_decrypt(substr($ciphertext, 28), 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
 	return $e;
 }
 
-$key = "ik ben een aardbei";
+$key = hash('sha256', getenv('DVWA_CRYPTO_KEY') ?: 'dvwa-development-key', true);
 
 $errors = "";
 $success = "";
@@ -22,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			if (strlen($token) % 32 != 0) {
 				throw new Exception ("Token is in wrong format");
 			} else {
-				$decrypted = decrypt(hex2bin ($token), $key);
+				$decrypted = decrypt(base64_decode($token, true), $key);
 
 				$user = json_decode ($decrypted);
 				if ($user === null) {
@@ -76,7 +78,7 @@ $html = "
 You also spot this comment in the docs:
 </p>
 <blockquote><i>
-To ensure your security, we use aes-128-ecb throughout our application.
+Tokens use authenticated encryption with a unique nonce for each session.
 </i></blockquote>
 
 		<hr>
