@@ -2,17 +2,18 @@
 
 if( isset( $_POST[ 'Upload' ] ) ) {
 	// Where are we going to be writing to?
-	$target_path  = DVWA_WEB_PAGE_TO_ROOT . "hackable/uploads/";
-	$target_path .= basename( $_FILES[ 'uploaded' ][ 'name' ] );
+	$target_path = DVWA_WEB_PAGE_TO_ROOT . "hackable/uploads/";
+	$uploaded_tmp = $_FILES['uploaded']['tmp_name'];
 
 	// File information
 	$uploaded_name = $_FILES[ 'uploaded' ][ 'name' ];
-	$uploaded_type = $_FILES[ 'uploaded' ][ 'type' ];
 	$uploaded_size = $_FILES[ 'uploaded' ][ 'size' ];
+	$uploaded_type = (new finfo(FILEINFO_MIME_TYPE))->file($uploaded_tmp);
+	$extension = array('image/jpeg' => 'jpg', 'image/png' => 'png')[$uploaded_type] ?? null;
 
 	// Is it an image?
-	if( ( $uploaded_type == "image/jpeg" || $uploaded_type == "image/png" ) &&
-		( $uploaded_size < 100000 ) ) {
+	if( $extension !== null && $uploaded_size < 100000 && getimagesize($uploaded_tmp) ) {
+		$target_path .= bin2hex(random_bytes(16)) . '.' . $extension;
 
 		// Can we move the file to the upload folder?
 		if( !move_uploaded_file( $_FILES[ 'uploaded' ][ 'tmp_name' ], $target_path ) ) {

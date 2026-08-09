@@ -80,3 +80,10 @@ def test_upload_low_validates_content_and_uses_random_names():
     assert "finfo(FILEINFO_MIME_TYPE)" in source
     assert "getimagesize($uploaded_tmp)" in source
     assert "random_bytes(16)" in source
+
+
+def test_upload_medium_uses_detected_mime_and_random_names():
+    source = read("vulnerabilities/upload/source/medium.php")
+    assert "finfo(FILEINFO_MIME_TYPE)" in source
+    assert "getimagesize($uploaded_tmp)" in source
+    assert "random_bytes(16)" in source
