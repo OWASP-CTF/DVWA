@@ -5,10 +5,15 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 	$id = $_POST[ 'id' ];
 	$exists = false;
 
-	// The dropdown only ever submits numeric values, but enforce it server-side too
-	$id = (int) $id;
+	// The dropdown only ever submits a positive decimal user id. Validate that
+	// shape before binding, rather than loosely casting to int, so a
+	// non-numeric payload is rejected outright instead of being silently
+	// coerced to some other in-range value.
+	$valid_id = is_string( $id ) && ctype_digit( $id ) && filter_var( $id, FILTER_VALIDATE_INT, array(
+		'options' => array( 'min_range' => 1 )
+	) ) !== false;
 
-	switch ($_DVWA['SQLI_DB']) {
+	if ( $valid_id ) switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database using a parameterised query
 			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
