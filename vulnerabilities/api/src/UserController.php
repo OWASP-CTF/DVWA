@@ -45,7 +45,7 @@ class UserController
 		if (! isset($input['level'])) {
 			return false;
 		}
-		if (!is_numeric ($input['level'])) {
+		if (!is_numeric ($input['level']) || intval($input['level']) !== 1) {
 			return false;
 		}
 		return true;
