@@ -3,13 +3,14 @@
 if( isset( $_SESSION [ 'id' ] ) ) {
 	// Get input
 	$id = $_SESSION[ 'id' ];
+	$id = is_string( $id ) && ctype_digit( $id ) ? intval( $id ) : 0;
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
 			$query = "SELECT first_name, last_name FROM users WHERE user_id = ? LIMIT 1;";
 			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query) or die( '<pre>Something went wrong.</pre>' );
-			mysqli_stmt_bind_param($stmt, 's', $id);
+			mysqli_stmt_bind_param($stmt, 'i', $id);
 			mysqli_stmt_execute($stmt) or die( '<pre>Something went wrong.</pre>' );
 			$result = mysqli_stmt_get_result($stmt);
 
@@ -30,7 +31,7 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 			global $sqlite_db_connection;
 
 			$stmt = $sqlite_db_connection->prepare('SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;');
-			$stmt->bindValue(':id', $id, SQLITE3_TEXT);
+			$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
 			try {
 				$results = $stmt->execute();
 			} catch (Exception $e) {

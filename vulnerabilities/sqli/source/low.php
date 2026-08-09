@@ -3,13 +3,14 @@
 if( isset( $_REQUEST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_REQUEST[ 'id' ];
+	$id = is_string( $id ) && ctype_digit( $id ) ? intval( $id ) : 0;
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
 			$query = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
 			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
-			mysqli_stmt_bind_param($stmt, "s", $id);
+			mysqli_stmt_bind_param($stmt, "i", $id);
 			mysqli_stmt_execute($stmt);
 			$result = mysqli_stmt_get_result($stmt);
 
@@ -32,7 +33,7 @@ if( isset( $_REQUEST[ 'Submit' ] ) ) {
 			#$sqlite_db_connection->enableExceptions(true);
 
 			$stmt = $sqlite_db_connection->prepare("SELECT first_name, last_name FROM users WHERE user_id = :id;");
-			$stmt->bindValue(':id', $id, SQLITE3_TEXT);
+			$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
 			try {
 				$results = $stmt->execute();
 			} catch (Exception $e) {
