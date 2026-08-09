@@ -3,13 +3,14 @@
 if( isset( $_POST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_POST[ 'id' ];
-
-	$id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);
+	$id = is_string( $id ) && ctype_digit( $id ) ? intval( $id ) : 0;
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], "SELECT first_name, last_name FROM users WHERE user_id = ?;") or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+			mysqli_stmt_bind_param($stmt, "i", $id);
+			mysqli_stmt_execute($stmt);
+			$result = mysqli_stmt_get_result($stmt);
 
 			// Get results
 			while( $row = mysqli_fetch_assoc( $result ) ) {
@@ -24,10 +25,10 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			#print $query;
+			$stmt = $sqlite_db_connection->prepare("SELECT first_name, last_name FROM users WHERE user_id = :id;");
+			$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$results = $stmt->execute();
 			} catch (Exception $e) {
 				echo 'Caught exception: ' . $e->getMessage();
 				exit();
