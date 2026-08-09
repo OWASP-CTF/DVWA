@@ -4,8 +4,8 @@
 if ( array_key_exists( "default", $_GET ) && !is_null ($_GET[ 'default' ]) ) {
 	$default = $_GET['default'];
 	
-	# Do not allow script tags
-	if (stripos ($default, "<script") !== false) {
+	# Allow only the supported language values.
+	if (!in_array ($default, array ('English', 'French', 'Spanish', 'German'), true)) {
 		header ("location: ?default=English");
 		exit;
 	}
