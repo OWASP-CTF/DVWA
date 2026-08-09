@@ -28,14 +28,20 @@ class Token {
 	}
 
 	private static function decrypt($ciphertext) {
-		$str = base64_decode ($ciphertext);
-		$bits = explode (":::::", $str);
-		if (count ($bits) != 3) {
-			return false;
-		}
+	$str = base64_decode ($ciphertext, true);
+	if ($str === false) {
+		return false;
+	}
+	$bits = explode (":::::", $str);
+	if (count ($bits) != 3) {
+		return false;
+	}
 		$value = $bits[2];
-		$iv = $bits[1];
-		$tag = $bits[0];
+	$iv = $bits[1];
+	$tag = $bits[0];
+	if (strlen($iv) !== openssl_cipher_iv_length(self::ENCRYPTION_CIPHER) || strlen($tag) !== 16 || $value === '') {
+		return false;
+	}
 		$cleartext = openssl_decrypt($value, self::ENCRYPTION_CIPHER, self::ENCRYPTION_KEY, $options=0, $iv, $tag);
 		return $cleartext;
 	}
