@@ -1,29 +1,34 @@
 <?php
 
-define ("KEY", "rainbowclimbinghigh");
-define ("ALGO", "aes-128-cbc");
-define ("IV", "1234567812345678");
+define ("ALGO", "aes-256-gcm");
 
-function encrypt ($plaintext, $iv) {
+function encryption_key () {
+	$key = getenv('DVWA_CRYPTO_KEY');
+	if ($key === false || strlen($key) < 32) {
+		throw new Exception ("DVWA_CRYPTO_KEY must contain at least 32 characters");
+	}
+	return hash('sha256', $key, true);
+}
+
+function encrypt ($plaintext, $iv, &$tag) {
 	# Default padding is PKCS#7 which is interchangeable with PKCS#5
 	# https://en.wikipedia.org/wiki/Padding_%28cryptography%29#PKCS#5_and_PKCS#7
 
-	if (strlen ($iv) != 16) {
-		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
+	if (strlen ($iv) != 12) {
+		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
-	$tag = "";
-	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_encrypt($plaintext, ALGO, encryption_key(), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
 	return $e;
 }
 
-function decrypt ($ciphertext, $iv) {
-	if (strlen ($iv) != 16) {
-		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
+function decrypt ($ciphertext, $iv, $tag) {
+	if (strlen ($iv) != 12 || strlen($tag) != 16) {
+		throw new Exception ("Invalid nonce or tag length");
 	}
-	$e = openssl_decrypt($ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
+	$e = openssl_decrypt($ciphertext, ALGO, encryption_key(), OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -35,17 +40,19 @@ function decrypt ($ciphertext, $iv) {
 
 function create_token ($debug = false) {
 	$token = "userid:2";
+	$iv = random_bytes(12);
+	$tag = '';
 
 	if ($debug) {
 		print "Clear text token: " . $token . "\n";
-		print "Encryption key: " . KEY . "\n";
-		print "IV: " . (IV) . "\n";
+		print "Encryption key: configured\n";
 	}
 
-	$e = encrypt ($token, IV);
+	$e = encrypt ($token, $iv, $tag);
 	$data = array (
 					"token" => base64_encode ($e),
-					"iv" => base64_encode (IV)
+					"iv" => base64_encode ($iv),
+					"tag" => base64_encode ($tag)
 				);
 	return json_encode($data);
 }
@@ -68,7 +75,7 @@ function check_token ($data) {
 					);
 	}
 
-	if (is_null ($data_array)) {
+	if (!is_array ($data_array)) {
 		$ret = array (
 						"status" => 522,
 						"message" => "Data in wrong format"
@@ -88,9 +95,18 @@ function check_token ($data) {
 						);
 			return json_encode ($ret);
 		}
-			
-		$ciphertext = base64_decode ($data_array['token']);
-		$iv = base64_decode ($data_array['iv']);
+		if (!array_key_exists ("tag", $data_array)) return json_encode(array("status" => 525, "message" => "Missing tag"));
+
+		if (!is_string ($data_array['token']) || !is_string ($data_array['iv']) || !is_string ($data_array['tag'])) {
+			return json_encode (array ("status" => 528, "message" => "Invalid token format"));
+		}
+
+		$ciphertext = base64_decode ($data_array['token'], true);
+		$iv = base64_decode ($data_array['iv'], true);
+		$tag = base64_decode ($data_array['tag'], true);
+		if ($ciphertext === false || $iv === false || $tag === false) {
+			return json_encode (array ("status" => 528, "message" => "Invalid token format"));
+		}
 
 		# Assume failure
 		$ret = array (
@@ -98,7 +114,7 @@ function check_token ($data) {
 						"message" => "Unknown error"
 					);
 		try {
-			$d = decrypt ($ciphertext, $iv); 
+			$d = decrypt ($ciphertext, $iv, $tag);
 			if (preg_match ("/^userid:(\d+)$/", $d, $matches)) {
 				$id = $matches[1];
 				if (array_key_exists ($id, $users)) {
@@ -123,8 +139,7 @@ function check_token ($data) {
 		} catch (Exception $exp) {
 			$ret = array (
 							"status" => 526,
-							"message" => "Unable to decrypt token",
-							"extra" => $exp->getMessage()
+							"message" => "Unable to decrypt token"
 						);
 		}
 	}
