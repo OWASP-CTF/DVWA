@@ -22,12 +22,16 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         $check_result = mysqli_query($GLOBALS["___mysqli_ston"], $check_query);
         $user_exists = ($check_result && mysqli_num_rows($check_result) > 0);
         
-        // "Secure" check that's easily bypassed
-        if (isset($_GET['token']) && $_GET['token'] == 'user_token') {
+        // The token used to be a fixed, shared string that anyone could
+        // supply - it granted access to any user_id and proved nothing
+        // about who was actually asking. Authorization instead has to be
+        // tied to the caller's own authenticated identity, resolved
+        // server-side above from the session (dvwaCurrentUser()).
+        if ($current_user_id > 0 && (string)$id === (string)$current_user_id) {
             if ($user_exists) {
                 $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = '$id';";
                 $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
-                
+
                 if ($result && mysqli_num_rows($result) > 0) {
                     $row = mysqli_fetch_assoc($result);
                     $html .= "
@@ -36,14 +40,13 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                             <p>User ID: {$row['user_id']}</p>
                             <p>Name: {$row['first_name']} {$row['last_name']}</p>
                             <p>Avatar: {$row['avatar']}</p>
-                            <!-- Hint: This token check isn't very secure... -->
                         </div>";
                 }
             } else {
                 $html .= "<p>No user found with ID: {$id}</p>";
             }
         } else {
-            $html .= "<p>Access denied. Valid token required. <!-- Try using token=user_token --></p>";
+            $html .= "<p>Access denied. You can only view your own profile.</p>";
         }
         
         // Log access attempts
@@ -65,12 +68,18 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                 mysqli_query($GLOBALS["___mysqli_ston"], $create_table);
             }
             
-            // Log the access attempt - only log numeric target_id
+            // Log the access attempt. The IP address is taken from a header
+            // the client fully controls (X-Forwarded-For), so it must never
+            // be concatenated into SQL - use a prepared statement.
             $ip = isset($_SERVER['HTTP_X_FORWARDED_FOR']) ? $_SERVER['HTTP_X_FORWARDED_FOR'] : $_SERVER['REMOTE_ADDR'];
             $target_id = $user_exists ? $id : 0; // Use 0 for non-existent users
-            $log_query = "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES 
-                        ({$current_user_id}, {$target_id}, '{$ip}')";
-            mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
+            $log_query = "INSERT INTO bac_log (user_id, target_id, ip_address) VALUES (?, ?, ?)";
+            $log_stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $log_query);
+            if ($log_stmt) {
+                mysqli_stmt_bind_param($log_stmt, "iis", $current_user_id, $target_id, $ip);
+                mysqli_stmt_execute($log_stmt);
+                mysqli_stmt_close($log_stmt);
+            }
         } catch (Exception $e) {
             // Silently fail if logging doesn't work
         }

@@ -5,10 +5,18 @@ require_once DVWA_WEB_PAGE_TO_ROOT . 'dvwa/includes/dvwaPage.inc.php';
 dvwaDatabaseConnect();
 
 /*
-On impossible only the admin is allowed to retrieve the data.
+This is the endpoint that actually performs the sensitive action (updating
+another user's details). The "Only the admin user is allowed to access this
+page" notice shown on the low/medium/high source pages is enforced there at
+*page render* time only - it does nothing to stop someone from calling this
+endpoint directly (e.g. with curl/fetch) as a non-admin, bypassing that
+front-end/page-level gate entirely. The authorisation decision therefore has
+to be made here too, from the server-side session (dvwaCurrentUser()), never
+from anything the caller supplies in the request body.
 */
 
-if (dvwaSecurityLevelGet() == "impossible" && dvwaCurrentUser() != "admin") {
+$currentSecurityLevel = dvwaSecurityLevelGet();
+if ($currentSecurityLevel != "low" && dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
