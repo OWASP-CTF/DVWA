@@ -11,8 +11,10 @@ if( isset( $_POST[ 'btnSign' ] ) ) {
 	$message = htmlspecialchars( $message );
 
 	// Sanitize name input
-	$name = preg_replace( '/<(.*)s(.*)c(.*)r(.*)i(.*)p(.*)t/i', '', $name );
+	// A regex blacklist for "script" is still bypassed by any non-script vector (e.g.
+	// <img onerror=...>) - use htmlspecialchars() instead, matching how $message is handled.
 	$name = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $name ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+	$name = htmlspecialchars( $name );
 
 	// Update database
 	$query  = "INSERT INTO guestbook ( comment, name ) VALUES ( '$message', '$name' );";
