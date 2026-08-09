@@ -8,7 +8,7 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check CAPTCHA from 3rd party
+	// Check CAPTCHA from 3rd party - server-side verification
 	$resp = recaptcha_check_answer(
 		$_DVWA[ 'recaptcha_private_key'],
 		$_POST['g-recaptcha-response']
