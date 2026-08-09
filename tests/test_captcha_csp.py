@@ -112,3 +112,9 @@ def test_upload_high_uses_detected_type_and_random_name():
     source = read("vulnerabilities/upload/source/high.php")
     assert "finfo(FILEINFO_MIME_TYPE)" in source
     assert "random_bytes(16)" in source
+
+
+def test_api_health_connectivity_validates_and_quotes_target():
+    source = read("vulnerabilities/api/src/HealthController.php")
+    assert "FILTER_VALIDATE_IP" in source
+    assert 'escapeshellarg($target)' in source
