@@ -1,6 +1,9 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+// Diagnostic-only: none of these third-party hosts can be vetted, and at
+// least one is a public paste/JSONP-capable host an attacker can host a
+// payload on - restrict to this origin only, same as the impossible level.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
 
