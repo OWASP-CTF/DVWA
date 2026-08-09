@@ -1,19 +1,36 @@
 <?php
 
-function xor_this($cleartext, $key) {
-    // Our output text
-    $outText = '';
-
-    // Iterate through each character
-    for($i=0; $i<strlen($cleartext);) {
-        for($j=0; ($j<strlen($key) && $i<strlen($cleartext)); $j++,$i++) {
-            $outText .= $cleartext[$i] ^ $key[$j];
-        }
-    }
-    return $outText;
+function low_encryption_key () {
+	$key = getenv('DVWA_CRYPTO_KEY');
+	if ($key === false || strlen($key) < 32) {
+		throw new Exception ("Cryptography is not configured");
+	}
+	return hash('sha256', 'cryptography-low:' . $key, true);
 }
 
-$key = "wachtwoord";
+function encrypt_message ($plaintext) {
+	$nonce = random_bytes(12);
+	$ciphertext = openssl_encrypt($plaintext, 'aes-256-gcm', low_encryption_key(), OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($ciphertext === false) {
+		throw new Exception ("Encryption failed");
+	}
+	return base64_encode($nonce . $tag . $ciphertext);
+}
+
+function decrypt_message ($encoded) {
+	$data = base64_decode($encoded, true);
+	if ($data === false || strlen($data) < 28) {
+		throw new Exception ("Message is in the wrong format");
+	}
+	$nonce = substr($data, 0, 12);
+	$tag = substr($data, 12, 16);
+	$ciphertext = substr($data, 28);
+	$plaintext = openssl_decrypt($ciphertext, 'aes-256-gcm', low_encryption_key(), OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($plaintext === false) {
+		throw new Exception ("Unable to decrypt message");
+	}
+	return $plaintext;
+}
 
 $errors = "";
 $success = "";
@@ -27,18 +44,24 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	try {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
+			if (!is_string($message)) {
+				throw new Exception ("Message is in the wrong format");
+			}
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = decrypt_message($message);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = encrypt_message($message);
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			$password_hash = getenv('DVWA_CRYPTO_LOW_PASSWORD_HASH');
+			if (!is_string($password) || $password_hash === false || $password_hash === '') {
+				throw new Exception ("Login is not configured");
+			}
+			if (password_verify($password, $password_hash)) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
