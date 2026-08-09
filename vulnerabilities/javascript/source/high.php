@@ -1,3 +1,3 @@
 <?php
-$page[ 'body' ] .= '<script src="' . DVWA_WEB_PAGE_TO_ROOT . 'vulnerabilities/javascript/source/high.js"></script>';
+// Tokens are generated and verified on the server.
 ?>
