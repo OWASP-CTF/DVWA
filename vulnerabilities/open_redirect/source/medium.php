@@ -1,3 +1,3 @@
 <?php
-require __DIR__ . '/secure.php';
+require __DIR__ . '/impossible.php';
 ?>
