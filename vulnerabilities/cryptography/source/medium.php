@@ -4,21 +4,18 @@
 // attacker cut-and-paste blocks between different captured tokens (e.g.
 // combining the "admin" block from one token with the "sweep" block from
 // another) to forge a new, validly-decryptable token without ever knowing
-// the key. Chaining each block off the previous ciphertext block (CBC)
-// removes that property for the plaintext - a spliced block now decrypts to
-// garbage because it no longer follows the ciphertext it was actually
-// chained after - but CBC on its own is still unauthenticated: nothing stops
-// an attacker splicing ciphertext blocks between tokens and having the
-// splice "decrypt to garbage" for most bytes while corrupting only the block
-// boundary they don't care about, then reading off whichever fields still
-// came through intact. A MAC computed over the whole ciphertext, with a key
-// the token holder never sees, closes that: any byte changed anywhere in the
+// the key. Switching cipher mode alone is not the fix here: the three
+// example tokens below are fixed legacy ciphertext this lab has always
+// shipped, so re-keying them under a different mode would just make them
+// stop decrypting at all. What actually needs to change is that nothing
+// should be decrypted, spliced or not, without first proving the ciphertext
+// hasn't been touched - a MAC computed over the whole ciphertext, with a key
+// the token holder never sees, does that: any byte changed anywhere in the
 // ciphertext - including a spliced-in block from a different token - makes
 // the tag fail to verify, so decryption is refused before any bytes of the
 // tampered token are ever produced.
 function decrypt ($ciphertext, $key) {
-	$iv = substr(str_pad($key, 16, $key), 0, 16);
-	$e = openssl_decrypt($ciphertext, 'aes-128-cbc', $key, OPENSSL_RAW_DATA, $iv);
+	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
