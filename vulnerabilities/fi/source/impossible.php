@@ -11,7 +11,7 @@ $configFileNames = [
     'file3.php',
 ];
 
-if( !in_array($file, $configFileNames) ) {
+if( !is_string( $file ) || !in_array( $file, $configFileNames, true ) ) {
     // This isn't the page we want!
     echo "ERROR: File not found!";
     exit;
