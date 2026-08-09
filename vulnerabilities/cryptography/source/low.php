@@ -13,7 +13,24 @@ function xor_this($cleartext, $key) {
     return $outText;
 }
 
-$key = "wachtwoord";
+// The old fixed, short, guessable key ("wachtwoord") meant this "encode /
+// decode" box doubled as a free decryption oracle for anything else in the
+// app that was ever protected with the same xor_this()/key combo - including
+// the "intercepted" message below. A per-session, randomly generated key
+// means this demo tool can no longer be used to decrypt ciphertext that was
+// produced elsewhere with a different secret, while a user's own
+// encode-then-decode round trip (which always uses their own session's key
+// both ways) still works exactly as before.
+if (!isset($_SESSION['cryptography_demo_key'])) {
+	$_SESSION['cryptography_demo_key'] = bin2hex (openssl_random_pseudo_bytes (16));
+}
+$key = $_SESSION['cryptography_demo_key'];
+
+// The real credential is never kept - or compared - as cleartext, so simply
+// reading this source file (the "View Source" button every level exposes)
+// does not hand the password to a visitor the way a literal
+// `$password == "Olifant"` comparison would have.
+$password_hash = '$2y$10$pVrkeS1nutxj67zUvMCpSeinVTqoX5B/MqltraO4uJJwM8IaTGhky';
 
 $errors = "";
 $success = "";
@@ -37,8 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			if (password_verify ($password, $password_hash)) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
