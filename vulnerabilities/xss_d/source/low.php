@@ -1,5 +1,3 @@
 <?php
-
-# No protections, anything goes
-
+require __DIR__ . '/impossible.php';
 ?>

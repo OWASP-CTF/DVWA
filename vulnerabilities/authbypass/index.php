@@ -32,9 +32,6 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/authbypass/source/{$vulnerabilityFile}";
 
-generateSessionToken();
-$authToken = htmlspecialchars($_SESSION['session_token'], ENT_QUOTES, 'UTF-8');
-
 $page[ 'body' ] .= '
 <div class="body_padded">
 	<h1>Vulnerability: Authorisation Bypass</h1>
@@ -43,7 +40,7 @@ $page[ 'body' ] .= '
 
 	<div class="vulnerable_code_area">
 	<div style="font-weight: bold;color: red;font-size: 120%;" id="save_result"></div>
-	<div id="user_form" data-csrf-token="' . $authToken . '"></div>
+	<div id="user_form"></div>
 	<p>
 		Welcome to the user manager, please enjoy updating your user\'s details.
 	</p>
