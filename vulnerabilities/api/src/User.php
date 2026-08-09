@@ -36,26 +36,15 @@ final class User
 	}
 
 	public function toArray($version) {
-		switch ($version) {
-			case 1:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-					"password" => $this->password,
-				);
-				break;
-			default:
-			case 2:
-				$a = array (
-					"id" => $this->id,
-					"name" => $this->name,
-					"level" => $this->level,
-				);
-				break;
-		}
-
-		return $a;
+		// The v1 route used to include the password hash in every response - an old, forgotten
+		// API version leaking credential hashes with no additional access control. There is no
+		// legitimate reason any API response needs to echo a user's password hash back, so it's
+		// omitted for every version now, not just v2+.
+		return array (
+			"id" => $this->id,
+			"name" => $this->name,
+			"level" => $this->level,
+		);
 	}
 }
 
