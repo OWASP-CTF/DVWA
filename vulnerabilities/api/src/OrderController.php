@@ -51,10 +51,10 @@ class OrderController
 
 	private function validateUpdate($input)
 	{
-		if (isset($input['name']) || isset($input['address']) || isset ($input['items'])) {
-			return true;
-		}
-		return false;
+		if (isset($input['name']) && (!is_string($input['name']) || strlen($input['name']) > 100)) return false;
+		if (isset($input['address']) && (!is_string($input['address']) || strlen($input['address']) > 500)) return false;
+		if (isset($input['items']) && !is_array($input['items'])) return false;
+		return isset($input['name']) || isset($input['address']) || isset($input['items']);
 	}
 
 	/*

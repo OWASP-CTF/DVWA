@@ -15,11 +15,7 @@ if( isset( $_POST[ 'Change' ] ) ) {
 	);
 
 	if (
-		$resp || 
-		(
-			$_POST[ 'g-recaptcha-response' ] == 'hidd3n_valu3'
-			&& $_SERVER[ 'HTTP_USER_AGENT' ] == 'reCAPTCHA'
-		)
+		$resp
 	){
 		// CAPTCHA was correct. Do both new passwords match?
 		if ($pass_new == $pass_conf) {

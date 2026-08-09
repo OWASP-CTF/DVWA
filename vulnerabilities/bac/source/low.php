@@ -12,6 +12,10 @@ $role = $row['role'];
 
 // Slightly better access control (but still vulnerable)
 $html = "";
+if (dvwaCurrentUser() !== 'admin') {
+    $html .= '<p>Access denied.</p>';
+    return;
+}
 if (isset($_GET['action']) && isset($_GET['user_id'])) {
     if (!preg_match('/^\d+$/', $_GET['user_id'])) {
         $html .= "<p>Invalid user ID format. Please enter a number.</p>";

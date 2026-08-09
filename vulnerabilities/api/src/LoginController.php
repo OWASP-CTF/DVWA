@@ -57,7 +57,9 @@ class LoginController
 			$username = $input['username'];
 			$password = $input['password'];
 
-			if ($username == "mrbennett" && $password == "becareful") {
+			$expectedUser = getenv('DVWA_API_USERNAME') ?: 'mrbennett';
+			$expectedPasswordHash = getenv('DVWA_API_PASSWORD_HASH') ?: password_hash('becareful', PASSWORD_DEFAULT);
+			if (hash_equals($expectedUser, $username) && password_verify($password, $expectedPasswordHash)) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';
 				$response['body'] = json_encode (array ("token" => Login::create_token()));
 			} else {
@@ -83,7 +85,9 @@ class LoginController
 			$client_secret = $_SERVER['PHP_AUTH_PW'];
 
 			# App auth check
-			if ($client_id == "1471.dvwa.digi.ninja" && $client_secret == "ABigLongSecret") {
+			$expectedClient = getenv('DVWA_API_CLIENT_ID') ?: '1471.dvwa.digi.ninja';
+			$expectedClientSecret = getenv('DVWA_API_CLIENT_SECRET') ?: 'ABigLongSecret';
+			if (hash_equals($expectedClient, $client_id) && hash_equals($expectedClientSecret, $client_secret)) {
 
 				if (array_key_exists ("grant_type", $_POST)) {
 					switch ($_POST['grant_type']) {
@@ -93,7 +97,9 @@ class LoginController
 								$username = $_POST['username'];
 								$password = $_POST['password'];
 
-								if ($username == "mrbennett" && $password == "becareful") {
+								$expectedUser = getenv('DVWA_API_USERNAME') ?: 'mrbennett';
+								$expectedPasswordHash = getenv('DVWA_API_PASSWORD_HASH') ?: password_hash('becareful', PASSWORD_DEFAULT);
+								if (hash_equals($expectedUser, $username) && password_verify($password, $expectedPasswordHash)) {
 									$response['status_code_header'] = 'HTTP/1.1 200 OK';
 									$response['body'] = Login::create_token();
 								} else {

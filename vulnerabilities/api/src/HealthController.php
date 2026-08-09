@@ -83,9 +83,14 @@ class HealthController
 	private function checkConnectivity() {
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("target", $input)) {
-			$target = $input['target'];
+			$target = filter_var($input['target'], FILTER_VALIDATE_IP);
+			if ($target === false) {
+				$response['status_code_header'] = 'HTTP/1.1 400 Bad Request';
+				$response['body'] = json_encode(array("status" => "Invalid target"));
+				return $response;
+			}
 
-			exec ("ping -c 4 " . $target, $output, $ret_var);
+			exec ("ping -c 4 " . escapeshellarg($target), $output, $ret_var);
 
 			if ($ret_var == 0) {
 				$response['status_code_header'] = 'HTTP/1.1 200 OK';
@@ -197,4 +202,3 @@ final class Words {
     #[OAT\Property(example: "Hello World")]
     public string $words;
 }
-

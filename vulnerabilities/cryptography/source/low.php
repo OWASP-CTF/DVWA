@@ -1,19 +1,17 @@
 <?php
 
-function xor_this($cleartext, $key) {
-    // Our output text
-    $outText = '';
-
-    // Iterate through each character
-    for($i=0; $i<strlen($cleartext);) {
-        for($j=0; ($j<strlen($key) && $i<strlen($cleartext)); $j++,$i++) {
-            $outText .= $cleartext[$i] ^ $key[$j];
-        }
-    }
-    return $outText;
+$key = hash('sha256', getenv('DVWA_CRYPTO_KEY') ?: 'dvwa-development-key', true);
+function encrypt_message($cleartext, $key) {
+	$iv = random_bytes(12);
+	$tag = '';
+	$ciphertext = openssl_encrypt($cleartext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+	return base64_encode($iv . $tag . $ciphertext);
 }
-
-$key = "wachtwoord";
+function decrypt_message($encoded, $key) {
+	$raw = base64_decode($encoded, true);
+	if ($raw === false || strlen($raw) < 28) return false;
+	return openssl_decrypt(substr($raw, 28), 'aes-256-gcm', $key, OPENSSL_RAW_DATA, substr($raw, 0, 12), substr($raw, 12, 16));
+}
 
 $errors = "";
 $success = "";
@@ -28,17 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = decrypt_message($message, $key);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = encrypt_message($message, $key);
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			$decoded = decrypt_message($password, $key);
+			if ($decoded === "Olifant") {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";

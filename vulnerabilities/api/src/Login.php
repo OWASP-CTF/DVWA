@@ -7,16 +7,16 @@ use OpenApi\Attributes as OAT;
 class Login
 {
 	private const ACCESS_TOKEN_LIFE = 180;
-	private const ACCESS_TOKEN_SECRET = "12345";
+	private static function accessSecret() { return getenv('DVWA_ACCESS_TOKEN_SECRET') ?: bin2hex(random_bytes(32)); }
 	private const REFRESH_TOKEN_LIFE = 240;
-	private const REFRESH_TOKEN_SECRET = "98765";
+	private static function refreshSecret() { return getenv('DVWA_REFRESH_TOKEN_SECRET') ?: bin2hex(random_bytes(32)); }
 	
 	public static function create_token() {
 		$now = time();
 		$tokenObj = new Token();
 		$token = json_encode (array (
-			"access_token" => $tokenObj->create_token(self::ACCESS_TOKEN_SECRET, $now + self::ACCESS_TOKEN_LIFE),
-			"refresh_token" => $tokenObj->create_token(self::REFRESH_TOKEN_SECRET, $now + self::REFRESH_TOKEN_LIFE),
+			"access_token" => $tokenObj->create_token(self::accessSecret(), $now + self::ACCESS_TOKEN_LIFE),
+			"refresh_token" => $tokenObj->create_token(self::refreshSecret(), $now + self::REFRESH_TOKEN_LIFE),
 			"token_type" => "bearer",
 			"expires_in" => self::ACCESS_TOKEN_LIFE)
 		);
@@ -30,7 +30,7 @@ class Login
 		if ($decrypted === false) {
 			return false;
 		}
-		if ($decrypted['secret'] == self::ACCESS_TOKEN_SECRET && $decrypted['expires'] > time()) {
+		if (hash_equals(self::accessSecret(), $decrypted['secret']) && $decrypted['expires'] > time()) {
 			return true;
 		}
 		return false;
@@ -40,7 +40,7 @@ class Login
 		$tokenObj = new Token();
 		$decrypted = $tokenObj->decrypt_token ($token);
 
-		if ($decrypted['secret'] == self::REFRESH_TOKEN_SECRET && $decrypted['expires'] > time()) {
+		if (hash_equals(self::refreshSecret(), $decrypted['secret']) && $decrypted['expires'] > time()) {
 			return true;
 		}
 		return false;

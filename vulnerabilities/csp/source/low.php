@@ -11,9 +11,7 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
-$page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
-";
+$page[ 'body' ] .= "\n";
 }
 $page[ 'body' ] .= '
 <form name="csp" method="POST">
