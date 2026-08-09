@@ -67,3 +67,4 @@ def test_file_inclusion_uses_allowlists_and_session_ids_are_unpredictable():
         source = read(f"vulnerabilities/weak_id/source/{level}.php")
         assert "random_bytes(32)" in source
         assert "httponly" in source
+    assert "in_array($file, $allowed, true)" in read("vulnerabilities/fi/source/high.php")
