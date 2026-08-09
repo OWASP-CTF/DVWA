@@ -5,16 +5,9 @@ header($headerCSP);
 
 ?>
 <?php
-// Defense in depth: this value is only ever meant to be shown back to the
-// submitter as plain text (there's no legitimate reason for it to become
-// markup), so it's HTML-encoded before being appended to the page body.
-// This alone isn't the CSP-bypass fix - the strict "script-src 'self'"
-// policy above already stops a raw <script>...</script> here from running
-// - but leaving user input completely unescaped in the response body is
-// its own bad practice and worth closing regardless.
-if (isset ($_POST['include']) && is_string ($_POST['include'])) {
+if (isset ($_POST['include'])) {
 $page[ 'body' ] .= "
-	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
+	" . $_POST['include'] . "
 ";
 }
 $page[ 'body' ] .= '
