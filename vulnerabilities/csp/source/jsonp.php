@@ -7,6 +7,12 @@ if (array_key_exists ("callback", $_GET)) {
 	return "";
 }
 
+# Only the callback this module actually uses may be echoed back, otherwise the
+# response body is attacker controlled JavaScript served from this origin.
+if ($callback !== "solveSum") {
+	return "";
+}
+
 $outp = array ("answer" => "15");
 
 echo $callback . "(".json_encode($outp).")";

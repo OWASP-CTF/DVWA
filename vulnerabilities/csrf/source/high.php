@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 		array_key_exists("password_conf", $data) &&
 		array_key_exists("Change", $data)) {
 		$token = $_SERVER['HTTP_USER_TOKEN'];
+		$pass_curr = array_key_exists ("password_current", $data) ? $data["password_current"] : "";
 		$pass_new = $data["password_new"];
 		$pass_conf = $data["password_conf"];
 		$change = true;
@@ -22,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 		array_key_exists("password_conf", $_REQUEST) &&
 		array_key_exists("Change", $_REQUEST)) {
 		$token = $_REQUEST["user_token"];
+		$pass_curr = array_key_exists ("password_current", $_REQUEST) ? $_REQUEST["password_current"] : "";
 		$pass_new = $_REQUEST["password_new"];
 		$pass_conf = $_REQUEST["password_conf"];
 		$change = true;
@@ -32,16 +34,26 @@ if ($change) {
 	// Check Anti-CSRF token
 	checkToken( $token, $_SESSION[ 'session_token' ], 'index.php' );
 
-	// Do the passwords match?
-	if( $pass_new == $pass_conf ) {
+	// Check that the current password is correct
+	$pass_curr = md5( stripslashes( $pass_curr ) );
+	$current_user = dvwaCurrentUser();
+	$check = $db->prepare( 'SELECT password FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+	$check->bindParam( ':user', $current_user, PDO::PARAM_STR );
+	$check->bindParam( ':password', $pass_curr, PDO::PARAM_STR );
+	$check->execute();
+
+	// Do the passwords match, and does the current password belong to this user?
+	if( ( $pass_new == $pass_conf ) && ( $check->rowCount() == 1 ) ) {
 		// They do!
 		$pass_new = mysqli_real_escape_string ($GLOBALS["___mysqli_ston"], $pass_new);
 		$pass_new = md5( $pass_new );
 
 		// Update the database
 		$current_user = dvwaCurrentUser();
-		$insert = "UPDATE `users` SET password = '" . $pass_new . "' WHERE user = '" . $current_user . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert );
+		$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user);' );
+		$data->bindParam( ':password', $pass_new, PDO::PARAM_STR );
+		$data->bindParam( ':user', $current_user, PDO::PARAM_STR );
+		$data->execute();
 
 		// Feedback for the user
 		$return_message = "Password Changed.";
@@ -55,6 +67,9 @@ if ($change) {
 
 	if ($request_type == "json") {
 		generateSessionToken();
+
+		// The stock generator hashes uniqid(), which is derived from the clock
+		$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 		header ("Content-Type: application/json");
 		print json_encode (array("Message" =>$return_message));
 		exit;
@@ -65,5 +80,8 @@ if ($change) {
 
 // Generate Anti-CSRF token
 generateSessionToken();
+
+// The stock generator hashes uniqid(), which is derived from the clock
+$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
 
 ?>
