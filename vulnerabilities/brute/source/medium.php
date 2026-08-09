@@ -1,9 +1,8 @@
 <?php
 
 // Credentials are only submitted via POST to keep them out of URL history,
-// proxy logs and Referer headers. The CSRF token prevents cross-origin replay.
+// proxy logs and Referer headers.
 if( isset( $_POST['Login'], $_POST['username'], $_POST['password'] ) ) {
-	checkToken( $_REQUEST['user_token'] ?? '', $_SESSION['session_token'], 'index.php' );
 
 	$user = stripslashes( $_POST['username'] );
 	$pass = md5( stripslashes( $_POST['password'] ) );
@@ -55,7 +54,5 @@ if( isset( $_POST['Login'], $_POST['username'], $_POST['password'] ) ) {
 		$stmt->execute();
 	}
 }
-
-generateSessionToken();
 
 ?>
