@@ -1,25 +1,33 @@
 <?php
 
-$target = "";
+if (array_key_exists ("redirect", $_GET) && $_GET['redirect'] != "") {
+	$target = $_GET['redirect'];
+	$parts  = parse_url ($target);
 
-// The caller must not be able to name an arbitrary destination - "redirect"
-// is only ever allowed to select a quote on this module's own info page, by
-// numeric id. Validate the whole string against that exact shape and rebuild
-// the header value from the captured digits, so nothing the caller supplies
-// is ever written into the Location header verbatim.
-if (array_key_exists ("redirect", $_GET) &&
-	preg_match ('/^info\.php\?id=([0-9]{1,9})$/', $_GET['redirect'], $matches)) {
-	$target = "info.php?id=" . intval ($matches[1]);
-}
+	// A same-site relative reference must not name a scheme or a network
+	// host - that is what would let the caller point the browser somewhere
+	// else entirely. Backslashes and raw control characters are rejected too,
+	// since browsers may normalise a leading backslash into a scheme-relative
+	// URL and a control character could be used to split the response.
+	if ($parts !== false &&
+		!isset ($parts['scheme']) &&
+		!isset ($parts['host']) &&
+		strpos ($target, "\\") === false &&
+		!preg_match ('/[\x00-\x1F\x7F]/', $target)) {
+		header ("location: " . $target);
+		exit;
+	}
 
-if ($target != "") {
-	header ("location: " . $target);
+	http_response_code (500);
+	?>
+	<p>Absolute URLs not allowed.</p>
+	<?php
 	exit;
 }
 
 http_response_code (500);
 ?>
-<p>You can only redirect to the info page.</p>
+<p>Missing redirect target.</p>
 <?php
 exit;
 ?>
