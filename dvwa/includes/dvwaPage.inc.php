@@ -161,21 +161,12 @@ function dvwaLogout() {
 
 
 function dvwaPageReload() {
-	$prefix = '';
-	if (array_key_exists('HTTP_X_FORWARDED_PREFIX', $_SERVER) && is_string($_SERVER['HTTP_X_FORWARDED_PREFIX'])) {
-		$candidate = $_SERVER['HTTP_X_FORWARDED_PREFIX'];
-		$segment = "(?:[A-Za-z0-9._~!$&'()*+,;=:@-]|%[0-9A-Fa-f]{2})+";
-		if (
-			preg_match("#\\A/(?:{$segment}(?:/{$segment})*)?/?\\z#D", $candidate)
-			&& !preg_match('/%(?:0d|0a|2f|5c)/i', $candidate)
-			&& !in_array('.', explode('/', trim($candidate, '/')), true)
-			&& !in_array('..', explode('/', trim($candidate, '/')), true)
-		) {
-			$prefix = rtrim($candidate, '/');
-		}
+	if  ( array_key_exists( 'HTTP_X_FORWARDED_PREFIX' , $_SERVER )) {
+		dvwaRedirect( $_SERVER[ 'HTTP_X_FORWARDED_PREFIX' ] . $_SERVER[ 'PHP_SELF' ] );
 	}
-
-	dvwaRedirect($prefix . $_SERVER['PHP_SELF']);
+	else {
+		dvwaRedirect( $_SERVER[ 'PHP_SELF' ] );
+	}
 }
 
 function dvwaCurrentUser() {
