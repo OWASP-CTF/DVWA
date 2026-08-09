@@ -11,7 +11,7 @@ $html .= "
 			var name_input = document.getElementById ('name');
 
 			if (user_json.name == '') {
-				user_info.innerHTML = 'User details: unknown user';
+				user_info.textContent = 'User details: unknown user';
 				name_input.value = 'unknown';
 			} else {
 				var level = 'unknown';
@@ -22,7 +22,7 @@ $html .= "
 				} else {
 					level = 'user';
 				}
-				user_info.innerHTML = 'User details: ' + user_json.name + ' (' + level + ')';
+				user_info.textContent = 'User details: ' + user_json.name + ' (' + level + ')';
 				name_input.value = user_json.name;
 			}
 		}
