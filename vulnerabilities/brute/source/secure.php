@@ -5,17 +5,21 @@ if (isset($_POST['Login'])) {
 
 	$user = trim((string) ($_POST['username'] ?? ''));
 	$pass = (string) ($_POST['password'] ?? '');
-	$attemptKey = hash('sha256', strtolower($user));
 	$now = time();
 	$window = 15 * 60;
 	$maximumAttempts = 5;
-	$attempts = $_SESSION['brute_attempts'][$attemptKey] ?? array('count' => 0, 'since' => $now);
-
-	if (($now - $attempts['since']) >= $window) {
-		$attempts = array('count' => 0, 'since' => $now);
+	mysqli_query($GLOBALS['___mysqli_ston'], 'CREATE TABLE IF NOT EXISTS brute_attempts (username VARCHAR(255) PRIMARY KEY, attempts INT NOT NULL, window_started INT NOT NULL)');
+	$stmt = mysqli_prepare($GLOBALS['___mysqli_ston'], 'SELECT attempts, window_started FROM brute_attempts WHERE username = ? LIMIT 1');
+	mysqli_stmt_bind_param($stmt, 's', $user);
+	mysqli_stmt_execute($stmt);
+	$result = mysqli_stmt_get_result($stmt);
+	$attempts = $result ? mysqli_fetch_assoc($result) : null;
+	mysqli_stmt_close($stmt);
+	if (!$attempts || ($now - (int) $attempts['window_started']) >= $window) {
+		$attempts = array('attempts' => 0, 'window_started' => $now);
 	}
 
-	if ($attempts['count'] >= $maximumAttempts) {
+	if ($attempts['attempts'] >= $maximumAttempts) {
 		http_response_code(429);
 		$html .= '<pre><br />Too many login attempts. Please try again later.</pre>';
 	} elseif ($user === '' || $pass === '') {
@@ -29,14 +33,20 @@ if (isset($_POST['Login'])) {
 
 		if ($result && mysqli_num_rows($result) === 1) {
 			$row = mysqli_fetch_assoc($result);
-			unset($_SESSION['brute_attempts'][$attemptKey]);
+			$stmt = mysqli_prepare($GLOBALS['___mysqli_ston'], 'DELETE FROM brute_attempts WHERE username = ?');
+			mysqli_stmt_bind_param($stmt, 's', $user);
+			mysqli_stmt_execute($stmt);
+			mysqli_stmt_close($stmt);
 			$safeUser = htmlspecialchars($user, ENT_QUOTES, 'UTF-8');
 			$safeAvatar = htmlspecialchars($row['avatar'], ENT_QUOTES, 'UTF-8');
 			$html .= "<p>Welcome to the password protected area {$safeUser}</p>";
 			$html .= "<img src=\"{$safeAvatar}\" alt=\"User avatar\" />";
 		} else {
-			$attempts['count']++;
-			$_SESSION['brute_attempts'][$attemptKey] = $attempts;
+			$attempts['attempts']++;
+			$stmt = mysqli_prepare($GLOBALS['___mysqli_ston'], 'INSERT INTO brute_attempts (username, attempts, window_started) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE attempts = VALUES(attempts), window_started = VALUES(window_started)');
+			mysqli_stmt_bind_param($stmt, 'sii', $user, $attempts['attempts'], $attempts['window_started']);
+			mysqli_stmt_execute($stmt);
+			mysqli_stmt_close($stmt);
 			usleep(random_int(250000, 750000));
 			$html .= '<pre><br />Username and/or password incorrect.</pre>';
 		}
