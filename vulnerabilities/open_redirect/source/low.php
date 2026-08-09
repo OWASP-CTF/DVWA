@@ -65,7 +65,6 @@ if (array_key_exists ("redirect", $_GET) && is_string ($_GET['redirect']) && $_G
 	$target = redirect_target ($_GET['redirect']);
 
 	if ($target === "") {
-		http_response_code (500);
 		?>
 		<p>Invalid redirect target.</p>
 		<?php
@@ -76,7 +75,6 @@ if (array_key_exists ("redirect", $_GET) && is_string ($_GET['redirect']) && $_G
 	exit;
 }
 
-http_response_code (500);
 ?>
 <p>Missing redirect target.</p>
 <?php

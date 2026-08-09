@@ -1,7 +1,9 @@
 <?php
 
-if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[ 'username' ], $_POST[ 'password' ] ) &&
-	is_string( $_POST[ 'username' ] ) && is_string( $_POST[ 'password' ] ) ) {
+if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[ 'username' ], $_POST[ 'password' ], $_POST[ 'user_token' ] ) &&
+	is_string( $_POST[ 'username' ] ) && is_string( $_POST[ 'password' ] ) && is_string( $_POST[ 'user_token' ] ) ) {
+	checkToken( $_POST[ 'user_token' ], $_SESSION[ 'session_token' ] ?? '', 'index.php' );
+
 	// Get username
 	$user = $_POST[ 'username' ];
 
@@ -21,7 +23,7 @@ if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[
 	$row = $data->fetch();
 
 	// Check to see if the user has been locked out
-	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
+	if( ( $row !== false ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
 		// Calculate when the user would be allowed to login again
 		$last_login = strtotime( $row[ 'last_login' ] );
 		$timeout    = $last_login + ( $lockout_time * 60 );
@@ -40,7 +42,7 @@ if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[
 	$data->execute();
 	$row = $data->fetch();
 
-	if( ( $data->rowCount() == 1 ) && ( $account_locked == false ) ) {
+	if( ( $row !== false ) && ( $account_locked == false ) ) {
 		// Get users details
 		$avatar = $row[ 'avatar' ];
 
@@ -55,6 +57,8 @@ if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[
 	}
 	else {
 		// Login failed (or the account is locked out)
+		// Always impose a delay even before the account reaches its lock threshold.
+		sleep( 2 );
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
 
 		// Update the bad login count
@@ -68,5 +72,8 @@ if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[
 	$data->bindParam( ':user', $user, PDO::PARAM_STR );
 	$data->execute();
 }
+
+// Rotate after every response so a captured login request is single-use.
+generateSessionToken();
 
 ?>

@@ -24,7 +24,7 @@ if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[
 	$row = $data->fetch();
 
 	// Check to see if the user has been locked out
-	if( ( $data->rowCount() == 1 ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
+	if( ( $row !== false ) && ( $row[ 'failed_login' ] >= $total_failed_login ) ) {
 		// Calculate when the user would be allowed to login again
 		$last_login = strtotime( $row[ 'last_login' ] );
 		$timeout    = $last_login + ( $lockout_time * 60 );
@@ -43,7 +43,7 @@ if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[
 	$data->execute();
 	$row = $data->fetch();
 
-	if( ( $data->rowCount() == 1 ) && ( $account_locked == false ) ) {
+	if( ( $row !== false ) && ( $account_locked == false ) ) {
 		// Get users details
 		$avatar = $row[ 'avatar' ];
 
@@ -58,7 +58,9 @@ if( $_SERVER[ 'REQUEST_METHOD' ] === 'POST' && isset( $_POST[ 'Login' ], $_POST[
 	}
 	else {
 		// Login failed (or the account is locked out)
-		sleep( rand( 0, 3 ) );
+		// Never select a delay range containing zero: that randomly removes the
+		// rate control for one request in four.
+		sleep( 2 );
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
 
 		// Update the bad login count
