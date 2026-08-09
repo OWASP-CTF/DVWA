@@ -45,7 +45,7 @@ class UserController
 		if (! isset($input['level'])) {
 			return false;
 		}
-		if (!is_numeric ($input['level'])) {
+		if (!is_numeric ($input['level']) || intval($input['level']) !== 1) {
 			return false;
 		}
 		return true;
@@ -53,7 +53,7 @@ class UserController
 
 	private function validateUpdate($input)
 	{
-		if (! isset($input['name'])) {
+		if (! isset($input['name']) || !is_string($input['name']) || strlen($input['name']) > 100) {
 			return false;
 		}
 		return true;
@@ -164,7 +164,7 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
-		$user = new User(null, $input['name'], intval ($input['level']), hash ("sha256", "password"));
+		$user = new User(null, $input['name'], intval ($input['level']), password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT));
 		$this->data[] = $user;
 		$response['status_code_header'] = 'HTTP/1.1 201 Created';
 		$response['body'] = json_encode($user->toArray($this->version));
@@ -220,9 +220,6 @@ class UserController
 		}
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
-		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
 		}
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
