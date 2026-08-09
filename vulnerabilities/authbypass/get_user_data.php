@@ -7,7 +7,7 @@ dvwaDatabaseConnect();
 /*
 On high and impossible, only the admin is allowed to retrieve the data.
 */
-if ((dvwaSecurityLevelGet() == "high" || dvwaSecurityLevelGet() == "impossible") && dvwaCurrentUser() != "admin") {
+if (dvwaCurrentUser() != "admin") {
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }
@@ -25,8 +25,8 @@ while ($row = mysqli_fetch_row($result) ) {
 		$surname = htmlspecialchars( $row[2] );
 	} else {
 		$user_id = $row[0];
-		$first_name = $row[1];
-		$surname = $row[2];
+		$first_name = htmlspecialchars($row[1], ENT_QUOTES, 'UTF-8');
+		$surname = htmlspecialchars($row[2], ENT_QUOTES, 'UTF-8');
 	}   
 
 	$user = array (
