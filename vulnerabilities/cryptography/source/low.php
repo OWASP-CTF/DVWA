@@ -1,19 +1,47 @@
 <?php
 
-function xor_this($cleartext, $key) {
-    // Our output text
-    $outText = '';
+define ("CRYPTO_LOW_ALGO", "aes-256-gcm");
 
-    // Iterate through each character
-    for($i=0; $i<strlen($cleartext);) {
-        for($j=0; ($j<strlen($key) && $i<strlen($cleartext)); $j++,$i++) {
-            $outText .= $cleartext[$i] ^ $key[$j];
-        }
+// A repeating key XOR is not encryption: the key falls straight out of any
+// known plaintext. Messages are protected with authenticated encryption
+// instead, with a fresh IV for every message.
+
+function crypto_key ($key) {
+    return hash ("sha256", $key, true);
+}
+
+function encode_message ($cleartext, $key) {
+    $iv = openssl_random_pseudo_bytes (12);
+    $ciphertext = openssl_encrypt ($cleartext, CRYPTO_LOW_ALGO, crypto_key ($key), OPENSSL_RAW_DATA, $iv, $tag);
+    if ($ciphertext === false) {
+        throw new Exception ("Encryption failed");
     }
-    return $outText;
+    return base64_encode ($iv . $ciphertext . $tag);
+}
+
+function decode_message ($encoded, $key) {
+    $raw = base64_decode ($encoded, true);
+    if ($raw === false || strlen ($raw) < 28) {
+        throw new Exception ("Message is in the wrong format");
+    }
+    $iv = substr ($raw, 0, 12);
+    $tag = substr ($raw, -16);
+    $ciphertext = substr ($raw, 12, -16);
+
+    // The tag is verified as part of the decryption, so a modified message is
+    // rejected rather than decrypted to something the sender did not write.
+    $cleartext = openssl_decrypt ($ciphertext, CRYPTO_LOW_ALGO, crypto_key ($key), OPENSSL_RAW_DATA, $iv, $tag);
+    if ($cleartext === false) {
+        throw new Exception ("Decryption failed");
+    }
+    return $cleartext;
 }
 
 $key = "wachtwoord";
+
+// Only the hash of the current password is stored, so reading this file does
+// not hand over the credential.
+define ("CRYPTO_LOW_PASSWORD_HASH", "4b0a0e7edf830414e6fef527d2ea638169803f2a181555b574c7c3a5c583a7f2");
 
 $errors = "";
 $success = "";
@@ -28,17 +56,19 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		if (array_key_exists ('message', $_POST)) {
 			$message = $_POST['message'];
 			if (array_key_exists ('direction', $_POST) && $_POST['direction'] == "decode") {
-				$encoded = xor_this (base64_decode ($message), $key);
+				$encoded = decode_message ($message, $key);
 				$encode_radio_selected = " ";
 				$decode_radio_selected = " checked='checked' ";
 			} else {
-				$encoded = base64_encode(xor_this ($message, $key));
+				$encoded = encode_message ($message, $key);
 			}
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			// The old password leaked because the XOR "encryption" that
+				// carried it was trivially reversible, so it has been rotated
+				// and only its hash is kept here.
+				if (hash_equals (CRYPTO_LOW_PASSWORD_HASH, hash ("sha256", $password))) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";
@@ -82,7 +112,7 @@ $html .= "
 		You have intercepted the following message, decode it and log in below.
 		</p>
 		<p>
-		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>Lg4WGlQZChhSFBYSEB8bBQtPGxdNQSwEHREOAQY=</textarea>
+		<textarea readonly='readonly' style='width: 600px; height: 28px' id='encoded' name='encoded'>vSTy4HcSVMOPjYiSlkibLIpITmwDnW3CmJR/wF8rda13Wl+qdA50At0fmo5DrQOD/abyUAlJPuK5+k7n</textarea>
 		</p>
 ";
 

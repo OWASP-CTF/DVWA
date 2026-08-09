@@ -4,15 +4,24 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
+	// A new attempt invalidates any earlier CAPTCHA result.
+	unset( $_SESSION[ 'captcha_passed' ] );
+
 	// Get input
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check CAPTCHA from 3rd party
-	$resp = recaptcha_check_answer(
-		$_DVWA[ 'recaptcha_private_key' ],
-		$_POST['g-recaptcha-response']
-	);
+	// Check CAPTCHA from 3rd party. It can only give a verdict when a key is
+	// configured; where none is, the third party call can never succeed, so
+	// the step tracking below is what stands between the two screens rather
+	// than the form becoming impossible to complete.
+	$resp = true;
+	if( $_DVWA[ 'recaptcha_private_key' ] != '' ) {
+		$resp = recaptcha_check_answer(
+			$_DVWA[ 'recaptcha_private_key' ],
+			isset( $_POST['g-recaptcha-response'] ) ? $_POST['g-recaptcha-response'] : ''
+		);
+	}
 
 	// Did the CAPTCHA fail?
 	if( !$resp ) {
@@ -24,14 +33,17 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// Record on the server that this session passed the CAPTCHA. The
+			// second step trusts this, never a field posted by the client.
+			$_SESSION[ 'captcha_passed' ] = true;
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
 				<form action=\"#\" method=\"POST\">
 					<input type=\"hidden\" name=\"step\" value=\"2\" />
-					<input type=\"hidden\" name=\"password_new\" value=\"{$pass_new}\" />
-					<input type=\"hidden\" name=\"password_conf\" value=\"{$pass_conf}\" />
-					<input type=\"hidden\" name=\"passed_captcha\" value=\"true\" />
+					<input type=\"hidden\" name=\"password_new\" value=\"" . htmlspecialchars( $pass_new, ENT_QUOTES, 'UTF-8' ) . "\" />
+					<input type=\"hidden\" name=\"password_conf\" value=\"" . htmlspecialchars( $pass_conf, ENT_QUOTES, 'UTF-8' ) . "\" />
 					<input type=\"submit\" name=\"Change\" value=\"Change\" />
 				</form>";
 		}
@@ -47,26 +59,32 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	// Hide the CAPTCHA form
 	$hide_form = true;
 
-	// Get input
-	$pass_new  = $_POST[ 'password_new' ];
-	$pass_conf = $_POST[ 'password_conf' ];
-
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if they did stage 1, according to the server side record of
+	// it. The result is consumed here so it cannot be replayed.
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+	unset( $_SESSION[ 'captcha_passed' ] );
+
+	// Get input
+	$pass_new  = $_POST[ 'password_new' ];
+	$pass_conf = $_POST[ 'password_conf' ];
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {
 		// They do!
+		$pass_new = stripslashes( $pass_new );
 		$pass_new = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $pass_new ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
 		$pass_new = md5( $pass_new );
 
 		// Update database
-		$insert = "UPDATE `users` SET password = '$pass_new' WHERE user = '" . dvwaCurrentUser() . "';";
-		$result = mysqli_query($GLOBALS["___mysqli_ston"],  $insert ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
+		$current_user = dvwaCurrentUser();
+		$data = $db->prepare( 'UPDATE users SET password = (:password) WHERE user = (:user);' );
+		$data->bindParam( ':password', $pass_new, PDO::PARAM_STR );
+		$data->bindParam( ':user', $current_user, PDO::PARAM_STR );
+		$data->execute();
 
 		// Feedback for the end user
 		$html .= "<pre>Password Changed.</pre>";
