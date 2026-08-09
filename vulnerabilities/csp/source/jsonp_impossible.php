@@ -1,7 +1,7 @@
 <?php
-header("Content-Type: application/json; charset=UTF-8");
+header("Content-Type: application/javascript; charset=UTF-8");
 
 $outp = array ("answer" => "15");
 
-echo "solveSum (".json_encode($outp).")";
+echo "solveSum(" . json_encode($outp) . ");";
 ?>
