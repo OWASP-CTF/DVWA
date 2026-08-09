@@ -18,16 +18,22 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 		$pass_conf = $data["password_conf"];
 		$change = true;
 	}
-} else {
-	if (array_key_exists("user_token", $_REQUEST) &&
-		array_key_exists("password_current", $_REQUEST) &&
-		array_key_exists("password_new", $_REQUEST) &&
-		array_key_exists("password_conf", $_REQUEST) &&
-		array_key_exists("Change", $_REQUEST)) {
-		$token = $_REQUEST["user_token"];
-		$pass_curr = $_REQUEST["password_current"];
-		$pass_new = $_REQUEST["password_new"];
-		$pass_conf = $_REQUEST["password_conf"];
+} elseif ($_SERVER['REQUEST_METHOD'] == "POST") {
+	// A state-changing request like this one must never be satisfiable over
+	// GET - a plain link or <img> tag can trigger a GET from a victim's
+	// browser with no script and no visible form involved at all, which is
+	// the classic CSRF delivery vector this level is meant to resist.
+	// $_REQUEST also merges in cookies, which are just as attacker-settable
+	// as a query string; read strictly from the POST body instead.
+	if (array_key_exists("user_token", $_POST) &&
+		array_key_exists("password_current", $_POST) &&
+		array_key_exists("password_new", $_POST) &&
+		array_key_exists("password_conf", $_POST) &&
+		array_key_exists("Change", $_POST)) {
+		$token = $_POST["user_token"];
+		$pass_curr = $_POST["password_current"];
+		$pass_new = $_POST["password_new"];
+		$pass_conf = $_POST["password_conf"];
 		$change = true;
 	}
 }

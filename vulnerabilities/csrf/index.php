@@ -51,7 +51,7 @@ $page[ 'body' ] .= "
 		<div id=\"test_credentials\">
 			".$testCredentials ."
 		</div><br />
-		<form action=\"#\" method=\"GET\">";
+		<form action=\"#\" method=\"" . ( ( $vulnerabilityFile == 'high.php' ) ? 'POST' : 'GET' ) . "\">";
 
 if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' ) {
 	$page[ 'body' ] .= "
