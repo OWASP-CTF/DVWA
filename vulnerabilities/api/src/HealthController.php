@@ -18,6 +18,14 @@ class HealthController
 		$this->command = $command;
 	}
 
+	private function checkToken() {
+		$header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+		if (!preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
+			return false;
+		}
+		return Login::check_access_token($matches[1]);
+	}
+
     #[OAT\Post(
 		tags: ["health"],
         path: '/vulnerabilities/api/v2/health/echo',
@@ -81,6 +89,12 @@ class HealthController
     ]
 	
 	private function checkConnectivity() {
+		if (!$this->checkToken()) {
+			return array(
+				'status_code_header' => 'HTTP/1.1 401 Unauthorized',
+				'body' => json_encode(array('status' => 'Invalid or missing token')),
+			);
+		}
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("target", $input) && is_string($input['target'])) {
 			$target = trim($input['target']);
