@@ -1,13 +1,26 @@
 <?php
 
-// The page we wish to display
-$file = $_GET[ 'page' ];
+// Whitelist of allowed files
+$allowed_files = array('index.php', 'about.php', 'contact.php', 'help.php');
 
-// Input validation
-if( !fnmatch( "file*", $file ) && $file != "include.php" ) {
-	// This isn't the page we want!
-	echo "ERROR: File not found!";
-	exit;
+// Get the requested page
+$file = isset($_GET['page']) ? $_GET['page'] : 'index.php';
+
+// Block protocol wrappers (:// patterns) - check for common wrappers
+$wrappers = array('://', 'php://', 'file://', 'data://', 'expect://', 'zip://');
+foreach ($wrappers as $wrapper) {
+    if (stripos($file, $wrapper) !== false) {
+        $file = 'index.php';
+        break;
+    }
+}
+
+// Strip directory traversal attempts using basename
+$file = basename($file);
+
+// Validate against whitelist
+if (!in_array($file, $allowed_files)) {
+    $file = 'index.php';
 }
 
 ?>
