@@ -6,8 +6,11 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// The CSP already blocks inline/external script, but encode this for the
+// HTML context regardless - defense in depth against any markup injection
+// that isn't script execution (e.g. content spoofing).
 $page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '
