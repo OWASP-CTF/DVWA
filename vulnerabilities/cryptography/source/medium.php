@@ -1,13 +1,34 @@
 <?php
-function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
-	if ($e === false) {
-		throw new Exception ("Decryption failed");
+function medium_encryption_key () {
+	$key = getenv('DVWA_CRYPTO_KEY');
+	if ($key === false || strlen($key) < 32) {
+		throw new Exception ("Cryptography is not configured");
 	}
-	return $e;
+	return hash('sha256', 'cryptography-medium:' . $key, true);
 }
 
-$key = "ik ben een aardbei";
+function medium_encrypt ($plaintext) {
+	$nonce = random_bytes(12);
+	$ciphertext = openssl_encrypt($plaintext, 'aes-256-gcm', medium_encryption_key(), OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($ciphertext === false) {
+		throw new Exception ("Encryption failed");
+	}
+	return $nonce . $tag . $ciphertext;
+}
+
+function medium_decrypt ($data) {
+	if (strlen($data) < 28) {
+		throw new Exception ("Decryption failed");
+	}
+	$nonce = substr($data, 0, 12);
+	$tag = substr($data, 12, 16);
+	$ciphertext = substr($data, 28);
+	$plaintext = openssl_decrypt($ciphertext, 'aes-256-gcm', medium_encryption_key(), OPENSSL_RAW_DATA, $nonce, $tag);
+	if ($plaintext === false) {
+		throw new Exception ("Decryption failed");
+	}
+	return $plaintext;
+}
 
 $errors = "";
 $success = "";
@@ -19,25 +40,26 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			throw new Exception ("No token passed");
 		} else {
 			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
+			if (!is_string($token) || $token === '' || strlen($token) > 4096 || strlen($token) % 2 != 0 || !ctype_xdigit($token)) {
 				throw new Exception ("Token is in wrong format");
 			} else {
-				$decrypted = decrypt(hex2bin ($token), $key);
+				$decrypted = medium_decrypt(hex2bin ($token));
 
-				$user = json_decode ($decrypted);
-				if ($user === null) {
+				$user = json_decode ($decrypted, true);
+				if (!is_array($user) || !isset($user['user'], $user['ex'], $user['level']) ||
+					!is_string($user['user']) || !is_int($user['ex']) || !is_string($user['level'])) {
 					throw new Exception ("Could not decode JSON object.");
 				}
 
-				if ($user->user == "sweep" && $user->ex > time() && $user->level == "admin") {
+				if ($user['user'] === "sweep" && $user['ex'] > time() && $user['level'] === "admin") {
 					$success = "Welcome administrator Sweep";
 				} else {
 					$messages = "Login successful but not as the right user.";
 				}
 			}
 		}
-	} catch(Exception $e) {
-		$errors = $e->getMessage();
+	} catch(Throwable $e) {
+		$errors = "Token validation failed";
 	}
 }
 
@@ -76,12 +98,12 @@ $html = "
 You also spot this comment in the docs:
 </p>
 <blockquote><i>
-To ensure your security, we use aes-128-ecb throughout our application.
+Session tokens use authenticated encryption and are validated before use.
 </i></blockquote>
 
 		<hr>
 		<p>
-		Manipulate the session tokens you have captured to log in as Sweep with admin privileges.
+		Submit a valid authenticated session token to log in as Sweep with admin privileges.
 ";
 
 if ($errors != "") {
