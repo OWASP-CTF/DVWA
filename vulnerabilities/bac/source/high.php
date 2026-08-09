@@ -16,7 +16,7 @@ $current_user_id = intval($user_info['user_id']);
 $role = $user_info['role'];
 mysqli_stmt_close($stmt);
 
-// Better access control (but still vulnerable to session fixation)
+// Better access control - RBAC-aware, prepared statements, output encoding
 $html = "";
 if (isset($_GET['action']) && isset($_GET['user_id'])) {
     if (!preg_match('/^\d+$/', $_GET['user_id'])) {
@@ -36,11 +36,14 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         if (!$user_exists) {
             $html .= "<p>No user found with ID: {$id}</p>";
         } else {
-            // "Secure" session-based check (but vulnerable to session fixation)
-            if (isset($_SESSION['user_id'])) {
-                $session_id = intval($_SESSION['user_id']);
-
-                if ($id == $session_id) {
+            // Authorization must be checked against the identity looked up
+            // fresh on this request ($current_user_id, from the
+            // authenticated username), not a cached $_SESSION value - a
+            // session value that is only ever set once and never refreshed
+            // can go stale (e.g. a different user reusing the same session)
+            // and would then authorize access using someone else's identity.
+            if ($current_user_id !== 0) {
+                if ($id == $current_user_id) {
                     // Access granted - using prepared statement
                     $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = ?";
                     $stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
@@ -57,7 +60,6 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                                 <p>Name: " . htmlspecialchars($row['first_name'], ENT_QUOTES, 'UTF-8') . " " .
                             htmlspecialchars($row['last_name'], ENT_QUOTES, 'UTF-8') . "</p>
                                 <p>Avatar: " . htmlspecialchars($row['avatar'], ENT_QUOTES, 'UTF-8') . "</p>
-                                <!-- Hint: Session management is better, but still vulnerable... -->
                             </div>";
                     }
                     mysqli_stmt_close($stmt);
@@ -103,8 +105,4 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
     }
 }
 
-// Set initial session if not exists
-if (!isset($_SESSION['user_id'])) {
-    $_SESSION['user_id'] = $current_user_id;
-}
 ?>

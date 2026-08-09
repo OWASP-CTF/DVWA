@@ -1,19 +1,23 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' 'unsafe-inline' 'nonce-TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=';";
+// 'unsafe-inline' plus a static, hardcoded nonce is not a real defense -
+// the nonce never changes and is easy to find (it was even committed here
+// in a comment), so any injected <script nonce="..."> tag using that same
+// value would still execute. Use a strict policy with no inline script
+// allowance at all.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
-
-// Disable XSS protections so that inline alert boxes will work
-header ("X-XSS-Protection: 0");
-
-# <script nonce="TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=">alert(1)</script>
 
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// The submitted value used to be dropped straight into the page as raw
+// markup. The CSP header already blocks any script it contains from
+// running, but nothing else did - encode it so it can only ever render as
+// inert text, never as HTML.
 $page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '

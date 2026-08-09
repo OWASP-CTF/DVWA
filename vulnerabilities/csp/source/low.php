@@ -1,6 +1,10 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' https://pastebin.com hastebin.com www.toptal.com example.com code.jquery.com https://ssl.google-analytics.com unpkg.com cdn.jsdelivr.net digi.ninja ;"; // allows js from various trusted locations
+// A long allowlist of third-party domains (pastebin, hastebin, jsdelivr,
+// unpkg, etc) is not actually safe - many of those hosts let anyone publish
+// arbitrary script content at an attacker-controlled URL, which completely
+// defeats the point of the CSP. Only allow scripts from this origin.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
 
@@ -11,17 +15,25 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// The submitted value used to be built into a <script src="..."> tag, so
+// the "include a script" feature this page demonstrates was itself the
+// gadget: the CSP header restricts *which origin* a script can come from,
+// but never stopped this page from being talked into emitting a script
+// element pointing wherever the caller chose within that origin. Show
+// the value back as inert text instead of ever using it to construct a
+// script element.
 $page[ 'body' ] .= "
-	<script src='" . $_POST['include'] . "'></script>
+	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '
 <form name="csp" method="POST">
-	<p>You can include scripts from external sources, examine the Content Security Policy and enter a URL to include here:</p>
+	<p>Scripts may only load from this origin, so a URL entered here is shown back as text rather than included.</p>
+	<p>1+2+3+4+5=<span id="answer"></span></p>
 	<input size="50" type="text" name="include" value="" id="include" />
 	<input type="submit" value="Include" />
+	<input type="button" id="solve" value="Solve the sum" />
 </form>
-<p>
-	You will probably need to do some reading up on what some of the domains allowed by the CSP do and how they can be used.
-</p>
+
+<script src="source/low.js"></script>
 ';

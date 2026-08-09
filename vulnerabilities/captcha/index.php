@@ -71,8 +71,10 @@ $page[ 'body' ] .= "			New password:<br />
 			<input type=\"password\" AUTOCOMPLETE=\"off\" name=\"password_conf\"><br />
 
 			" . recaptcha_get_html( $_DVWA[ 'recaptcha_public_key' ] );
-if( $vulnerabilityFile == 'high.php' )
-	$page[ 'body' ] .= "\n\n			<!-- **DEV NOTE**   Response: 'hidd3n_valu3'   &&   User-Agent: 'reCAPTCHA'   **/DEV NOTE** -->\n";
+// The high level used to leak a hardcoded CAPTCHA-bypass value and the
+// user agent it was conditioned on in an HTML comment here. That backdoor
+// has been removed from source/high.php; the comment advertising it served
+// no purpose and has been removed too.
 
 if( $vulnerabilityFile == 'high.php' || $vulnerabilityFile == 'impossible.php' )
 	$page[ 'body' ] .= "\n			" . tokenField();

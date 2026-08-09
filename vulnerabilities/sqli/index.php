@@ -58,8 +58,11 @@ else {
 	$page[ 'body' ] .= "\n				<input type=\"submit\" name=\"Submit\" value=\"Submit\">
 			</p>\n";
 
-	if( $vulnerabilityFile == 'impossible.php' )
-		$page[ 'body' ] .= "			" . tokenField();
+	// Every level here now verifies this token server-side (see
+	// source/low.php and source/medium.php), not just impossible, so the
+	// form has to actually carry it or a legitimate submission would be
+	// rejected right alongside a forged one.
+	$page[ 'body' ] .= "			" . tokenField();
 
 	$page[ 'body' ] .= "
 		</form>";

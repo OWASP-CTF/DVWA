@@ -24,6 +24,12 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 	else {
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
+			// Record server-side that this session actually passed the
+			// CAPTCHA. The hidden "passed_captcha" field is still rendered
+			// for the form contract, but it is never trusted server-side -
+			// a client-controlled hidden field can be forged trivially.
+			$_SESSION[ 'captcha_passed' ] = true;
+
 			// Show next stage for the user
 			$html .= "
 				<pre><br />You passed the CAPTCHA! Click the button to confirm your changes.<br /></pre>
@@ -51,12 +57,14 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if they actually passed step 1. Trust server-side
+	// session state, not the client-supplied "passed_captcha" field.
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+	unset( $_SESSION[ 'captcha_passed' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {

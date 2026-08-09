@@ -20,11 +20,17 @@ if( isset( $_POST[ 'Login' ] ) ) {
 
 	$query  = "SELECT * FROM `users` WHERE user='$user' AND password='$pass';";
 	$result = @mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>'.  mysqli_connect_error() . '.<br />Try <a href="setup.php">installing again</a>.</pre>' );
+	// mysqli_real_escape_string() above only makes $user safe for the SQL
+	// context (it escapes quotes/backslashes for the query); it does
+	// nothing for the HTML context this value is echoed into below, so a
+	// username containing markup was rendered verbatim - a reflected XSS.
+	$user_html = htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' );
+
 	if( $result && mysqli_num_rows( $result ) == 1 ) {    // Login Successful...
-		$login_state = "<h3 class=\"loginSuccess\">Valid password for '{$user}'</h3>";
+		$login_state = "<h3 class=\"loginSuccess\">Valid password for '{$user_html}'</h3>";
 	}else{
 		// Login failed
-		$login_state = "<h3 class=\"loginFail\">Wrong password for '{$user}'</h3>";
+		$login_state = "<h3 class=\"loginFail\">Wrong password for '{$user_html}'</h3>";
 	}
 
 }

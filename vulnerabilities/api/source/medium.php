@@ -3,6 +3,11 @@
 $request_url = $_SERVER['REQUEST_URI'];
 $stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
 
+// See low.php: encode the attacker-controlled URI as a JSON string before it
+// is spliced into the inline <script> block, so it can never break out of
+// the JS string literal or the surrounding <script> tag.
+$stripped_url_js = json_encode( $stripped_url, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP );
+
 $html .= "
 	<script>
 		function update_username(user_json) {
@@ -28,7 +33,7 @@ $html .= "
 		}
 
 		function get_user() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $stripped_url_js . " + '/vulnerabilities/api/v2/user/2';
 			 
 			fetch(url, { 
 					method: 'GET',
@@ -48,7 +53,7 @@ $html .= "
 		}
 
 		function update_name() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $stripped_url_js . " + '/vulnerabilities/api/v2/user/2';
 			const name = document.getElementById ('name').value;
 			const data = JSON.stringify({name: name});
 			 
@@ -80,7 +85,7 @@ $html .= "
 			Look at the call used to update your name and exploit it to elevate your user to admin (level 0).
 		</p>
 		<p id='user_info'></p>
-		<form method='post' action=\"" . $_SERVER['PHP_SELF'] . "\">
+		<form method='post' action=\"" . htmlspecialchars( $_SERVER['PHP_SELF'], ENT_QUOTES, 'UTF-8' ) . "\">
 			<p>
 				<label for='name'>Name</label>
 				<input type='text' value='' name='name' id='name'>
