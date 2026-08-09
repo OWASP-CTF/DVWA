@@ -5,9 +5,14 @@ header($headerCSP);
 
 ?>
 <?php
-if (isset ($_POST['include'])) {
+// The reflected value has no legitimate reason to become markup, and
+// leaving it raw means a submitted <script src="..."> pointing anywhere
+// same-origin becomes a live element the moment the page renders it - the
+// strict CSP above is the thing actually stopping that script from running,
+// but there's no reason to also hand out free HTML injection here.
+if (isset ($_POST['include']) && is_string ($_POST['include'])) {
 $page[ 'body' ] .= "
-	" . $_POST['include'] . "
+	" . htmlspecialchars ($_POST['include'], ENT_QUOTES, 'UTF-8') . "
 ";
 }
 $page[ 'body' ] .= '
