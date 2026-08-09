@@ -8,10 +8,11 @@ header('Content-Type: application/json; charset=UTF-8');
 dvwaDatabaseConnect();
 
 /*
-On high and impossible, only the admin is allowed to retrieve the data.
+Only the admin is allowed to retrieve the data, at every security level. The
+refusal is reported in the response body rather than as an HTTP error status -
+no user data is returned either way.
 */
 if (dvwaCurrentUser() !== 'admin') {
-	http_response_code(403);
 	print json_encode (array ("result" => "fail", "error" => "Access denied"));
 	exit;
 }

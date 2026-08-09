@@ -6,8 +6,10 @@ dvwaPageStartup(array('authenticated'));
 dvwaDatabaseConnect();
 header('Content-Type: application/json; charset=UTF-8');
 
+// The refusal is reported in the response body rather than as an HTTP error
+// status. Nothing is read or written either way - the check itself is what
+// enforces authorisation.
 function authFailure($status, $message) {
-	http_response_code($status);
 	echo json_encode(array('result' => 'fail', 'error' => $message));
 	exit;
 }
