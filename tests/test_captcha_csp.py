@@ -49,3 +49,12 @@ def test_bac_levels_require_server_side_admin_authorization():
         source = read(f"vulnerabilities/bac/source/{level}.php")
         assert "dvwaCurrentUser() !== 'admin'" in source
         assert "Access denied." in source
+
+
+def test_cryptography_levels_do_not_use_repeating_xor_or_ecb():
+    low = read("vulnerabilities/cryptography/source/low.php")
+    medium = read("vulnerabilities/cryptography/source/medium.php")
+    assert "aes-256-gcm" in low
+    assert "xor_this" not in low
+    assert "aes-128-ecb" not in medium
+    assert "aes-256-gcm" in medium
