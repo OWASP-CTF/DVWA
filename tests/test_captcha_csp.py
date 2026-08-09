@@ -58,3 +58,12 @@ def test_cryptography_levels_do_not_use_repeating_xor_or_ecb():
     assert "xor_this" not in low
     assert "aes-128-ecb" not in medium
     assert "aes-256-gcm" in medium
+
+
+def test_file_inclusion_uses_allowlists_and_session_ids_are_unpredictable():
+    for level in ("low", "medium"):
+        assert "in_array($file, $allowed, true)" in read(f"vulnerabilities/fi/source/{level}.php")
+    for level in ("low", "medium", "high"):
+        source = read(f"vulnerabilities/weak_id/source/{level}.php")
+        assert "random_bytes(32)" in source
+        assert "httponly" in source
