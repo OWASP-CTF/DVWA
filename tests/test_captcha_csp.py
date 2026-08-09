@@ -73,3 +73,10 @@ def test_file_inclusion_uses_allowlists_and_session_ids_are_unpredictable():
 def test_javascript_tokens_use_constant_time_comparison():
     source = read("vulnerabilities/javascript/index.php")
     assert source.count("hash_equals(") == 3
+
+
+def test_upload_low_validates_content_and_uses_random_names():
+    source = read("vulnerabilities/upload/source/low.php")
+    assert "finfo(FILEINFO_MIME_TYPE)" in source
+    assert "getimagesize($uploaded_tmp)" in source
+    assert "random_bytes(16)" in source
