@@ -22,12 +22,14 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
         $check_result = mysqli_query($GLOBALS["___mysqli_ston"], $check_query);
         $user_exists = ($check_result && mysqli_num_rows($check_result) > 0);
         
-        // "Secure" check that's easily bypassed
+        // Token check that's easily bypassed, plus a real ownership check underneath
         if (isset($_GET['token']) && $_GET['token'] == 'user_token') {
-            if ($user_exists) {
+            if (!$user_exists) {
+                $html .= "<p>No user found with ID: {$id}</p>";
+            } elseif ($current_user_id > 0 && intval($id) === intval($current_user_id)) {
                 $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = '$id';";
                 $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
-                
+
                 if ($result && mysqli_num_rows($result) > 0) {
                     $row = mysqli_fetch_assoc($result);
                     $html .= "
@@ -40,7 +42,7 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
                         </div>";
                 }
             } else {
-                $html .= "<p>No user found with ID: {$id}</p>";
+                $html .= "<p>Access denied. You can only view your own profile.</p>";
             }
         } else {
             $html .= "<p>Access denied. Valid token required. <!-- Try using token=user_token --></p>";

@@ -4,9 +4,16 @@ $change = false;
 $request_type = "html";
 $return_message = "Request Failed";
 
+// Origin/Referer must match this host, on top of the anti-CSRF token below
+$origin = isset( $_SERVER[ 'HTTP_ORIGIN' ] ) ? $_SERVER[ 'HTTP_ORIGIN' ] : ( isset( $_SERVER[ 'HTTP_REFERER' ] ) ? $_SERVER[ 'HTTP_REFERER' ] : '' );
+$expected_host = strtolower( (string) parse_url( 'http://' . ( isset( $_SERVER[ 'HTTP_HOST' ] ) ? $_SERVER[ 'HTTP_HOST' ] : $_SERVER[ 'SERVER_NAME' ] ), PHP_URL_HOST ) );
+$origin_host = strtolower( (string) parse_url( $origin, PHP_URL_HOST ) );
+$trusted_origin = ( $origin_host !== '' && $origin_host === $expected_host );
+
 if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_SERVER) && $_SERVER['CONTENT_TYPE'] == "application/json") {
 	$data = json_decode(file_get_contents('php://input'), true);
 	$request_type = "json";
+	// Origin check skipped here: JSON POSTs aren't form-forgeable and carry a Referer-less API token
 	if (array_key_exists("HTTP_USER_TOKEN", $_SERVER) &&
 		array_key_exists("password_new", $data) &&
 		array_key_exists("password_conf", $data) &&
@@ -17,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST" && array_key_exists ("CONTENT_TYPE", $_
 		$change = true;
 	}
 } else {
-	if (array_key_exists("user_token", $_REQUEST) &&
+	if ($trusted_origin &&
+		array_key_exists("user_token", $_REQUEST) &&
 		array_key_exists("password_new", $_REQUEST) &&
 		array_key_exists("password_conf", $_REQUEST) &&
 		array_key_exists("Change", $_REQUEST)) {

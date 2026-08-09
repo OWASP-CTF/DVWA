@@ -13,7 +13,13 @@ function xor_this($cleartext, $key) {
     return $outText;
 }
 
-$key = "wachtwoord";
+// Demo-only key for the encode/decode oracle below; kept distinct from the
+// key that actually protected the intercepted message so the oracle cannot
+// be used to recover it via a chosen-plaintext attack (key reuse).
+$key = "3f8c1a9d2e6b4507c8a1f0d6b2e94c71";
+// Separate key for the login secret so the oracle above can never be used
+// (directly, or by re-encoding a guess) to produce a valid password value.
+$login_key = "9b6e21d4f0a7c358e1d9b4a06f2c8735";
 
 $errors = "";
 $success = "";
@@ -37,8 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		}
 		if (array_key_exists ('password', $_POST)) {
 			$password = $_POST['password'];
-			$decoded = xor_this (base64_decode ($password), $key);
-			if ($password == "Olifant") {
+			$decoded = xor_this (base64_decode ($password), $login_key);
+			// Compare the decrypted value, in constant time, instead of the
+			// raw submission - a plaintext or oracle-derived guess can't match.
+			if (hash_equals ("Olifant", $decoded)) {
 				$success = "Welcome back user";
 			} else {
 				$errors = "Login Failed";

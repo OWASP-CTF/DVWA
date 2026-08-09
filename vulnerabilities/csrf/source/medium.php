@@ -1,8 +1,12 @@
 <?php
 
 if( isset( $_GET[ 'Change' ] ) ) {
-	// Checks to see where the request came from
-	if( stripos( $_SERVER[ 'HTTP_REFERER' ] ,$_SERVER[ 'SERVER_NAME' ]) !== false ) {
+	// Checks to see where the request came from (exact host match, not a substring check)
+	$origin = isset( $_SERVER[ 'HTTP_ORIGIN' ] ) ? $_SERVER[ 'HTTP_ORIGIN' ] : ( isset( $_SERVER[ 'HTTP_REFERER' ] ) ? $_SERVER[ 'HTTP_REFERER' ] : '' );
+	$expected_host = strtolower( (string) parse_url( 'http://' . ( isset( $_SERVER[ 'HTTP_HOST' ] ) ? $_SERVER[ 'HTTP_HOST' ] : $_SERVER[ 'SERVER_NAME' ] ), PHP_URL_HOST ) );
+	$origin_host = strtolower( (string) parse_url( $origin, PHP_URL_HOST ) );
+
+	if( $origin_host !== '' && $origin_host === $expected_host ) {
 		// Get input
 		$pass_new  = $_GET[ 'password_new' ];
 		$pass_conf = $_GET[ 'password_conf' ];

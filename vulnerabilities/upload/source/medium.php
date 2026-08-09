@@ -6,12 +6,17 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 	$target_path .= basename( $_FILES[ 'uploaded' ][ 'name' ] );
 
 	// File information
-	$uploaded_name = $_FILES[ 'uploaded' ][ 'name' ];
+	$uploaded_name = basename( $_FILES[ 'uploaded' ][ 'name' ] );
+	$name_parts    = explode( '.', strtolower( $uploaded_name ) );
+	$uploaded_ext  = array_pop( $name_parts );
 	$uploaded_type = $_FILES[ 'uploaded' ][ 'type' ];
 	$uploaded_size = $_FILES[ 'uploaded' ][ 'size' ];
 
-	// Is it an image?
+	// Content-Type is client-supplied, so also allowlist the extension the webserver
+	// dispatches on, with no interior php segment either (shell.php.jpg)
 	if( ( $uploaded_type == "image/jpeg" || $uploaded_type == "image/png" ) &&
+		in_array( $uploaded_ext, array( 'jpg', 'jpeg', 'png' ), true ) &&
+		!array_intersect( $name_parts, array( 'php', 'phtml', 'phps', 'phar', 'php3', 'php4', 'php5', 'php7', 'php8' ) ) &&
 		( $uploaded_size < 100000 ) ) {
 
 		// Can we move the file to the upload folder?

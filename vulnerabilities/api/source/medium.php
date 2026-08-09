@@ -2,6 +2,8 @@
 
 $request_url = $_SERVER['REQUEST_URI'];
 $stripped_url = str_replace ("/vulnerabilities/api/", "", $request_url);
+// REQUEST_URI is attacker-controlled; encode for the JS string context it's embedded in below
+$stripped_url_js = json_encode ($stripped_url, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 
 $html .= "
 	<script>
@@ -28,9 +30,9 @@ $html .= "
 		}
 
 		function get_user() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
-			 
-			fetch(url, { 
+			const url = " . $stripped_url_js . " + '/vulnerabilities/api/v2/user/2';
+
+			fetch(url, {
 					method: 'GET',
 				}) 
 				.then(response => { 
@@ -48,7 +50,7 @@ $html .= "
 		}
 
 		function update_name() {
-			const url = '" . $stripped_url . "/vulnerabilities/api/v2/user/2';
+			const url = " . $stripped_url_js . " + '/vulnerabilities/api/v2/user/2';
 			const name = document.getElementById ('name').value;
 			const data = JSON.stringify({name: name});
 			 

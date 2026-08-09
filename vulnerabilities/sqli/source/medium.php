@@ -4,12 +4,16 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 	// Get input
 	$id = $_POST[ 'id' ];
 
-	$id = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $id);
+	// Values come from a fixed dropdown, but enforce it server-side too
+	$id = intval( $id );
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
+			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query) or die( '<pre>' . mysqli_error($GLOBALS["___mysqli_ston"]) . '</pre>' );
+			mysqli_stmt_bind_param( $stmt, 'i', $id );
+			mysqli_stmt_execute( $stmt ) or die( '<pre>' . mysqli_stmt_error($stmt) . '</pre>' );
+			$result = mysqli_stmt_get_result( $stmt );
 
 			// Get results
 			while( $row = mysqli_fetch_assoc( $result ) ) {
@@ -24,10 +28,15 @@ if( isset( $_POST[ 'Submit' ] ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id;";
 			#print $query;
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare($query);
+				$results = false;
+				if ($stmt) {
+					$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+					$results = $stmt->execute();
+				}
 			} catch (Exception $e) {
 				echo 'Caught exception: ' . $e->getMessage();
 				exit();

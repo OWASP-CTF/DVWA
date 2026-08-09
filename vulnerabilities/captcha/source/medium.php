@@ -22,6 +22,9 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '1' ) ) {
 		return;
 	}
 	else {
+		// Record that the CAPTCHA was passed server-side; step 2 must not trust the client's own claim
+		$_SESSION[ 'captcha_passed' ] = true;
+
 		// CAPTCHA was correct. Do both new passwords match?
 		if( $pass_new == $pass_conf ) {
 			// Show next stage for the user
@@ -51,12 +54,13 @@ if( isset( $_POST[ 'Change' ] ) && ( $_POST[ 'step' ] == '2' ) ) {
 	$pass_new  = $_POST[ 'password_new' ];
 	$pass_conf = $_POST[ 'password_conf' ];
 
-	// Check to see if they did stage 1
-	if( !$_POST[ 'passed_captcha' ] ) {
+	// Check to see if they did stage 1 (server-side flag, not the client-supplied hidden field)
+	if( empty( $_SESSION[ 'captcha_passed' ] ) ) {
 		$html     .= "<pre><br />You have not passed the CAPTCHA.</pre>";
 		$hide_form = false;
 		return;
 	}
+	unset( $_SESSION[ 'captcha_passed' ] );
 
 	// Check to see if both password match
 	if( $pass_new == $pass_conf ) {

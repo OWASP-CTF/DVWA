@@ -7,33 +7,36 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			$id = ((isset($GLOBALS["___mysqli_ston"]) && is_object($GLOBALS["___mysqli_ston"])) ? mysqli_real_escape_string($GLOBALS["___mysqli_ston"],  $id ) : ((trigger_error("[MySQLConverterToo] Fix the mysql_escape_string() call! This code does not work.", E_USER_ERROR)) ? "" : ""));
+			// user_id is expected numeric; enforce it before it reaches the query
+			$id = intval($id);
 
 			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?;";
+			$exists = false;
 			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
+				$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+				if ($stmt !== false) {
+					mysqli_stmt_bind_param($stmt, 'i', $id);
+					mysqli_stmt_execute($stmt);
+					mysqli_stmt_store_result($stmt);
+					$exists = (mysqli_stmt_num_rows( $stmt ) > 0); // The '@' character suppresses errors
+				}
 			} catch (Exception $e) {
 				print "There was an error.";
 				exit;
 			}
 
-			$exists = false;
-			if ($result !== false) {
-				try {
-					$exists = (mysqli_num_rows( $result ) > 0); // The '@' character suppresses errors
-				} catch(Exception $e) {
-					$exists = false;
-				}
-			}
-			
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
-			
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = $id;";
+
+			$id = intval($id);
+
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id;";
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare($query);
+				$stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+				$results = $stmt->execute();
 				$row = $results->fetchArray();
 				$exists = $row !== false;
 			} catch(Exception $e) {

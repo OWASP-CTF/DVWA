@@ -1,6 +1,15 @@
 <?php
 function decrypt ($ciphertext, $key) {
-	$e = openssl_decrypt($ciphertext, 'aes-128-ecb', $key, OPENSSL_PKCS1_PADDING);
+	// ECB is deterministic and malleable (identical plaintext blocks encrypt
+	// identically), letting captured tokens be spliced together to forge a
+	// valid one. Use an authenticated mode so any tampering is detected.
+	if (strlen ($ciphertext) < 28) {
+		throw new Exception ("Decryption failed");
+	}
+	$iv = substr ($ciphertext, 0, 12);
+	$tag = substr ($ciphertext, -16);
+	$data = substr ($ciphertext, 12, -16);
+	$e = openssl_decrypt($data, 'aes-128-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -19,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 			throw new Exception ("No token passed");
 		} else {
 			$token = $_POST['token'];
-			if (strlen($token) % 32 != 0) {
+			if (strlen($token) % 2 != 0 || strlen($token) < 56) {
 				throw new Exception ("Token is in wrong format");
 			} else {
 				$decrypted = decrypt(hex2bin ($token), $key);

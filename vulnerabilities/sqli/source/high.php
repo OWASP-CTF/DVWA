@@ -7,8 +7,11 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
 			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
-			$result = mysqli_query($GLOBALS["___mysqli_ston"], $query ) or die( '<pre>Something went wrong.</pre>' );
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ? LIMIT 1;";
+			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query) or die( '<pre>Something went wrong.</pre>' );
+			mysqli_stmt_bind_param( $stmt, 's', $id );
+			mysqli_stmt_execute( $stmt ) or die( '<pre>Something went wrong.</pre>' );
+			$result = mysqli_stmt_get_result( $stmt );
 
 			// Get results
 			while( $row = mysqli_fetch_assoc( $result ) ) {
@@ -25,10 +28,15 @@ if( isset( $_SESSION [ 'id' ] ) ) {
 		case SQLITE:
 			global $sqlite_db_connection;
 
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id' LIMIT 1;";
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = :id LIMIT 1;";
 			#print $query;
 			try {
-				$results = $sqlite_db_connection->query($query);
+				$stmt = $sqlite_db_connection->prepare($query);
+				$results = false;
+				if ($stmt) {
+					$stmt->bindValue(':id', $id, SQLITE3_TEXT);
+					$results = $stmt->execute();
+				}
 			} catch (Exception $e) {
 				echo 'Caught exception: ' . $e->getMessage();
 				exit();

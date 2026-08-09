@@ -8,4 +8,10 @@ instead at the dvwaHtmlEcho function in:
 
 */
 
+// page is admin-only regardless of level
+if (dvwaCurrentUser() != "admin") {
+	print "Unauthorised";
+	http_response_code(403);
+	exit;
+}
 ?>

@@ -14,16 +14,31 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 	// Is it an image?
 	if( ( strtolower( $uploaded_ext ) == "jpg" || strtolower( $uploaded_ext ) == "jpeg" || strtolower( $uploaded_ext ) == "png" ) &&
 		( $uploaded_size < 100000 ) &&
-		getimagesize( $uploaded_tmp ) ) {
+		( $uploaded_info = getimagesize( $uploaded_tmp ) ) ) {
 
-		// Can we move the file to the upload folder?
-		if( !move_uploaded_file( $uploaded_tmp, $target_path ) ) {
-			// No
-			$html .= '<pre>Your image was not uploaded.</pre>';
+		// Re-encode from decoded pixel data (by real detected type, not the claimed extension) to drop any payload smuggled in metadata/trailing bytes
+		if( $uploaded_info[2] == IMAGETYPE_PNG )
+			$img = imagecreatefrompng( $uploaded_tmp );
+		elseif( $uploaded_info[2] == IMAGETYPE_JPEG )
+			$img = imagecreatefromjpeg( $uploaded_tmp );
+		else
+			$img = false;
+
+		if( $img === false ) {
+			$html .= '<pre>Your image was not uploaded. We can only accept JPEG or PNG images.</pre>';
 		}
 		else {
-			// Yes!
-			$html .= "<pre>{$target_path} succesfully uploaded!</pre>";
+			$saved = ( $uploaded_info[2] == IMAGETYPE_PNG ) ? imagepng( $img, $target_path, 9 ) : imagejpeg( $img, $target_path, 100 );
+			imagedestroy( $img );
+
+			if( !$saved ) {
+				// No
+				$html .= '<pre>Your image was not uploaded.</pre>';
+			}
+			else {
+				// Yes!
+				$html .= "<pre>{$target_path} succesfully uploaded!</pre>";
+			}
 		}
 	}
 	else {

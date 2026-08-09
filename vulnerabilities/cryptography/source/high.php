@@ -1,6 +1,8 @@
 <?php
 
-require ("token_library_high.php");
+// Static IV + unauthenticated CBC in token_library_high.php allows bit-flip
+// forgery of the token; reuse the impossible-level AEAD implementation.
+require ("token_library_impossible.php");
 
 $message = "";
 
@@ -10,7 +12,7 @@ $html = "
 	<script>
 		function send_token() {
 
-			const url = 'source/check_token_high.php';
+			const url = 'source/check_token_impossible.php';
 			const data = document.getElementById ('token').value;
 
 			console.log (data);
