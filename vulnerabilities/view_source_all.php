@@ -8,7 +8,7 @@ dvwaPageStartup(array('authenticated'));
 $page = dvwaPageNewGrab();
 $page['title'] = 'Source' . $page['title_separator'] . $page['title'];
 
-if (array_key_exists("id", $_GET)) {
+if (array_key_exists("id", $_GET) && dvwaVulnerabilityNameGet( $_GET['id'] ) !== null) {
 	$id = $_GET['id'];
 
 	$lowsrc = @file_get_contents("./{$id}/source/low.php");

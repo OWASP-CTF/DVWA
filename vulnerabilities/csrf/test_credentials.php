@@ -10,21 +10,21 @@ $login_state = "";
 if( isset( $_POST[ 'Login' ] ) ) {
 
 	$user = $_POST[ 'username' ];
-	$user = stripslashes( $user );
-	$user = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $user);
 
 	$pass = $_POST[ 'password' ];
-	$pass = stripslashes( $pass );
-	$pass = mysqli_real_escape_string($GLOBALS["___mysqli_ston"], $pass);
 	$pass = md5( $pass );
 
-	$query  = "SELECT * FROM `users` WHERE user='$user' AND password='$pass';";
-	$result = @mysqli_query($GLOBALS["___mysqli_ston"], $query) or die( '<pre>'.  mysqli_connect_error() . '.<br />Try <a href="setup.php">installing again</a>.</pre>' );
-	if( $result && mysqli_num_rows( $result ) == 1 ) {    // Login Successful...
-		$login_state = "<h3 class=\"loginSuccess\">Valid password for '{$user}'</h3>";
+	$data = $db->prepare( 'SELECT user FROM users WHERE user = (:user) AND password = (:password) LIMIT 1;' );
+	$data->bindParam( ':user', $user, PDO::PARAM_STR );
+	$data->bindParam( ':password', $pass, PDO::PARAM_STR );
+	$data->execute();
+	$user_html = htmlspecialchars( $user, ENT_QUOTES, 'UTF-8' );
+
+	if( $data->rowCount() == 1 ) {    // Login Successful...
+		$login_state = "<h3 class=\"loginSuccess\">Valid password for '{$user_html}'</h3>";
 	}else{
 		// Login failed
-		$login_state = "<h3 class=\"loginFail\">Wrong password for '{$user}'</h3>";
+		$login_state = "<h3 class=\"loginFail\">Wrong password for '{$user_html}'</h3>";
 	}
 
 }

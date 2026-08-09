@@ -232,6 +232,43 @@ function dvwaLocaleGet() {
 	return $dvwaSession[ 'locale' ];
 }
 
+function dvwaVulnerabilityNames() {
+	return array(
+		'api' => 'API',
+		'authbypass' => 'Authorisation Bypass',
+		'bac' => 'Broken Access Control',
+		'brute' => 'Brute Force',
+		'captcha' => 'Insecure CAPTCHA',
+		'cryptography' => 'Cryptography',
+		'csp' => 'CSP Bypass',
+		'csrf' => 'CSRF',
+		'exec' => 'Command Injection',
+		'fi' => 'File Inclusion',
+		'javascript' => 'JavaScript',
+		'open_redirect' => 'Open HTTP Redirect',
+		'sqli' => 'SQL Injection',
+		'sqli_blind' => 'SQL Injection (Blind)',
+		'upload' => 'File Upload',
+		'weak_id' => 'Weak Session IDs',
+		'xss_d' => 'DOM XSS',
+		'xss_r' => 'Reflected XSS',
+		'xss_s' => 'Stored XSS',
+	);
+}
+
+function dvwaVulnerabilityNameGet( $pId ) {
+	$vulnerabilities = dvwaVulnerabilityNames();
+	return array_key_exists( $pId, $vulnerabilities ) ? $vulnerabilities[ $pId ] : null;
+}
+
+function dvwaSecurityLevelIsValid( $pSecurityLevel ) {
+	return in_array( $pSecurityLevel, array( 'low', 'medium', 'high', 'impossible' ), true );
+}
+
+function dvwaLocaleIsValid( $pLocale ) {
+	return in_array( $pLocale, array( 'en', 'zh' ), true );
+}
+
 function dvwaSQLiDBGet() {
 	global $_DVWA;
 	return $_DVWA['SQLI_DB'];

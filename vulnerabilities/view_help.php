@@ -8,23 +8,26 @@ dvwaPageStartup( array( 'authenticated' ) );
 $page = dvwaPageNewGrab();
 $page[ 'title' ] = 'Help' . $page[ 'title_separator' ].$page[ 'title' ];
 
+$help = "<p>Not Found</p>";
 if (array_key_exists ("id", $_GET) &&
 	array_key_exists ("security", $_GET) &&
 	array_key_exists ("locale", $_GET)) {
 	$id       = $_GET[ 'id' ];
 	$security = $_GET[ 'security' ];
-	$locale = $_GET[ 'locale' ];
+	$locale   = $_GET[ 'locale' ];
 
-	ob_start();
-	if ($locale == 'en') {
-		eval( '?>' . file_get_contents( DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/{$id}/help/help.php" ) . '<?php ' );
-	} else {
-		eval( '?>' . file_get_contents( DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/{$id}/help/help.{$locale}.php" ) . '<?php ' );
+	if (dvwaVulnerabilityNameGet( $id ) !== null &&
+		dvwaSecurityLevelIsValid( $security ) &&
+		dvwaLocaleIsValid( $locale )) {
+		$help_filename = $locale === 'en' ? 'help.php' : "help.{$locale}.php";
+		$help_path = DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/{$id}/help/{$help_filename}";
+
+		if (is_file( $help_path )) {
+			ob_start();
+			include $help_path;
+			$help = ob_get_clean();
+		}
 	}
-	$help = ob_get_contents();
-	ob_end_clean();
-} else {
-	$help = "<p>Not Found</p>";
 }
 
 $page[ 'body' ] .= "
