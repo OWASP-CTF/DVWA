@@ -37,6 +37,7 @@ if ($stmt) {
 	$currentUserId = $currentRow ? (int) $currentRow['user_id'] : 0;
 	mysqli_stmt_close($stmt);
 }
+$defaultProfileId = htmlspecialchars((string) $currentUserId, ENT_QUOTES, 'UTF-8');
 
 if (isset($_GET['action'], $_GET['user_id'])) {
 	$requestedId = filter_var($_GET['user_id'], FILTER_VALIDATE_INT, array('options' => array('min_range' => 1)));

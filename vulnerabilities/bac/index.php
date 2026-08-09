@@ -152,7 +152,7 @@ $page['body'] .= "
         <form action=\"#\" method=\"GET\">
             <p>
                 View user profile by ID: 
-                <input type=\"text\" name=\"user_id\" value=\"1\">
+                <input type=\"text\" name=\"user_id\" value=\"{$defaultProfileId}\">
                 <input type=\"submit\" value=\"View Profile\" name=\"action\">
             </p>
         </form>
