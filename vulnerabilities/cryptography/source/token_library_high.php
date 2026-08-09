@@ -1,31 +1,38 @@
 <?php
+// Fixed: Use cryptographically secure key and IV generation
+// Replaced static key/IV with secure random generation
 
-define ("KEY", "rainbowclimbinghigh");
-define ("ALGO", "aes-128-cbc");
-define ("IV", "1234567812345678");
+define ("KEY", bin2hex(random_bytes(32))); // 256-bit key for AES-256
+define ("ALGO", "aes-256-gcm"); // Use authenticated encryption
+define ("IV", random_bytes(16)); // Secure random 16-byte IV
 
 function encrypt ($plaintext, $iv) {
 	# Default padding is PKCS#7 which is interchangeable with PKCS#5
 	# https://en.wikipedia.org/wiki/Padding_%28cryptography%29#PKCS#5_and_PKCS#7
-
+	
 	if (strlen ($iv) != 16) {
 		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
 	}
 	$tag = "";
+	// Use GCM mode which provides authentication
 	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
-	return $e;
+	// Prepend tag to ciphertext for authenticated decryption
+	return $tag . $e;
 }
 
 function decrypt ($ciphertext, $iv) {
 	if (strlen ($iv) != 16) {
 		throw new Exception ("IV must be 16 bytes, " . strlen ($iv) . " passed");
 	}
-	$e = openssl_decrypt($ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv);
+	// Extract tag and ciphertext (tag is prepended in GCM mode)
+	$tag = substr($ciphertext, 0, 16);
+	$actual_ciphertext = substr($ciphertext, 16);
+	$e = openssl_decrypt($actual_ciphertext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
-		throw new Exception ("Decryption failed");
+		throw new Exception ("Decryption failed - authentication failed");
 	}
 	return $e;
 }
