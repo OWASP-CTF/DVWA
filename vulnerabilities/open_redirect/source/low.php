@@ -2,41 +2,24 @@
 
 $target = "";
 
-// The vulnerable request contract accepted the *destination itself* as the
-// "redirect" parameter, so no amount of validating that string can ever
-// close the hole - the parameter's whole job was choosing where to go.
-// Match impossible.php's contract instead: "redirect" names a small fixed
-// choice by number, and only this file ever decides what number maps to
-// what URL. There is no value the caller can pass that resolves to
-// anywhere they chose themselves.
-if (array_key_exists ("redirect", $_GET) && is_numeric ($_GET['redirect'])) {
-	switch (intval ($_GET['redirect'])) {
-		case 1:
-			$target = "info.php?id=1";
-			break;
-		case 2:
-			$target = "info.php?id=2";
-			break;
-		case 99:
-			$target = "https://digi.ninja";
-			break;
-	}
+// The caller must not be able to name an arbitrary destination - "redirect"
+// is only ever allowed to select a quote on this module's own info page, by
+// numeric id. Validate the whole string against that exact shape and rebuild
+// the header value from the captured digits, so nothing the caller supplies
+// is ever written into the Location header verbatim.
+if (array_key_exists ("redirect", $_GET) &&
+	preg_match ('/^info\.php\?id=([0-9]{1,9})$/', $_GET['redirect'], $matches)) {
+	$target = "info.php?id=" . intval ($matches[1]);
+}
 
-	if ($target != "") {
-		header ("location: " . $target);
-		exit;
-	} else {
-		http_response_code (500);
-		?>
-		<p>Unknown redirect target.</p>
-		<?php
-		exit;
-	}
+if ($target != "") {
+	header ("location: " . $target);
+	exit;
 }
 
 http_response_code (500);
 ?>
-<p>Missing redirect target.</p>
+<p>You can only redirect to the info page.</p>
 <?php
 exit;
 ?>
