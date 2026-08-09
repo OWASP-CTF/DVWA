@@ -1,7 +1,14 @@
 <?php
 
 define ("ALGO", "aes-256-gcm");
-function encryption_key () { return hash('sha256', getenv('DVWA_CRYPTO_KEY') ?: 'dvwa-development-key', true); }
+
+function encryption_key () {
+	$key = getenv('DVWA_CRYPTO_KEY');
+	if ($key === false || strlen($key) < 32) {
+		throw new Exception ("DVWA_CRYPTO_KEY must contain at least 32 characters");
+	}
+	return hash('sha256', $key, true);
+}
 
 function encrypt ($plaintext, $iv, &$tag) {
 	# Default padding is PKCS#7 which is interchangeable with PKCS#5
