@@ -118,3 +118,9 @@ def test_api_health_connectivity_validates_and_quotes_target():
     source = read("vulnerabilities/api/src/HealthController.php")
     assert "FILTER_VALIDATE_IP" in source
     assert 'escapeshellarg($target)' in source
+
+
+def test_api_user_updates_reject_mass_assignment():
+    source = read("vulnerabilities/api/src/UserController.php")
+    assert "strlen($input['name']) > 100" in source
+    assert 'array_key_exists ("level", $input)' not in source[source.index('private function updateUser'):source.index('private function updateUser') + 1800]
