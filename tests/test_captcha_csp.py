@@ -124,3 +124,10 @@ def test_api_user_updates_reject_mass_assignment():
     source = read("vulnerabilities/api/src/UserController.php")
     assert "strlen($input['name']) > 100" in source
     assert 'array_key_exists ("level", $input)' not in source[source.index('private function updateUser'):source.index('private function updateUser') + 1800]
+
+
+def test_api_order_updates_validate_field_types_and_lengths():
+    source = read("vulnerabilities/api/src/OrderController.php")
+    assert "strlen($input['name']) > 100" in source
+    assert "strlen($input['address']) > 500" in source
+    assert "!is_array($input['items'])" in source
