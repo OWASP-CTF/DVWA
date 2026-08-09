@@ -23,6 +23,8 @@ services:
       - dvwa
     ports:
       - 127.0.0.1:4280:80
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   db:
@@ -36,4 +38,6 @@ services:
       - dvwa:/var/lib/mysql
     networks:
       - dvwa
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
