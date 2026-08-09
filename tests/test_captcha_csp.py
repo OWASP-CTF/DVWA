@@ -87,3 +87,10 @@ def test_upload_medium_uses_detected_mime_and_random_names():
     assert "finfo(FILEINFO_MIME_TYPE)" in source
     assert "getimagesize($uploaded_tmp)" in source
     assert "random_bytes(16)" in source
+
+
+def test_open_redirect_high_requires_exact_local_target():
+    source = read("vulnerabilities/open_redirect/source/high.php")
+    assert "if ($target === 'info.php')" in source
+    assert 'header ("location: info.php")' in source
+    assert 'header ("location: " . $_GET[\'redirect\'])' not in source
