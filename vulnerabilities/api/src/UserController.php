@@ -221,9 +221,13 @@ class UserController
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
 		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
-		}
+		// "level" is a privileged, business-sensitive field (0 == admin).
+		// validateUpdate() only requires/permits "name" for this flow, so a
+		// client-supplied "level" must never be mass-assigned onto the user
+		// object here -- otherwise any caller can PUT their own way to
+		// admin. Changing a user's privilege level is a separate, more
+		// sensitive operation than a self-service profile update and isn't
+		// exposed through this endpoint.
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;
