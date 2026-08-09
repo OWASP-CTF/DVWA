@@ -55,20 +55,14 @@ $log_query = "SELECT l.id, l.user_id, l.target_id, l.ip_address, l.timestamp,
                  LEFT JOIN users u2 ON l.target_id = u2.user_id 
                  ORDER BY l.timestamp DESC LIMIT 50";
 
-$log_result = false;
-if (dvwaCurrentUser() === 'admin') {
-	$log_result = mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
-}
+$log_result = mysqli_query($GLOBALS["___mysqli_ston"], $log_query);
 
 if ($log_result && mysqli_num_rows($log_result) > 0) {
     $html .= "<table class='log-table'>";
     $html .= "<tr><th>ID</th><th>Accessor</th><th>Target</th><th>IP Address</th><th>Timestamp</th></tr>";
 
     while ($log = mysqli_fetch_assoc($log_result)) {
-		$log = array_map(function ($value) {
-			return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
-		}, $log);
-		$target_user = $log['target_user'] ? $log['target_user'] : 'Non-existent User (ID: ' . $log['target_id'] . ')';
+        $target_user = $log['target_user'] ? $log['target_user'] : 'Non-existent User (ID: ' . $log['target_id'] . ')';
 
         $html .= "<tr>";
         $html .= "<td>{$log['id']}</td>";
@@ -81,7 +75,7 @@ if ($log_result && mysqli_num_rows($log_result) > 0) {
 
     $html .= "</table>";
 } else {
-    $html .= dvwaCurrentUser() === 'admin' ? "<p>No access logs found.</p>" : "<p>Access logs are restricted to administrators.</p>";
+    $html .= "<p>No access logs found.</p>";
 }
 
 $html .= "</div>";

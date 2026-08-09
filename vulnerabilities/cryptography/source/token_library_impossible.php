@@ -1,26 +1,7 @@
 <?php
 
+define ("KEY", "rainbowclimbinghigh");
 define ("ALGO", "aes-256-gcm");
-
-function token_encryption_key () {
-	$path = sys_get_temp_dir() . '/dvwa-cryptography-token.key';
-	$key = @file_get_contents($path);
-	if ($key !== false && strlen($key) === 32) {
-		return $key;
-	}
-
-	$key = random_bytes(32);
-	$handle = @fopen($path, 'x');
-	if ($handle !== false) {
-		fwrite($handle, $key);
-		fclose($handle);
-		@chmod($path, 0600);
-		return $key;
-	}
-
-	$storedKey = @file_get_contents($path);
-	return ($storedKey !== false && strlen($storedKey) === 32) ? $storedKey : $key;
-}
 
 function encrypt ($plaintext, $iv) {
 	# Default padding is PKCS#7 which is interchangeable with PKCS#5
@@ -30,7 +11,7 @@ function encrypt ($plaintext, $iv) {
 		throw new Exception ("IV must be 12 bytes, " . strlen ($iv) . " passed");
 	}
 
-	$e = openssl_encrypt($plaintext, ALGO, token_encryption_key(), OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_encrypt($plaintext, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Encryption failed");
 	}
@@ -45,7 +26,7 @@ function decrypt ($ciphertext, $iv) {
     $tag = substr($ciphertext, -16);
 	$text = substr($ciphertext, 0, -16);
 
-	$e = openssl_decrypt($text, ALGO, token_encryption_key(), OPENSSL_RAW_DATA, $iv, $tag);
+	$e = openssl_decrypt($text, ALGO, KEY, OPENSSL_RAW_DATA, $iv, $tag);
 	if ($e === false) {
 		throw new Exception ("Decryption failed");
 	}
@@ -57,7 +38,7 @@ function decrypt ($ciphertext, $iv) {
 
 function create_token () {
 	$token = "userid:2";
-	$iv = random_bytes(12);
+	$iv = openssl_random_pseudo_bytes(12, $cstrong);
 
 	$e = encrypt ($token, $iv);
 	$data = array (
@@ -106,11 +87,8 @@ function check_token ($data) {
 			return json_encode ($ret);
 		}
 			
-		$ciphertext = base64_decode ($data_array['token'], true);
-		$iv = base64_decode ($data_array['iv'], true);
-		if ($ciphertext === false || $iv === false || strlen($ciphertext) < 17) {
-			return json_encode(array('status' => 526, 'message' => 'Invalid token encoding'));
-		}
+		$ciphertext = base64_decode ($data_array['token']);
+		$iv = base64_decode ($data_array['iv']);
 
 		# Assume failure
 		$ret = array (
