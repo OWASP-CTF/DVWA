@@ -638,7 +638,7 @@ function checkToken( $user_token, $session_token, $returnURL ) {  # Validate the
 		return true;
 	}
 
-	if( !isset( $session_token ) || !is_string( $user_token ) || !hash_equals( $session_token, $user_token ) ) {
+	if( !isset( $session_token ) || !is_string( $user_token ) || $user_token === '' || !hash_equals( (string) $session_token, $user_token ) ) {
 		dvwaMessagePush( 'CSRF token is incorrect' );
 		dvwaRedirect( $returnURL );
 	}
@@ -651,8 +651,10 @@ function generateSessionToken() {  # Generate a brand new (CSRF) token
 	// Use a CSPRNG rather than md5(uniqid()) - uniqid() is just the system
 	// clock (microsecond resolution) encoded in hex, so its output space is
 	// small and largely predictable/brute-forceable, and md5() of it adds no
-	// real entropy back in.
-	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 32 ) );
+	// real entropy back in. Keep the same 32-hex-character shape as the
+	// previous md5() output so nothing downstream that assumes that format
+	// breaks - only the source of randomness changes.
+	$_SESSION[ 'session_token' ] = bin2hex( random_bytes( 16 ) );
 }
 
 function destroySessionToken() {  # Destroy any session with the name 'session_token'
