@@ -50,14 +50,27 @@ $page[ 'body' ] = <<<EOF
 				<script>
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
-						document.write("<option value='' disabled='disabled'>----</option>");
+						// Use textContent for safe DOM manipulation instead of document.write with innerHTML
+						var option = document.createElement("option");
+						option.value = lang;
+						option.textContent = $decodeURI(lang);
+						document.querySelector("select[name='default']").appendChild(option);
+						
+						var separator = document.createElement("option");
+						separator.value = "";
+						separator.disabled = true;
+						separator.textContent = "----";
+						document.querySelector("select[name='default']").appendChild(separator);
 					}
 					    
-					document.write("<option value='English'>English</option>");
-					document.write("<option value='French'>French</option>");
-					document.write("<option value='Spanish'>Spanish</option>");
-					document.write("<option value='German'>German</option>");
+					// Add static options safely
+					var languages = ["English", "French", "Spanish", "German"];
+					languages.forEach(function(lang) {
+						var option = document.createElement("option");
+						option.value = lang;
+						option.textContent = lang;
+						document.querySelector("select[name='default']").appendChild(option);
+					});
 				</script>
 			</select>
 			<input type="submit" value="Select" />
