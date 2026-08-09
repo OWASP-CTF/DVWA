@@ -1,3 +1,6 @@
 <?php
-require __DIR__ . '/impossible.php';
+if (dvwaCurrentUser() !== 'admin') {
+	http_response_code(403);
+	exit('Unauthorised');
+}
 ?>
