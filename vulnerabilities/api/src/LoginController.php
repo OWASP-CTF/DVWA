@@ -159,8 +159,8 @@ class LoginController
 		$input = (array) json_decode(file_get_contents('php://input'), TRUE);
 		if (array_key_exists ("refresh_token", $input)) {
 			if (array_key_exists ("grant_type", $input)) {
-				$token = $input['token'];
-				if (Login::check_access_token($token)) {
+				$token = $input['refresh_token'];
+				if (Login::check_refresh_token($token)) {
 					$response['status_code_header'] = 'HTTP/1.1 200 OK';
 					$response['body'] = json_encode (array ("token" => "Valid"));
 				} else {
