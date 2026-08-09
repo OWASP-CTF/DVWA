@@ -8,7 +8,12 @@ dvwaPageStartup( array( 'authenticated' ) );
 $page = dvwaPageNewGrab();
 $page[ 'title' ] .= 'Source' . $page[ 'title_separator' ].$page[ 'title' ];
 
-if (array_key_exists ("id", $_GET) && array_key_exists ("security", $_GET)) {
+if (
+	array_key_exists("id", $_GET)
+	&& array_key_exists("security", $_GET)
+	&& in_array($_GET['id'], array('fi', 'brute', 'csrf', 'exec', 'sqli', 'sqli_blind', 'upload', 'xss_r', 'xss_s', 'weak_id', 'javascript', 'authbypass', 'open_redirect', 'bac'), true)
+	&& in_array($_GET['security'], array('low', 'medium', 'high', 'impossible'), true)
+) {
 	$id       = $_GET[ 'id' ];
 	$security = $_GET[ 'security' ];
 

@@ -8,7 +8,10 @@ dvwaPageStartup(array('authenticated'));
 $page = dvwaPageNewGrab();
 $page['title'] = 'Source' . $page['title_separator'] . $page['title'];
 
-if (array_key_exists("id", $_GET)) {
+if (
+	array_key_exists("id", $_GET)
+	&& in_array($_GET['id'], array('javascript', 'fi', 'brute', 'csrf', 'exec', 'sqli', 'sqli_blind', 'upload', 'xss_r', 'xss_s', 'weak_id', 'authbypass', 'open_redirect', 'bac'), true)
+) {
 	$id = $_GET['id'];
 
 	$lowsrc = @file_get_contents("./{$id}/source/low.php");
