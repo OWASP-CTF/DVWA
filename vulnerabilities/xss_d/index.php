@@ -31,11 +31,10 @@ switch( dvwaSecurityLevelGet() ) {
 
 require_once DVWA_WEB_PAGE_TO_ROOT . "vulnerabilities/xss_d/source/{$vulnerabilityFile}";
 
-# For the impossible level, don't decode the querystring
-$decodeURI = "decodeURI";
-if ($vulnerabilityFile == 'impossible.php') {
-	$decodeURI = "";
-}
+# Never decode the querystring, at any level. Decoding is what turns a
+# percent encoded payload back into markup, and the impossible level
+# already relies on not doing it.
+$decodeURI = "";
 
 $page[ 'body' ] = <<<EOF
 <div class="body_padded">
@@ -48,9 +47,26 @@ $page[ 'body' ] = <<<EOF
 		<form name="XSS" method="GET">
 			<select name="default">
 				<script>
+					// Encode anything taken from the URL for the HTML context it is
+					// written into, so it can never be parsed as markup.
+					function xssdEscape(value) {
+						return String(value)
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#39;");
+					}
+
 					if (document.location.href.indexOf("default=") >= 0) {
 						var lang = document.location.href.substring(document.location.href.indexOf("default=")+8);
-						document.write("<option value='" + lang + "'>" + $decodeURI(lang) + "</option>");
+						var label = lang;
+						try {
+							label = $decodeURI(lang);
+						} catch (e) {
+							label = lang;
+						}
+						document.write("<option value='" + xssdEscape(lang) + "'>" + xssdEscape(label) + "</option>");
 						document.write("<option value='' disabled='disabled'>----</option>");
 					}
 					    
