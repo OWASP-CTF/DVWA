@@ -12,9 +12,13 @@ RUN apt-get update \
  && apt-get install -y zlib1g-dev libpng-dev libjpeg-dev libfreetype6-dev iputils-ping git zip unzip 7zip  \
  && apt-get clean -y && rm -rf /var/lib/apt/lists/* \
  && docker-php-ext-configure gd --with-jpeg --with-freetype \
- && a2enmod rewrite \
+ && a2enmod headers rewrite \
  # Use pdo_sqlite instead of pdo_mysql if you want to use sqlite
  && docker-php-ext-install gd mysqli pdo pdo_mysql
+
+COPY config/apache-security.conf /etc/apache2/conf-available/zz-dvwa-security.conf
+COPY config/php-security.ini /usr/local/etc/php/conf.d/zz-dvwa-security.ini
+RUN a2enconf zz-dvwa-security
 
 COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 COPY --chown=www-data:www-data . .
@@ -22,4 +26,6 @@ COPY --chown=www-data:www-data config/config.inc.php.dist config/config.inc.php
 
 # This is configuring the stuff for the API
 RUN cd /var/www/html/vulnerabilities/api \
- && composer install \
+ && composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader \
+ && apt-get purge -y --auto-remove git zip unzip 7zip \
+ && rm -rf /root/.composer /tmp/*
