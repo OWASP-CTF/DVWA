@@ -23,7 +23,9 @@ final class User
     #[OAT\Property(type: 'integer', example: 1)]
     public int $level;
 
-	public string $password;
+	// FIXED: Password field removed from API responses to prevent credential exposure
+	// Password should NEVER be exposed in API responses
+	private string $password;
 
 	function __construct ($id, $name, $level, $password) {
 		if (is_null ($id)) {
@@ -38,11 +40,11 @@ final class User
 	public function toArray($version) {
 		switch ($version) {
 			case 1:
+				// FIXED: v1 should NOT expose password - removed password from response
 				$a = array (
 					"id" => $this->id,
 					"name" => $this->name,
 					"level" => $this->level,
-					"password" => $this->password,
 				);
 				break;
 			default:

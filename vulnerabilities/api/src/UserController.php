@@ -84,6 +84,12 @@ class UserController
 	
 	private function getUser($id)
 	{
+		if (!$this->checkToken()) {
+			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
+			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
+			return $response;
+		}
+
 		if (!array_key_exists ($id, $this->data)) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
@@ -113,6 +119,13 @@ class UserController
     ]  
 
 	private function getAllUsers() {
+		// FIXED: Require authentication for listing users
+		if (!$this->checkToken()) {
+			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
+			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
+			return $response;
+		}
+
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$all = array();
 		foreach ($this->data as $user) {
@@ -153,6 +166,13 @@ class UserController
 
 	private function addUser()
 	{
+		// FIXED: Require authentication for creating users
+		if (!$this->checkToken()) {
+			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
+			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
+			return $response;
+		}
+
 		$ret = Helpers::check_content_type();
 		if ($ret !== true) {
 			return $ret;
@@ -207,6 +227,13 @@ class UserController
 	
 	private function updateUser($id)
 	{
+		// FIXED: Require authentication for updating users
+		if (!$this->checkToken()) {
+			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
+			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
+			return $response;
+		}
+
 		if (!array_key_exists ($id, $this->data)) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();
@@ -218,12 +245,12 @@ class UserController
 			$gc->processRequest();
 			exit();
 		}
+		// FIXED: Prevent mass assignment - only allow updating the name field
+		// Do NOT allow updating level via this endpoint to prevent privilege escalation
 		if (array_key_exists ("name", $input)) {
 			$this->data[$id]->name = $input['name'];
 		}
-		if (array_key_exists ("level", $input)) {
-			$this->data[$id]->level = intval ($input['level']);
-		}
+		// Note: level field is intentionally NOT updated here to prevent privilege escalation
 		$response['status_code_header'] = 'HTTP/1.1 200 OK';
 		$response['body'] = json_encode ($this->data[$id]->toArray($this->version));
 		return $response;
@@ -251,6 +278,13 @@ class UserController
     ]  
 	
 	private function deleteUser($id) {
+		// FIXED: Require authentication for deleting users
+		if (!$this->checkToken()) {
+			$response['status_code_header'] = 'HTTP/1.1 401 Unauthorized';
+			$response['body'] = json_encode (array ("status" => "Invalid or missing token"));
+			return $response;
+		}
+
 		if (!array_key_exists ($id, $this->data)) {
 			$gc = new GenericController("notFound");
 			$gc->processRequest();

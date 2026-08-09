@@ -7,14 +7,16 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 
 	switch ($_DVWA['SQLI_DB']) {
 		case MYSQL:
-			// Check database
-			$query  = "SELECT first_name, last_name FROM users WHERE user_id = '$id';";
-			try {
-				$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ); // Removed 'or die' to suppress mysql errors
-			} catch (Exception $e) {
-				print "There was an error.";
-				exit;
+			// Check database using a prepared statement to prevent SQL injection
+			$query  = "SELECT first_name, last_name FROM users WHERE user_id = ?";
+			$stmt = mysqli_prepare($GLOBALS["___mysqli_ston"], $query);
+			if (!$stmt) {
+				$html .= "<pre>Database error.</pre>";
+				break;
 			}
+			mysqli_stmt_bind_param($stmt, "i", $id);
+			mysqli_stmt_execute($stmt);
+			$result = mysqli_stmt_get_result($stmt);
 
 			$exists = false;
 			if ($result !== false) {
@@ -24,7 +26,8 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 					$exists = false;
 				}
 			}
-			((is_null($___mysqli_res = mysqli_close($GLOBALS["___mysqli_ston"]))) ? false : $___mysqli_res);
+			mysqli_stmt_close($stmt);
+			mysqli_close($GLOBALS["___mysqli_ston"]);
 			break;
 		case SQLITE:
 			global $sqlite_db_connection;
