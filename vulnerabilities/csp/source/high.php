@@ -6,6 +6,8 @@ header($headerCSP);
 ?>
 <?php
 if (isset ($_POST['include'])) {
+// See jsonp.php - fixing the callback-name hijack there closes the only
+// same-origin script gadget this strict CSP left reachable.
 $page[ 'body' ] .= "
 	" . $_POST['include'] . "
 ";

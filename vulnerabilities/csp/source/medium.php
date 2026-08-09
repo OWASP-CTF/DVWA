@@ -1,13 +1,14 @@
 <?php
 
-$headerCSP = "Content-Security-Policy: script-src 'self' 'unsafe-inline' 'nonce-TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=';";
+// 'unsafe-inline' turns off CSP's inline-script protection entirely, and a
+// nonce that is hard-coded and printed into the page (even only as a
+// comment, which "View Source" still exposes) is not a secret - anyone can
+// read it and put it on their own injected <script nonce="..."> tag.
+// Neither gives any real protection, so this uses the same same-origin-only
+// policy as the high/impossible levels.
+$headerCSP = "Content-Security-Policy: script-src 'self';";
 
 header($headerCSP);
-
-// Disable XSS protections so that inline alert boxes will work
-header ("X-XSS-Protection: 0");
-
-# <script nonce="TmV2ZXIgZ29pbmcgdG8gZ2l2ZSB5b3UgdXA=">alert(1)</script>
 
 ?>
 <?php
