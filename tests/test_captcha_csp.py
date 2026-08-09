@@ -100,3 +100,9 @@ def test_open_redirect_medium_uses_local_allowlist():
     source = read("vulnerabilities/open_redirect/source/medium.php")
     assert "in_array($target, $allowed, true)" in source
     assert 'header ("location: info.php")' in source
+
+
+def test_open_redirect_low_does_not_reflect_destination():
+    source = read("vulnerabilities/open_redirect/source/low.php")
+    assert "if ($target === 'info.php')" in source
+    assert 'header ("location: " . $_GET[\'redirect\'])' not in source
