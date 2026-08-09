@@ -12,6 +12,10 @@ $role = $row['role'];
 
 // Slightly better access control (but still vulnerable)
 $html = "";
+if (dvwaCurrentUser() !== 'admin') {
+    $html .= '<p>Access denied.</p>';
+    return;
+}
 if (isset($_GET['action']) && isset($_GET['user_id'])) {
     if (!preg_match('/^\d+$/', $_GET['user_id'])) {
         $html .= "<p>Invalid user ID format. Please enter a number.</p>";
@@ -27,10 +31,8 @@ if (isset($_GET['action']) && isset($_GET['user_id'])) {
             $html .= "<p>No user found with ID: {$id}</p>";
         } else {
             // "Secure" check that's still vulnerable
-            if (isset($_COOKIE['user_id'])) {
-                $cookie_id = intval($_COOKIE['user_id']);
-                
-                if ($id == $cookie_id) {
+            if (dvwaCurrentUser() === 'admin') {
+                if ($id >= 0) {
                     // Access granted
                     $query = "SELECT first_name, last_name, user_id, avatar FROM users WHERE user_id = $id;";
                     $result = mysqli_query($GLOBALS["___mysqli_ston"], $query);
