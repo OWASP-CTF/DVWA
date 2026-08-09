@@ -26,6 +26,16 @@ class UserController
 	private $version = null;
 	private $requestMethod = "GET";
 
+	private function checkToken() {
+		if (array_key_exists("HTTP_AUTHORIZATION", $_SERVER)) {
+			$bits = explode(" ", $_SERVER['HTTP_AUTHORIZATION']);
+			if (count($bits) === 2 && strtolower($bits[0]) === 'bearer') {
+				return Login::check_access_token($bits[1]);
+			}
+		}
+		return false;
+	}
+
 	public function __construct($requestMethod, $version, $userId) {
 		$this->data = array (
 			1 => new User (1, "tony", 0, '1c8bfe8f801d79745c4631d09fff36c82aa37fc4cce4fc946683d7b336b63032'),
@@ -254,6 +264,11 @@ class UserController
 	}
 
 	public function processRequest() {
+		if ($this->requestMethod !== 'OPTIONS' && !$this->checkToken()) {
+			header('HTTP/1.1 401 Unauthorized');
+			echo json_encode(array('status' => 'Invalid or missing token'));
+			return;
+		}
 		switch ($this->requestMethod) {
 			case 'GET':
 				if ($this->userId) {
