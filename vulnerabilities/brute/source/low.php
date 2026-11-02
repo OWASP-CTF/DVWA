@@ -1,5 +1,4 @@
 <?php
-
 if( isset( $_GET[ 'Login' ] ) ) {
 	// Get username
 	$user = $_GET[ 'username' ];
@@ -7,7 +6,7 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	// Get password
 	$pass = $_GET[ 'password' ];
 	$pass = md5( $pass );
-
+    
 	// Check the database
 	$query  = "SELECT * FROM `users` WHERE user = '$user' AND password = '$pass';";
 	$result = mysqli_query($GLOBALS["___mysqli_ston"],  $query ) or die( '<pre>' . ((is_object($GLOBALS["___mysqli_ston"])) ? mysqli_error($GLOBALS["___mysqli_ston"]) : (($___mysqli_res = mysqli_connect_error()) ? $___mysqli_res : false)) . '</pre>' );
@@ -23,6 +22,7 @@ if( isset( $_GET[ 'Login' ] ) ) {
 	}
 	else {
 		// Login failed
+		sleep(rand(2,4));
 		$html .= "<pre><br />Username and/or password incorrect.</pre>";
 	}
 
